@@ -42,8 +42,6 @@ export class FarmScene extends Phaser.Scene {
     let growthTimeScale: 1 | 10 | 100 = 1;
     let isSyncing = false;
     let lastSyncLabel = 'never';
-    const syncProfileId = this.remoteSaveService.getProfileId();
-    const syncTokenPreview = this.remoteSaveService.getTokenPreview();
 
     const loaded = this.saveSystem.loadGame();
     this.farmTiles = loaded.farmTiles;
@@ -86,7 +84,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const statusText = this.add
-      .text(24, 114, 'Click empty tile to plant. Click ready crop to harvest. Sell with button or S key.', {
+      .text(24, 114, 'Click empty tile to plant. Login before upload/download sync.', {
         color: '#3f5f2f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -109,8 +107,16 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
-    const devSpeedText = this.add
+    const authText = this.add
       .text(24, 172, '', {
+        color: '#0f4f8c',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
+    const devSpeedText = this.add
+      .text(24, 190, '', {
         color: '#7a3b00',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -162,6 +168,39 @@ export class FarmScene extends Phaser.Scene {
         fontSize: '16px',
         fontFamily: 'Arial',
         padding: { x: 12, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const registerButton = this.add
+      .text(24, 22, 'Register', {
+        color: '#ffffff',
+        backgroundColor: '#345c7a',
+        fontSize: '14px',
+        fontFamily: 'Arial',
+        padding: { x: 10, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const loginButton = this.add
+      .text(120, 22, 'Login (L)', {
+        color: '#ffffff',
+        backgroundColor: '#345c7a',
+        fontSize: '14px',
+        fontFamily: 'Arial',
+        padding: { x: 10, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const logoutButton = this.add
+      .text(220, 22, 'Logout', {
+        color: '#ffffff',
+        backgroundColor: '#6f3c3c',
+        fontSize: '14px',
+        fontFamily: 'Arial',
+        padding: { x: 10, y: 6 },
       })
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
@@ -273,22 +312,83 @@ export class FarmScene extends Phaser.Scene {
       statusText.setText(this.statusMessage);
     };
 
+    const refreshAuthLabel = (): void => {
+      const authSummary = this.remoteSaveService.getAuthSummary();
+      authText.setText(`Auth: ${authSummary}`);
+    };
+
     const setSyncLabel = (state: 'idle' | 'syncing' | 'success' | 'error', message?: string): void => {
+      const authSummary = this.remoteSaveService.getAuthSummary();
+
       if (state === 'syncing') {
-        syncText.setText(`Sync: in progress... | Profile: ${syncProfileId} | Token: ${syncTokenPreview}`);
+        syncText.setText(`Sync: in progress... | User: ${authSummary}`);
         return;
       }
 
       if (message) {
-        syncText.setText(
-          `Sync: ${message} | Last sync: ${lastSyncLabel} | Profile: ${syncProfileId} | Token: ${syncTokenPreview}`,
-        );
+        syncText.setText(`Sync: ${message} | Last sync: ${lastSyncLabel} | User: ${authSummary}`);
         return;
       }
 
-      syncText.setText(
-        `Sync: ${state} | Last sync: ${lastSyncLabel} | Profile: ${syncProfileId} | Token: ${syncTokenPreview}`,
-      );
+      syncText.setText(`Sync: ${state} | Last sync: ${lastSyncLabel} | User: ${authSummary}`);
+    };
+
+    const promptCredentials = (): { email: string; password: string } | null => {
+      const email = window.prompt('Email')?.trim() ?? '';
+      if (!email) {
+        return null;
+      }
+
+      const password = window.prompt('Password (min 6 chars)') ?? '';
+      if (!password) {
+        return null;
+      }
+
+      return { email, password };
+    };
+
+    const register = async (): Promise<void> => {
+      const credentials = promptCredentials();
+      if (!credentials) {
+        return;
+      }
+
+      try {
+        await this.remoteSaveService.register(credentials.email, credentials.password);
+        this.statusMessage = 'Registration successful and logged in.';
+        refreshAuthLabel();
+        setSyncLabel('idle', 'ready');
+      } catch (error) {
+        this.statusMessage = `Register failed: ${String(error)}`;
+      }
+
+      statusText.setText(this.statusMessage);
+    };
+
+    const login = async (): Promise<void> => {
+      const credentials = promptCredentials();
+      if (!credentials) {
+        return;
+      }
+
+      try {
+        await this.remoteSaveService.login(credentials.email, credentials.password);
+        this.statusMessage = 'Login successful.';
+        refreshAuthLabel();
+        setSyncLabel('idle', 'ready');
+      } catch (error) {
+        this.statusMessage = `Login failed: ${String(error)}`;
+      }
+
+      statusText.setText(this.statusMessage);
+    };
+
+    const logout = (): void => {
+      this.remoteSaveService.logout();
+      this.statusMessage = 'Logged out.';
+      refreshAuthLabel();
+      setSyncLabel('idle', 'auth required');
+      statusText.setText(this.statusMessage);
     };
 
     const renderSeedSelector = (): void => {
@@ -593,6 +693,13 @@ export class FarmScene extends Phaser.Scene {
 
     resetButton.on('pointerdown', resetSave);
     sellButton.on('pointerdown', sellInventory);
+    registerButton.on('pointerdown', () => {
+      void register();
+    });
+    loginButton.on('pointerdown', () => {
+      void login();
+    });
+    logoutButton.on('pointerdown', logout);
     uploadButton.on('pointerdown', () => {
       void uploadRemoteSave();
     });
@@ -645,6 +752,9 @@ export class FarmScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-R', resetSave);
     this.input.keyboard?.on('keydown-S', sellInventory);
+    this.input.keyboard?.on('keydown-L', () => {
+      void login();
+    });
     this.input.keyboard?.on('keydown-U', () => {
       void uploadRemoteSave();
     });
@@ -658,6 +768,7 @@ export class FarmScene extends Phaser.Scene {
 
     refreshHud();
     inventoryText.setText(getInventoryLabel());
+    refreshAuthLabel();
     setSyncLabel('idle');
     refreshDevSpeedLabel();
     refreshSelectedSeedLabel();

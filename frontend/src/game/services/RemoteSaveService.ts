@@ -6,9 +6,25 @@ type GameStateResponse = {
   error?: string;
 };
 
-const PROFILE_ID_STORAGE_KEY = 'farmy.profileId';
-const PROFILE_TOKEN_STORAGE_KEY = 'farmy.profileToken';
-const PROFILE_TOKEN_HEADER = 'x-profile-token';
+type AuthResponse = {
+  success: boolean;
+  data?: {
+    token: string;
+    user: {
+      id: string;
+      email: string;
+    };
+  };
+  error?: string;
+};
+
+type AuthUser = {
+  id: string;
+  email: string;
+};
+
+const AUTH_TOKEN_STORAGE_KEY = 'farmy.authToken';
+const AUTH_USER_STORAGE_KEY = 'farmy.authUser';
 
 const resolveApiBaseUrl = (): string => {
   const configured = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -22,76 +38,134 @@ const resolveApiBaseUrl = (): string => {
 export class RemoteSaveService {
   private readonly apiBaseUrl = resolveApiBaseUrl();
 
-  private readonly defaultProfileId = this.resolveProfileId();
+  private authToken: string | null = this.loadTokenFromStorage();
 
-  private readonly profileToken = this.resolveProfileToken();
+  private authUser: AuthUser | null = this.loadUserFromStorage();
 
-  private resolveProfileId(): string {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const fromQuery = params.get('profile')?.trim();
-      if (fromQuery) {
-        localStorage.setItem(PROFILE_ID_STORAGE_KEY, fromQuery);
-        return fromQuery;
-      }
-
-      const fromStorage = localStorage.getItem(PROFILE_ID_STORAGE_KEY)?.trim();
-      if (fromStorage) {
-        return fromStorage;
-      }
+  private loadTokenFromStorage(): string | null {
+    if (typeof window === 'undefined') {
+      return null;
     }
 
-    const fromEnv = import.meta.env.VITE_PROFILE_ID?.trim();
-    if (fromEnv) {
-      return fromEnv;
-    }
-
-    return 'dev-local';
+    const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+    return token && token.trim().length > 0 ? token : null;
   }
 
-  getProfileId(): string {
-    return this.defaultProfileId;
+  private loadUserFromStorage(): AuthUser | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as AuthUser;
+      if (typeof parsed.id === 'string' && typeof parsed.email === 'string') {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 
-  getTokenPreview(): string {
-    return `${this.profileToken.slice(0, 4)}...${this.profileToken.slice(-4)}`;
+  private persistAuthSession(token: string, user: AuthUser): void {
+    this.authToken = token;
+    this.authUser = user;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+      localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
+    }
   }
 
-  private resolveProfileToken(): string {
+  isAuthenticated(): boolean {
+    return Boolean(this.authToken && this.authUser);
+  }
+
+  getAuthSummary(): string {
+    if (!this.authUser) {
+      return 'anonymous';
+    }
+
+    return this.authUser.email;
+  }
+
+  logout(): void {
+    this.authToken = null;
+    this.authUser = null;
+
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const fromQuery = params.get('token')?.trim();
-      if (fromQuery && fromQuery.length >= 6) {
-        localStorage.setItem(PROFILE_TOKEN_STORAGE_KEY, fromQuery);
-        return fromQuery;
-      }
-
-      const fromStorage = localStorage.getItem(PROFILE_TOKEN_STORAGE_KEY)?.trim();
-      if (fromStorage && fromStorage.length >= 6) {
-        return fromStorage;
-      }
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     }
-
-    const fromEnv = import.meta.env.VITE_PROFILE_TOKEN?.trim();
-    if (fromEnv && fromEnv.length >= 6) {
-      return fromEnv;
-    }
-
-    const generated = `dev-${Math.random().toString(36).slice(2, 12)}`;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(PROFILE_TOKEN_STORAGE_KEY, generated);
-    }
-    return generated;
   }
 
   private authHeaders(): Record<string, string> {
+    if (!this.authToken) {
+      return {};
+    }
+
     return {
-      [PROFILE_TOKEN_HEADER]: this.profileToken,
+      authorization: `Bearer ${this.authToken}`,
     };
   }
 
-  async downloadSave(profileId = this.defaultProfileId): Promise<SaveGame | null> {
-    const response = await fetch(`${this.apiBaseUrl}/api/v1/game-state/${profileId}`, {
+  private ensureAuthenticated(): void {
+    if (!this.authToken) {
+      throw new Error('auth_required');
+    }
+  }
+
+  async register(email: string, password: string): Promise<void> {
+    const response = await fetch(`${this.apiBaseUrl}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`register_failed_${response.status}`);
+    }
+
+    const payload = (await response.json()) as AuthResponse;
+    if (!payload.success || !payload.data) {
+      throw new Error(payload.error ?? 'register_failed_invalid_payload');
+    }
+
+    this.persistAuthSession(payload.data.token, payload.data.user);
+  }
+
+  async login(email: string, password: string): Promise<void> {
+    const response = await fetch(`${this.apiBaseUrl}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`login_failed_${response.status}`);
+    }
+
+    const payload = (await response.json()) as AuthResponse;
+    if (!payload.success || !payload.data) {
+      throw new Error(payload.error ?? 'login_failed_invalid_payload');
+    }
+
+    this.persistAuthSession(payload.data.token, payload.data.user);
+  }
+
+  async downloadSave(): Promise<SaveGame | null> {
+    this.ensureAuthenticated();
+
+    const response = await fetch(`${this.apiBaseUrl}/api/v1/game-state/me`, {
       headers: this.authHeaders(),
     });
 
@@ -111,8 +185,10 @@ export class RemoteSaveService {
     return payload.data;
   }
 
-  async uploadSave(save: SaveGame, profileId = this.defaultProfileId): Promise<void> {
-    const response = await fetch(`${this.apiBaseUrl}/api/v1/game-state/${profileId}`, {
+  async uploadSave(save: SaveGame): Promise<void> {
+    this.ensureAuthenticated();
+
+    const response = await fetch(`${this.apiBaseUrl}/api/v1/game-state/me`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

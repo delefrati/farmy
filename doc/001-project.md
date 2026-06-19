@@ -136,26 +136,27 @@ This section reflects the current implementation state in the repository and loc
   * seed lock/unlock checks use current player level
   * HUD now shows XP needed to reach next level
 * Phase 11 backend save sync baseline is implemented:
-  * new API endpoints `GET/PUT /api/v1/game-state/:profileId` backed by Redis
-  * frontend upload/download actions sync local save with backend profile
+  * new API endpoints `GET/PUT /api/v1/game-state/me` backed by Redis
+  * frontend upload/download actions sync local save with authenticated user profile
   * remote payload validation now enforces full 6x4 farm tile grid
   * Vite dev proxy now forwards `/api/*` to backend for local sync testing
-  * auth-lite ownership is enforced via `x-profile-token` header (required for GET/PUT)
+  * real auth routes are available (`/api/v1/auth/register`, `/api/v1/auth/login`, `/api/v1/auth/me`)
+  * JWT bearer auth now protects save sync endpoints
 * Dev-only growth speed controls are implemented:
   * growth can run at `1x`, `10x`, or `100x` in development mode
   * speed toggles available via UI buttons and keys `1/2/3`
 * Sync UX polish is implemented:
   * scene now shows sync state (`idle/syncing/success/error`)
   * last successful sync timestamp is displayed in UI
-  * active sync profile id is displayed and configurable (`?profile=<id>` / env / localStorage)
-  * profile token is configurable (`?token=<value>` / env / localStorage) and shown as masked preview
+  * auth status displays current logged-in user
+  * in-game controls allow register/login/logout for sync testing
   * sync now blocks overwriting when target save is newer (basic timestamp conflict guard)
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
 * Local single-player gameplay MVP is now functional: plant, grow, harvest, store, select seeds, and sell.
-* Backend-connected persistence baseline now includes auth-lite profile ownership; full account identity and conflict resolution are pending.
+* Backend-connected persistence now uses real account auth; conflict resolution and UX polish are pending.
 
 ### Recently Fixed
 
@@ -164,7 +165,6 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Full account identity/auth lifecycle (beyond token-per-profile).
 * Merge strategy beyond timestamp guard (manual merge/force options).
 * Economy balancing for seed costs, sell prices, growth times, and XP curve.
 * UI polish for shop and feedback panel.
@@ -172,7 +172,7 @@ This section reflects the current implementation state in the repository and loc
 
 ### Recommended Next Steps
 
-1. Define real user auth flow for save sync (replacing auth-lite token ownership).
+1. Add explicit sync conflict actions (force upload/download) with confirmation UI.
 2. Tune progression and economy values (growth time, sell price, XP curve).
 3. Add basic UI polish pass for controls and status panel.
 

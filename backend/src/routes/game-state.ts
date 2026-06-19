@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import { requireAuth, type AuthenticatedRequest } from '../auth/jwt';
 
 type GameStateRedisClient = {
   get(key: string): Promise<string | null>;
@@ -26,9 +27,7 @@ type GameStatePayload = {
 };
 
 const KEY_PREFIX = 'farmy:game-state:';
-const TOKEN_KEY_PREFIX = 'farmy:game-state-token:';
 const GRID_TILE_COUNT = 24;
-const TOKEN_HEADER_NAME = 'x-profile-token';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -88,56 +87,18 @@ const isValidGameStatePayload = (value: unknown): value is GameStatePayload => {
   );
 };
 
-const getProfileId = (req: Request): string | null => {
-  const profileId = req.params.profileId?.trim();
-  if (!profileId) {
-    return null;
-  }
-
-  return profileId;
-};
-
-const getProfileToken = (req: Request): string | null => {
-  const token = req.header(TOKEN_HEADER_NAME)?.trim();
-  if (!token || token.length < 6) {
-    return null;
-  }
-
-  return token;
-};
-
 export const createGameStateRoutes = (redisClient: GameStateRedisClient): Router => {
   const router = Router();
 
-  router.get('/:profileId', async (req: Request, res: Response): Promise<void> => {
-    const profileId = getProfileId(req);
-    if (!profileId) {
-      res.status(400).json({ success: false, error: 'profile_id_required' });
-      return;
-    }
-
-    const profileToken = getProfileToken(req);
-    if (!profileToken) {
-      res.status(401).json({ success: false, error: 'profile_token_required' });
-      return;
-    }
+  router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void> => {
+    const user = (req as AuthenticatedRequest).user;
+    const profileId = user.id;
 
     try {
       const raw = await redisClient.get(`${KEY_PREFIX}${profileId}`);
       if (!raw) {
         res.status(404).json({ success: false, error: 'game_state_not_found' });
         return;
-      }
-
-      const tokenKey = `${TOKEN_KEY_PREFIX}${profileId}`;
-      const storedToken = await redisClient.get(tokenKey);
-      if (storedToken && storedToken !== profileToken) {
-        res.status(403).json({ success: false, error: 'profile_token_mismatch' });
-        return;
-      }
-
-      if (!storedToken) {
-        await redisClient.set(tokenKey, profileToken);
       }
 
       const data = JSON.parse(raw) as unknown;
@@ -152,18 +113,9 @@ export const createGameStateRoutes = (redisClient: GameStateRedisClient): Router
     }
   });
 
-  router.put('/:profileId', async (req: Request, res: Response): Promise<void> => {
-    const profileId = getProfileId(req);
-    if (!profileId) {
-      res.status(400).json({ success: false, error: 'profile_id_required' });
-      return;
-    }
-
-    const profileToken = getProfileToken(req);
-    if (!profileToken) {
-      res.status(401).json({ success: false, error: 'profile_token_required' });
-      return;
-    }
+  router.put('/me', requireAuth, async (req: Request, res: Response): Promise<void> => {
+    const user = (req as AuthenticatedRequest).user;
+    const profileId = user.id;
 
     if (!isValidGameStatePayload(req.body)) {
       res.status(400).json({ success: false, error: 'invalid_game_state_payload' });
@@ -171,17 +123,6 @@ export const createGameStateRoutes = (redisClient: GameStateRedisClient): Router
     }
 
     try {
-      const tokenKey = `${TOKEN_KEY_PREFIX}${profileId}`;
-      const storedToken = await redisClient.get(tokenKey);
-      if (storedToken && storedToken !== profileToken) {
-        res.status(403).json({ success: false, error: 'profile_token_mismatch' });
-        return;
-      }
-
-      if (!storedToken) {
-        await redisClient.set(tokenKey, profileToken);
-      }
-
       await redisClient.set(`${KEY_PREFIX}${profileId}`, JSON.stringify(req.body));
       res.json({ success: true });
     } catch (error) {
