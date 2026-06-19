@@ -47,7 +47,7 @@ export class FarmScene extends Phaser.Scene {
     const tileVisuals = new Map<string, TileVisual>();
 
     this.add
-      .text(24, 24, 'FarmScene: Phase 5 Planting + Economy', {
+      .text(24, 24, 'FarmScene: Phase 8 Harvest + Sell Loop', {
         color: '#1f3f10',
         fontSize: '24px',
         fontFamily: 'Arial',
@@ -71,7 +71,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const statusText = this.add
-      .text(24, 102, 'Click empty tile to plant. Click ready crop to harvest. Press R to reset save.', {
+      .text(24, 102, 'Click empty tile to plant. Click ready crop to harvest. Sell with button or S key.', {
         color: '#3f5f2f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -95,6 +95,17 @@ export class FarmScene extends Phaser.Scene {
       .text(770, 22, 'Reset Save (R)', {
         color: '#ffffff',
         backgroundColor: '#955728',
+        fontSize: '16px',
+        fontFamily: 'Arial',
+        padding: { x: 12, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const sellButton = this.add
+      .text(620, 22, 'Sell Inventory (S)', {
+        color: '#ffffff',
+        backgroundColor: '#2f7a41',
         fontSize: '16px',
         fontFamily: 'Arial',
         padding: { x: 12, y: 6 },
@@ -151,6 +162,42 @@ export class FarmScene extends Phaser.Scene {
 
       const text = entries.map(([cropId, amount]) => `${cropId} x${amount}`).join(' | ');
       return `Inventory: ${text}`;
+    };
+
+    const sellInventory = (): void => {
+      const entries = Object.entries(this.inventory).filter(([, amount]) => amount > 0);
+      if (entries.length === 0) {
+        this.statusMessage = 'Nothing to sell.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      let totalCoins = 0;
+
+      entries.forEach(([cropId, amount]) => {
+        const crop = getCrop(cropId);
+        if (!crop) {
+          return;
+        }
+
+        totalCoins += crop.sellPrice * amount;
+      });
+
+      if (totalCoins <= 0) {
+        this.statusMessage = 'No sellable crops found in inventory.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      this.economy.coins += totalCoins;
+      this.inventory = {};
+
+      saveCurrent();
+      hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+      inventoryText.setText(getInventoryLabel());
+
+      this.statusMessage = `Sold inventory for +${totalCoins} coins.`;
+      statusText.setText(this.statusMessage);
     };
 
     const refreshTileVisual = (tile: FarmTile): void => {
@@ -278,8 +325,10 @@ export class FarmScene extends Phaser.Scene {
     };
 
     resetButton.on('pointerdown', resetSave);
+    sellButton.on('pointerdown', sellInventory);
 
     this.input.keyboard?.on('keydown-R', resetSave);
+    this.input.keyboard?.on('keydown-S', sellInventory);
 
     if (this.statusMessage) {
       statusText.setText(this.statusMessage);

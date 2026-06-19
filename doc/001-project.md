@@ -117,11 +117,21 @@ This section reflects the current implementation state in the repository and loc
   * growth stage is computed by elapsed time vs crop `growSeconds`
   * tile visuals and labels update in real time (no scene restart required)
   * ready crops are visually distinguished from growing crops
+* Phase 7 harvesting + inventory persistence is implemented:
+  * clicking ready crops harvests and clears the tile
+  * harvested crops are stored in persistent inventory
+  * harvesting grants XP and updates player level
+  * SaveSystem migrated to version 2 with inventory support
+* Phase 8 selling baseline is implemented:
+  * `Sell Inventory` action converts stored crops to coins using crop sell price
+  * selling is available via button and `S` keyboard shortcut
+  * inventory and economy are saved immediately after selling
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
-* Gameplay loop is partially implemented (save + planting + growth), but harvest/inventory/selling are still pending.
+* Gameplay loop now includes planting, growth, harvesting, inventory, and selling baseline.
+* Balance tuning and progression design are still pending.
 
 ### Recently Fixed
 
@@ -130,14 +140,14 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Harvesting and inventory systems.
-* Selling, leveling, and shop flow.
+* Shop flow and economy balancing.
+* Progression tuning for levels/unlocks.
 * Animal/decor/social phases.
 
 ### Recommended Next Steps
 
-1. Implement Phase 7 harvesting + inventory persistence.
-2. Add Phase 8 selling flow and coin feedback loop.
+1. Add a minimal shop flow (buy/sell panel and selected seed switching).
+2. Tune progression and economy values (growth time, sell price, XP curve).
 3. Connect gameplay systems to backend endpoints incrementally.
 
 ---
