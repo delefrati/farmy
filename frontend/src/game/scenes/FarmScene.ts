@@ -104,10 +104,12 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const hudText = this.add
-      .text(24, 100, `Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`, {
+      .text(24, 100, '', {
         color: '#2f4f1f',
+        backgroundColor: '#9fdd7a',
         fontSize: '16px',
         fontFamily: 'Arial',
+        padding: { x: 2, y: 1 },
       })
       .setDepth(1);
 

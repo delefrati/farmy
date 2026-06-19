@@ -3,7 +3,10 @@ import { BootScene } from './scenes/BootScene';
 import { FarmScene } from './scenes/FarmScene';
 
 export const createGameConfig = (parent: string | HTMLElement): Phaser.Types.Core.GameConfig => ({
-  type: Phaser.AUTO,
+  // Canvas renderer avoids WebGL text-texture artifacts (stray dark boxes /
+  // wrong glyph colors) seen on some drivers after scene restarts. This game
+  // only draws rectangles and text, so Canvas has no meaningful downside.
+  type: Phaser.CANVAS,
   width: 1280,
   height: 860,
   parent,
