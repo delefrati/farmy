@@ -69,8 +69,16 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
+    const progressionText = this.add
+      .text(24, 76, '', {
+        color: '#2f4f1f',
+        fontSize: '14px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
     const selectedSeedText = this.add
-      .text(24, 80, '', {
+      .text(24, 92, '', {
         color: '#2f4f1f',
         fontSize: '16px',
         fontFamily: 'Arial',
@@ -78,7 +86,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const statusText = this.add
-      .text(24, 102, 'Click empty tile to plant. Click ready crop to harvest. Sell with button or S key.', {
+      .text(24, 114, 'Click empty tile to plant. Click ready crop to harvest. Sell with button or S key.', {
         color: '#3f5f2f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -86,7 +94,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const inventoryText = this.add
-      .text(24, 122, 'Inventory: empty', {
+      .text(24, 134, 'Inventory: empty', {
         color: '#2f4f1f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -94,7 +102,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const syncText = this.add
-      .text(24, 142, 'Sync: idle | Last sync: never', {
+      .text(24, 154, 'Sync: idle | Last sync: never', {
         color: '#1f5c99',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -102,7 +110,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const devSpeedText = this.add
-      .text(24, 160, '', {
+      .text(24, 172, '', {
         color: '#7a3b00',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -198,6 +206,17 @@ export class FarmScene extends Phaser.Scene {
         progress,
         ready: progress >= 1,
       };
+    };
+
+    const getNextLevelXpTarget = (level: number): number => {
+      return level * 50;
+    };
+
+    const refreshHud = (): void => {
+      hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+      const targetXp = getNextLevelXpTarget(this.economy.level);
+      const missingXp = Math.max(targetXp - this.economy.xp, 0);
+      progressionText.setText(`Next level in ${missingXp} XP`);
     };
 
     const saveCurrent = (): void => {
@@ -350,7 +369,7 @@ export class FarmScene extends Phaser.Scene {
       this.inventory = {};
 
       saveCurrent();
-      hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+      refreshHud();
       inventoryText.setText(getInventoryLabel());
 
       this.statusMessage = `Sold inventory for +${totalCoins} coins.`;
@@ -528,7 +547,7 @@ export class FarmScene extends Phaser.Scene {
 
             saveCurrent();
             refreshTileVisual(tile);
-            hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+            refreshHud();
             inventoryText.setText(getInventoryLabel());
             statusText.setText(this.statusMessage);
             return;
@@ -554,7 +573,7 @@ export class FarmScene extends Phaser.Scene {
 
           saveCurrent();
           refreshTileVisual(tile);
-          hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+          refreshHud();
           inventoryText.setText(getInventoryLabel());
           statusText.setText(this.statusMessage);
         });
@@ -637,7 +656,7 @@ export class FarmScene extends Phaser.Scene {
       statusText.setText(this.statusMessage);
     }
 
-    hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+    refreshHud();
     inventoryText.setText(getInventoryLabel());
     setSyncLabel('idle');
     refreshDevSpeedLabel();

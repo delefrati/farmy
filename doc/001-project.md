@@ -134,6 +134,7 @@ This section reflects the current implementation state in the repository and loc
   * level-up message now appears when XP crosses threshold
   * unlock messaging shows newly unlocked crops
   * seed lock/unlock checks use current player level
+  * HUD now shows XP needed to reach next level
 * Phase 11 backend save sync baseline is implemented:
   * new API endpoints `GET/PUT /api/v1/game-state/:profileId` backed by Redis
   * frontend upload/download actions sync local save with backend profile
