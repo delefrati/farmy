@@ -173,15 +173,13 @@ export class FarmScene extends Phaser.Scene {
     };
 
     const renderSeedSelector = (): void => {
-      const selectorTitle = this.add
+      this.add
         .text(430, 58, 'Seed Shop:', {
           color: '#1f3f10',
           fontSize: '16px',
           fontFamily: 'Arial',
         })
         .setDepth(2);
-
-      selectorTitle.setText('Seed Shop:');
 
       crops.forEach((crop, index) => {
         const isSelected = crop.id === this.selectedCropId;
@@ -200,7 +198,7 @@ export class FarmScene extends Phaser.Scene {
           .setDepth(2);
 
         button.on('pointerdown', () => {
-          if (!isUnlocked) {
+          if (this.economy.level < crop.unlockLevel) {
             this.statusMessage = `${crop.name} unlocks at level ${crop.unlockLevel}.`;
             statusText.setText(this.statusMessage);
             return;
@@ -215,6 +213,12 @@ export class FarmScene extends Phaser.Scene {
           this.scene.restart();
         });
       });
+    };
+
+    const getUnlockedCropNames = (fromExclusiveLevel: number, toInclusiveLevel: number): string[] => {
+      return crops
+        .filter((crop) => crop.unlockLevel > fromExclusiveLevel && crop.unlockLevel <= toInclusiveLevel)
+        .map((crop) => crop.name);
     };
 
     const sellInventory = (): void => {
@@ -330,12 +334,22 @@ export class FarmScene extends Phaser.Scene {
 
             const cropId = growth.crop.id;
             this.inventory[cropId] = (this.inventory[cropId] ?? 0) + 1;
+            const previousLevel = this.economy.level;
             this.economy.xp += growth.crop.xp;
             this.economy.level = Math.floor(this.economy.xp / 50) + 1;
 
             tile.state = 'empty';
             tile.cropId = undefined;
             tile.plantedAt = undefined;
+
+            if (this.economy.level > previousLevel) {
+              const unlockedNames = getUnlockedCropNames(previousLevel, this.economy.level);
+              const unlockSuffix = unlockedNames.length > 0 ? ` Unlocked: ${unlockedNames.join(', ')}.` : '';
+              this.statusMessage = `Level up! You reached level ${this.economy.level}.${unlockSuffix}`;
+              saveCurrent();
+              this.scene.restart();
+              return;
+            }
 
             this.statusMessage = `${growth.crop.name} harvested. +1 in inventory.`;
 

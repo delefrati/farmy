@@ -130,12 +130,16 @@ This section reflects the current implementation state in the repository and loc
   * seed selection UI allows switching active crop
   * crop selection enforces unlock level rules
   * selected seed remains persisted in save data
+* Phase 10 progression feedback baseline is implemented:
+  * level-up message now appears when XP crosses threshold
+  * unlock messaging shows newly unlocked crops
+  * seed lock/unlock checks use current player level
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
-* Gameplay loop now includes planting, growth, harvesting, inventory, selling, and seed selection.
-* Balance tuning and progression UX polish are still pending.
+* Local single-player gameplay MVP is now functional: plant, grow, harvest, store, select seeds, and sell.
+* Backend-connected persistence, economy balancing, and UX polish are still pending.
 
 ### Recently Fixed
 
@@ -144,15 +148,16 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Economy balancing for seed costs, sell prices, and growth times.
-* Progression tuning for levels/unlocks and UI feedback.
+* Backend gameplay endpoints (save/profile/inventory sync).
+* Economy balancing for seed costs, sell prices, growth times, and XP curve.
+* UI polish for shop and feedback panel.
 * Animal/decor/social phases.
 
 ### Recommended Next Steps
 
-1. Add simple progression feedback (level-up notification and unlock hint updates).
+1. Expose gameplay persistence endpoints on backend and wire frontend save sync.
 2. Tune progression and economy values (growth time, sell price, XP curve).
-3. Connect gameplay systems to backend endpoints incrementally.
+3. Add basic UI polish pass for controls and status panel.
 
 ---
 
