@@ -76,7 +76,6 @@ Already aligned with the historical loop:
 
 Still missing for closer original parity:
 
-* crop care states and consequences (dryness, weeds, pests, health decay, wither/death, hoe cleanup)
 * mature-window pressure and spoilage timing
 * multi-season crops and fertilizer acceleration
 * animal lifecycle depth (feeding, growing-to-sell animals, status bars, lifespan)
@@ -115,11 +114,16 @@ Phase P1 - Crop care and failure states
   * pests/bugs;
   * crop health decay;
   * harvest block or penalty when unhealthy.
-* Current status: TODO.
+* Current status: DONE.
 * Exit criteria:
   * planted tiles can independently become dry/weedy/pested by elapsed time rules;
   * player can water/remove weeds/remove pests;
   * health value is persisted and affects crop outcomes.
+* Implementation notes:
+  * deterministic, timestamp-based care simulation in `frontend/src/game/systems/CareSystem.ts`;
+  * care advances on load (covers closed-game time) and every tick, scaled by dev growth speed;
+  * clicking a planted tile resolves the most urgent problem first (pests > weeds > dry) before harvesting;
+  * crop health scales harvest XP (40%-100%); care state persisted via save v4.
 
 Phase P2 - Mature window, wither, and hoe cleanup
 

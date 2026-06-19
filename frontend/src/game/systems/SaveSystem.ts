@@ -6,7 +6,7 @@ import { defaultCropId } from '../data/crops';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 
 type LegacySaveGameV1 = {
   version: number;
@@ -72,7 +72,15 @@ const isValidFarmTile = (value: unknown): value is FarmTile => {
     (tile.state === 'empty' || tile.state === 'planted') &&
     (tile.cropId === undefined || typeof tile.cropId === 'string') &&
     (tile.plantedAt === undefined || typeof tile.plantedAt === 'number') &&
-    (tile.decorationId === undefined || typeof tile.decorationId === 'string')
+    (tile.decorationId === undefined || typeof tile.decorationId === 'string') &&
+    (tile.health === undefined || typeof tile.health === 'number') &&
+    (tile.isDry === undefined || typeof tile.isDry === 'boolean') &&
+    (tile.hasWeeds === undefined || typeof tile.hasWeeds === 'boolean') &&
+    (tile.hasPests === undefined || typeof tile.hasPests === 'boolean') &&
+    (tile.wateredAt === undefined || typeof tile.wateredAt === 'number') &&
+    (tile.careUpdatedAt === undefined || typeof tile.careUpdatedAt === 'number') &&
+    (tile.weedIntervalSeen === undefined || typeof tile.weedIntervalSeen === 'number') &&
+    (tile.pestIntervalSeen === undefined || typeof tile.pestIntervalSeen === 'number')
   );
 };
 
@@ -185,6 +193,14 @@ export class SaveSystem {
       const parsed = JSON.parse(raw) as unknown;
       if (isValidSaveGame(parsed) && parsed.version === SAVE_VERSION) {
         return parsed;
+      }
+
+      // v3 shares the same structure as v4 (care fields are optional on tiles),
+      // so migrate it by bumping the version.
+      if (isValidSaveGame(parsed) && parsed.version === 3) {
+        const migrated: SaveGame = { ...parsed, version: SAVE_VERSION };
+        this.saveGame(migrated);
+        return migrated;
       }
 
       if (isValidLegacySaveGameV1(parsed) && parsed.version === 1) {

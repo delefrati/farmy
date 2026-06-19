@@ -10,6 +10,16 @@ import { RemoteSaveService } from '../services/RemoteSaveService';
 import { getLevelFromXp, getXpToNextLevel } from '../data/progression';
 import { decorations, defaultDecorationId } from '../data/decorations';
 import type { DecorationDefinition } from '../types/decoration';
+import {
+  CARE,
+  clearTileCare,
+  getActiveProblems,
+  initTileCare,
+  removePests,
+  removeWeeds,
+  simulateTileCare,
+  waterTile,
+} from '../systems/CareSystem';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
@@ -66,6 +76,9 @@ export class FarmScene extends Phaser.Scene {
     this.animals = loaded.animals;
     this.selectedCropId = loaded.selectedCropId;
 
+    // Advance crop care for any time that passed while the game was closed.
+    this.farmTiles.forEach((tile) => simulateTileCare(tile, Date.now(), growthTimeScale));
+
     const tileVisuals = new Map<string, TileVisual>();
 
     this.add
@@ -117,7 +130,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const statusText = this.add
-      .text(24, 128, 'Click empty tile to plant. Click ready crop to harvest. Sell with S.', {
+      .text(24, 128, 'Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.', {
         color: '#3f5f2f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -803,14 +816,21 @@ export class FarmScene extends Phaser.Scene {
         return;
       }
 
-      if (growth.ready) {
+      const problems = getActiveProblems(tile);
+      const health = Math.round(tile.health ?? CARE.MAX_HEALTH);
+
+      if (problems.length > 0) {
+        visual.rect.setFillStyle(0xb06a2e);
+      } else if (growth.ready) {
         visual.rect.setFillStyle(0x4e8b3a);
       } else {
         visual.rect.setFillStyle(0x7a5230);
       }
 
       visual.title.setText(`${growth.crop.name} • ${growth.stageLabel}`);
-      visual.subtitle.setText(growth.ready ? 'Ready to harvest' : `${Math.floor(growth.progress * 100)}% grown`);
+      const statusPart = growth.ready ? 'Ready' : `${Math.floor(growth.progress * 100)}%`;
+      const problemPart = problems.length > 0 ? ` | ${problems.join(',')}` : '';
+      visual.subtitle.setText(`${statusPart} | HP ${health}${problemPart}`);
     };
 
     const renderGrid = (): void => {
@@ -888,6 +908,43 @@ export class FarmScene extends Phaser.Scene {
           const selectedCrop = getSelectedCrop();
 
           if (tile.state === 'planted') {
+            // Care-first: resolve the most urgent problem before harvesting.
+            if (tile.hasPests) {
+              removePests(tile);
+              this.economy.xp += 1;
+              this.economy.level = getLevelFromXp(this.economy.xp);
+              this.statusMessage = 'Removed pests. +1 XP.';
+              saveCurrent();
+              refreshTileVisual(tile);
+              refreshHud();
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            if (tile.hasWeeds) {
+              removeWeeds(tile);
+              this.economy.xp += 1;
+              this.economy.level = getLevelFromXp(this.economy.xp);
+              this.statusMessage = 'Removed weeds. +1 XP.';
+              saveCurrent();
+              refreshTileVisual(tile);
+              refreshHud();
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            if (tile.isDry) {
+              waterTile(tile, Date.now());
+              this.economy.xp += 1;
+              this.economy.level = getLevelFromXp(this.economy.xp);
+              this.statusMessage = 'Watered crop. +1 XP.';
+              saveCurrent();
+              refreshTileVisual(tile);
+              refreshHud();
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
             const growth = getGrowth(tile);
             if (!growth?.ready) {
               this.statusMessage = 'Crop is still growing. Wait until it is ready.';
@@ -898,12 +955,16 @@ export class FarmScene extends Phaser.Scene {
             const cropId = growth.crop.id;
             this.inventory[cropId] = (this.inventory[cropId] ?? 0) + 1;
             const previousLevel = this.economy.level;
-            this.economy.xp += growth.crop.xp;
+            // Health scales the XP reward between 40% and 100%.
+            const healthFactor = Math.max(0, Math.min(1, (tile.health ?? CARE.MAX_HEALTH) / CARE.MAX_HEALTH));
+            const xpGain = Math.max(1, Math.round(growth.crop.xp * (0.4 + 0.6 * healthFactor)));
+            this.economy.xp += xpGain;
             this.economy.level = getLevelFromXp(this.economy.xp);
 
             tile.state = 'empty';
             tile.cropId = undefined;
             tile.plantedAt = undefined;
+            clearTileCare(tile);
 
             if (this.economy.level > previousLevel) {
               const unlockedNames = getUnlockedCropNames(previousLevel, this.economy.level);
@@ -914,7 +975,7 @@ export class FarmScene extends Phaser.Scene {
               return;
             }
 
-            this.statusMessage = `${growth.crop.name} harvested. +1 in inventory.`;
+            this.statusMessage = `${growth.crop.name} harvested. +1 in inventory. +${xpGain} XP.`;
 
             saveCurrent();
             refreshTileVisual(tile);
@@ -940,6 +1001,7 @@ export class FarmScene extends Phaser.Scene {
           tile.cropId = selectedCrop.id;
           tile.plantedAt = Date.now();
           tile.decorationId = undefined;
+          initTileCare(tile, Date.now());
           this.economy.coins -= selectedCrop.seedPrice;
           this.statusMessage = `${selectedCrop.name} planted. -${selectedCrop.seedPrice} coins.`;
 
@@ -1090,11 +1152,19 @@ export class FarmScene extends Phaser.Scene {
       loop: true,
       callback: () => {
         updateEggProduction();
+        let hasPlanted = false;
         this.farmTiles.forEach((tile) => {
           if (tile.state === 'planted') {
+            hasPlanted = true;
+            simulateTileCare(tile, Date.now(), growthTimeScale);
             refreshTileVisual(tile);
           }
         });
+        // Persist care progression so decay/problems survive a reload even
+        // when the player performs no explicit action.
+        if (hasPlanted) {
+          saveCurrent();
+        }
       },
     });
   }

@@ -8,6 +8,15 @@ export type FarmTile = {
   cropId?: string;
   plantedAt?: number;
   decorationId?: string;
+  // Phase P1 crop care state (all optional for backward-compatible saves)
+  health?: number;
+  isDry?: boolean;
+  hasWeeds?: boolean;
+  hasPests?: boolean;
+  wateredAt?: number;
+  careUpdatedAt?: number;
+  weedIntervalSeen?: number;
+  pestIntervalSeen?: number;
 };
 
 export const GRID_COLUMNS = 6;
