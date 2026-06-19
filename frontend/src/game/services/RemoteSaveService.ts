@@ -6,6 +6,8 @@ type GameStateResponse = {
   error?: string;
 };
 
+const PROFILE_ID_STORAGE_KEY = 'farmy.profileId';
+
 const resolveApiBaseUrl = (): string => {
   const configured = import.meta.env.VITE_API_BASE_URL?.trim();
   if (configured && configured.length > 0) {
@@ -18,7 +20,34 @@ const resolveApiBaseUrl = (): string => {
 export class RemoteSaveService {
   private readonly apiBaseUrl = resolveApiBaseUrl();
 
-  private readonly defaultProfileId = 'dev-local';
+  private readonly defaultProfileId = this.resolveProfileId();
+
+  private resolveProfileId(): string {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = params.get('profile')?.trim();
+      if (fromQuery) {
+        localStorage.setItem(PROFILE_ID_STORAGE_KEY, fromQuery);
+        return fromQuery;
+      }
+
+      const fromStorage = localStorage.getItem(PROFILE_ID_STORAGE_KEY)?.trim();
+      if (fromStorage) {
+        return fromStorage;
+      }
+    }
+
+    const fromEnv = import.meta.env.VITE_PROFILE_ID?.trim();
+    if (fromEnv) {
+      return fromEnv;
+    }
+
+    return 'dev-local';
+  }
+
+  getProfileId(): string {
+    return this.defaultProfileId;
+  }
 
   async downloadSave(profileId = this.defaultProfileId): Promise<SaveGame | null> {
     const response = await fetch(`${this.apiBaseUrl}/api/v1/game-state/${profileId}`);

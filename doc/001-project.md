@@ -145,6 +145,7 @@ This section reflects the current implementation state in the repository and loc
 * Sync UX polish is implemented:
   * scene now shows sync state (`idle/syncing/success/error`)
   * last successful sync timestamp is displayed in UI
+  * active sync profile id is displayed and configurable (`?profile=<id>` / env / localStorage)
 
 ### In Progress / Partial
 
