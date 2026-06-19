@@ -1,10 +1,27 @@
 import { createDefaultFarmTiles, GRID_COLUMNS, GRID_ROWS, type FarmTile } from '../types/farm';
 import { createDefaultEconomy, type PlayerEconomy } from '../types/economy';
+import { createDefaultInventory, type PlayerInventory } from '../types/inventory';
 import { defaultCropId } from '../data/crops';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
+
+type LegacySaveGameV1 = {
+  version: number;
+  savedAt: string;
+  economy: PlayerEconomy;
+  selectedCropId: string;
+  farmTiles: FarmTile[];
+};
+
+const isValidInventory = (value: unknown): value is PlayerInventory => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  return Object.values(value).every((entry) => typeof entry === 'number');
+};
 
 const isValidEconomy = (value: unknown): value is PlayerEconomy => {
   if (!value || typeof value !== 'object') {
@@ -45,6 +62,24 @@ const isValidSaveGame = (value: unknown): value is SaveGame => {
     typeof save.version === 'number' &&
     typeof save.savedAt === 'string' &&
     isValidEconomy(save.economy) &&
+    isValidInventory(save.inventory) &&
+    typeof save.selectedCropId === 'string' &&
+    Array.isArray(save.farmTiles) &&
+    save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
+    save.farmTiles.every(isValidFarmTile)
+  );
+};
+
+const isValidLegacySaveGameV1 = (value: unknown): value is LegacySaveGameV1 => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const save = value as Partial<LegacySaveGameV1>;
+  return (
+    typeof save.version === 'number' &&
+    typeof save.savedAt === 'string' &&
+    isValidEconomy(save.economy) &&
     typeof save.selectedCropId === 'string' &&
     Array.isArray(save.farmTiles) &&
     save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
@@ -58,16 +93,23 @@ export class SaveSystem {
       version: SAVE_VERSION,
       savedAt: new Date().toISOString(),
       economy: createDefaultEconomy(),
+      inventory: createDefaultInventory(),
       selectedCropId: defaultCropId,
       farmTiles: createDefaultFarmTiles(),
     };
   }
 
-  saveGame(saveInput: { economy: PlayerEconomy; selectedCropId: string; farmTiles: FarmTile[] }): SaveGame {
+  saveGame(saveInput: {
+    economy: PlayerEconomy;
+    inventory: PlayerInventory;
+    selectedCropId: string;
+    farmTiles: FarmTile[];
+  }): SaveGame {
     const save: SaveGame = {
       version: SAVE_VERSION,
       savedAt: new Date().toISOString(),
       economy: saveInput.economy,
+      inventory: saveInput.inventory,
       selectedCropId: saveInput.selectedCropId,
       farmTiles: saveInput.farmTiles,
     };
@@ -88,6 +130,16 @@ export class SaveSystem {
       const parsed = JSON.parse(raw) as unknown;
       if (isValidSaveGame(parsed) && parsed.version === SAVE_VERSION) {
         return parsed;
+      }
+
+      if (isValidLegacySaveGameV1(parsed) && parsed.version === 1) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          inventory: createDefaultInventory(),
+        };
+        this.saveGame(migrated);
+        return migrated;
       }
     } catch {
       // If parsing fails, fall through to recreate a safe default save.

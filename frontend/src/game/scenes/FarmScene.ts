@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SaveSystem } from '../systems/SaveSystem';
 import type { FarmTile } from '../types/farm';
 import type { PlayerEconomy } from '../types/economy';
+import type { PlayerInventory } from '../types/inventory';
 import { crops, defaultCropId } from '../data/crops';
 import type { CropDefinition } from '../types/crop';
 
@@ -20,6 +21,8 @@ export class FarmScene extends Phaser.Scene {
 
   private selectedCropId = defaultCropId;
 
+  private inventory: PlayerInventory = {};
+
   private statusMessage = '';
 
   private readonly tileSize = { width: 120, height: 90 };
@@ -36,6 +39,7 @@ export class FarmScene extends Phaser.Scene {
     const loaded = this.saveSystem.loadGame();
     this.farmTiles = loaded.farmTiles;
     this.economy = loaded.economy;
+    this.inventory = loaded.inventory;
     this.selectedCropId = loaded.selectedCropId;
 
     const selectedCrop = crops.find((crop) => crop.id === this.selectedCropId) ?? crops[0];
@@ -67,8 +71,16 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const statusText = this.add
-      .text(24, 102, 'Click empty tile to plant. Press R to reset save.', {
+      .text(24, 102, 'Click empty tile to plant. Click ready crop to harvest. Press R to reset save.', {
         color: '#3f5f2f',
+        fontSize: '14px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
+    const inventoryText = this.add
+      .text(24, 122, 'Inventory: empty', {
+        color: '#2f4f1f',
         fontSize: '14px',
         fontFamily: 'Arial',
       })
@@ -125,9 +137,20 @@ export class FarmScene extends Phaser.Scene {
     const saveCurrent = (): void => {
       this.saveSystem.saveGame({
         economy: this.economy,
+        inventory: this.inventory,
         selectedCropId: this.selectedCropId,
         farmTiles: this.farmTiles,
       });
+    };
+
+    const getInventoryLabel = (): string => {
+      const entries = Object.entries(this.inventory).filter(([, amount]) => amount > 0);
+      if (entries.length === 0) {
+        return 'Inventory: empty';
+      }
+
+      const text = entries.map(([cropId, amount]) => `${cropId} x${amount}`).join(' | ');
+      return `Inventory: ${text}`;
     };
 
     const refreshTileVisual = (tile: FarmTile): void => {
@@ -195,8 +218,29 @@ export class FarmScene extends Phaser.Scene {
         refreshTileVisual(tile);
 
         rect.on('pointerdown', () => {
-          if (tile.state !== 'empty') {
-            this.statusMessage = 'Tile already occupied. Choose an empty tile.';
+          if (tile.state === 'planted') {
+            const growth = getGrowth(tile);
+            if (!growth?.ready) {
+              this.statusMessage = 'Crop is still growing. Wait until it is ready.';
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            const cropId = growth.crop.id;
+            this.inventory[cropId] = (this.inventory[cropId] ?? 0) + 1;
+            this.economy.xp += growth.crop.xp;
+            this.economy.level = Math.floor(this.economy.xp / 50) + 1;
+
+            tile.state = 'empty';
+            tile.cropId = undefined;
+            tile.plantedAt = undefined;
+
+            this.statusMessage = `${growth.crop.name} harvested. +1 in inventory.`;
+
+            saveCurrent();
+            refreshTileVisual(tile);
+            hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+            inventoryText.setText(getInventoryLabel());
             statusText.setText(this.statusMessage);
             return;
           }
@@ -216,6 +260,7 @@ export class FarmScene extends Phaser.Scene {
           saveCurrent();
           refreshTileVisual(tile);
           hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+          inventoryText.setText(getInventoryLabel());
           statusText.setText(this.statusMessage);
         });
       });
@@ -226,6 +271,7 @@ export class FarmScene extends Phaser.Scene {
       const reset = this.saveSystem.loadGame();
       this.farmTiles = reset.farmTiles;
       this.economy = reset.economy;
+      this.inventory = reset.inventory;
       this.selectedCropId = reset.selectedCropId;
       this.statusMessage = 'Save reset to default state.';
       this.scene.restart();
@@ -240,6 +286,7 @@ export class FarmScene extends Phaser.Scene {
     }
 
     hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+    inventoryText.setText(getInventoryLabel());
 
     renderGrid();
 
