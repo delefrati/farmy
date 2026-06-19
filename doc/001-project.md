@@ -54,6 +54,55 @@ The first deliverable must be a working single-player local version.
 
 ---
 
+## 2.5. Current Project Status (2026-06-18)
+
+This section reflects the current implementation state in the repository and local runtime.
+
+### Completed
+
+* Core documentation structure is in place (`README.md` at root, detailed docs under `doc/`).
+* Docker Compose infrastructure is running locally with non-default host ports:
+  * API: `53001`
+  * PostgreSQL: `55432`
+  * Redis: `56379`
+  * RabbitMQ AMQP: `55672`
+  * RabbitMQ Admin: `55673`
+  * nginx: `5080`
+* Backend API skeleton is implemented and running (`backend/src/index.ts`).
+* Health endpoints are working directly via API:
+  * `GET /health`
+  * `GET /api/health/db`
+  * `GET /api/health/redis`
+* i18n backend foundation is implemented:
+  * SQL migration for languages/translations
+  * translation routes (`backend/src/routes/translations.ts`)
+  * seed scripts (`backend/src/db/seed.ts`, `backend/src/db/seed-translations.ts`)
+* Frontend i18n base files exist:
+  * `frontend/src/i18n/config.ts`
+  * `frontend/src/i18n/hooks.ts`
+  * locale files in `frontend/locales/`
+
+### In Progress / Partial
+
+* nginx proxy is up, but `http://localhost:5080/api/health/db` currently returns `404` while direct API returns `200`.
+  * This indicates proxy path forwarding still needs adjustment.
+* Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
+
+### Not Started Yet (Gameplay)
+
+* Phaser game bootstrap/scenes.
+* Farm grid, planting, growth, harvesting loop.
+* Inventory, economy, leveling, and shop systems.
+* Game save/load loop for gameplay state.
+
+### Recommended Next Steps
+
+1. Fix nginx `/api` proxy forwarding behavior.
+2. Implement Phase 1 frontend game base (BootScene + FarmScene) and verify build/run.
+3. Start Phase 3 farm grid after frontend base is stable.
+
+---
+
 ## 3. Important Legal and Creative Constraints
 
 Do not clone any existing game directly.
