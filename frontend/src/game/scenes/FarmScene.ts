@@ -3,6 +3,13 @@ import { SaveSystem } from '../systems/SaveSystem';
 import type { FarmTile } from '../types/farm';
 import type { PlayerEconomy } from '../types/economy';
 import { crops, defaultCropId } from '../data/crops';
+import type { CropDefinition } from '../types/crop';
+
+type TileVisual = {
+  rect: Phaser.GameObjects.Rectangle;
+  title: Phaser.GameObjects.Text;
+  subtitle: Phaser.GameObjects.Text;
+};
 
 export class FarmScene extends Phaser.Scene {
   private readonly saveSystem = new SaveSystem();
@@ -33,6 +40,7 @@ export class FarmScene extends Phaser.Scene {
 
     const selectedCrop = crops.find((crop) => crop.id === this.selectedCropId) ?? crops[0];
     const selectedCropPrice = selectedCrop.seedPrice;
+    const tileVisuals = new Map<string, TileVisual>();
 
     this.add
       .text(24, 24, 'FarmScene: Phase 5 Planting + Economy', {
@@ -82,6 +90,77 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
+    const getCrop = (cropId: string | undefined): CropDefinition | undefined => {
+      if (!cropId) {
+        return undefined;
+      }
+
+      return crops.find((crop) => crop.id === cropId);
+    };
+
+    const getGrowth = (
+      tile: FarmTile,
+    ): { crop: CropDefinition; stageLabel: string; progress: number; ready: boolean } | undefined => {
+      const crop = getCrop(tile.cropId);
+
+      if (!crop || !tile.plantedAt) {
+        return undefined;
+      }
+
+      const elapsedSeconds = Math.max(0, (Date.now() - tile.plantedAt) / 1000);
+      const progress = Math.min(elapsedSeconds / crop.growSeconds, 1);
+      const stageIndex = Math.min(
+        Math.floor(progress * (crop.stages.length - 1)),
+        crop.stages.length - 1,
+      );
+
+      return {
+        crop,
+        stageLabel: crop.stages[stageIndex],
+        progress,
+        ready: progress >= 1,
+      };
+    };
+
+    const saveCurrent = (): void => {
+      this.saveSystem.saveGame({
+        economy: this.economy,
+        selectedCropId: this.selectedCropId,
+        farmTiles: this.farmTiles,
+      });
+    };
+
+    const refreshTileVisual = (tile: FarmTile): void => {
+      const visual = tileVisuals.get(tile.id);
+      if (!visual) {
+        return;
+      }
+
+      if (tile.state === 'empty') {
+        visual.rect.setFillStyle(0xc4955f);
+        visual.title.setText('');
+        visual.subtitle.setText('');
+        return;
+      }
+
+      const growth = getGrowth(tile);
+      if (!growth) {
+        visual.rect.setFillStyle(0x7a5230);
+        visual.title.setText('Planted');
+        visual.subtitle.setText('');
+        return;
+      }
+
+      if (growth.ready) {
+        visual.rect.setFillStyle(0x4e8b3a);
+      } else {
+        visual.rect.setFillStyle(0x7a5230);
+      }
+
+      visual.title.setText(`${growth.crop.name} • ${growth.stageLabel}`);
+      visual.subtitle.setText(growth.ready ? 'Ready to harvest' : `${Math.floor(growth.progress * 100)}% grown`);
+    };
+
     const renderGrid = (): void => {
       const originX = 100;
       const originY = 130;
@@ -89,48 +168,55 @@ export class FarmScene extends Phaser.Scene {
       this.farmTiles.forEach((tile) => {
         const posX = originX + tile.x * (this.tileSize.width + this.tileGap);
         const posY = originY + tile.y * (this.tileSize.height + this.tileGap);
-        const tileColor = tile.state === 'planted' ? 0x7a5230 : 0xc4955f;
 
         const rect = this.add
-          .rectangle(posX, posY, this.tileSize.width, this.tileSize.height, tileColor)
+          .rectangle(posX, posY, this.tileSize.width, this.tileSize.height, 0xc4955f)
           .setOrigin(0)
           .setStrokeStyle(2, 0x4b6d33)
           .setInteractive({ useHandCursor: true });
 
-        if (tile.state === 'planted' && tile.cropId) {
-          this.add
-            .text(posX + 8, posY + 8, tile.cropId, {
-              color: '#f6efe2',
-              fontSize: '12px',
-              fontFamily: 'Arial',
-            })
-            .setDepth(2);
-        }
+        const title = this.add
+          .text(posX + 8, posY + 8, '', {
+            color: '#f6efe2',
+            fontSize: '12px',
+            fontFamily: 'Arial',
+          })
+          .setDepth(2);
+
+        const subtitle = this.add
+          .text(posX + 8, posY + 26, '', {
+            color: '#f6efe2',
+            fontSize: '11px',
+            fontFamily: 'Arial',
+          })
+          .setDepth(2);
+
+        tileVisuals.set(tile.id, { rect, title, subtitle });
+        refreshTileVisual(tile);
 
         rect.on('pointerdown', () => {
           if (tile.state !== 'empty') {
             this.statusMessage = 'Tile already occupied. Choose an empty tile.';
-            this.scene.restart();
+            statusText.setText(this.statusMessage);
             return;
           }
 
           if (this.economy.coins < selectedCropPrice) {
             this.statusMessage = `Not enough coins to plant ${selectedCrop.name}.`;
-            this.scene.restart();
+            statusText.setText(this.statusMessage);
             return;
           }
 
           tile.state = 'planted';
           tile.cropId = selectedCrop.id;
+          tile.plantedAt = Date.now();
           this.economy.coins -= selectedCropPrice;
           this.statusMessage = `${selectedCrop.name} planted. -${selectedCropPrice} coins.`;
 
-          this.saveSystem.saveGame({
-            economy: this.economy,
-            selectedCropId: this.selectedCropId,
-            farmTiles: this.farmTiles,
-          });
-          this.scene.restart();
+          saveCurrent();
+          refreshTileVisual(tile);
+          hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+          statusText.setText(this.statusMessage);
         });
       });
     };
@@ -156,5 +242,17 @@ export class FarmScene extends Phaser.Scene {
     hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
 
     renderGrid();
+
+    this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => {
+        this.farmTiles.forEach((tile) => {
+          if (tile.state === 'planted') {
+            refreshTileVisual(tile);
+          }
+        });
+      },
+    });
   }
 }

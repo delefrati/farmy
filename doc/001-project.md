@@ -112,11 +112,16 @@ This section reflects the current implementation state in the repository and loc
   * planting on empty tiles deducts seed cost and saves immediately
   * guardrails for occupied tile and insufficient coins
   * basic HUD/status text for economy and selected seed
+* Phase 6 real-time growth baseline is implemented:
+  * planted tiles now store `plantedAt` timestamp
+  * growth stage is computed by elapsed time vs crop `growSeconds`
+  * tile visuals and labels update in real time (no scene restart required)
+  * ready crops are visually distinguished from growing crops
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
-* Gameplay loop is partially implemented (save + basic planting), but growth/harvest/inventory are still pending.
+* Gameplay loop is partially implemented (save + planting + growth), but harvest/inventory/selling are still pending.
 
 ### Recently Fixed
 
@@ -125,16 +130,15 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Real-time growth stages and ready-to-harvest logic.
 * Harvesting and inventory systems.
 * Selling, leveling, and shop flow.
 * Animal/decor/social phases.
 
 ### Recommended Next Steps
 
-1. Implement Phase 6 real-time growth (store `plantedAt`, compute stage by elapsed time).
-2. Implement Phase 7 harvesting + inventory persistence.
-3. Add Phase 8 selling flow and coin feedback loop.
+1. Implement Phase 7 harvesting + inventory persistence.
+2. Add Phase 8 selling flow and coin feedback loop.
+3. Connect gameplay systems to backend endpoints incrementally.
 
 ---
 
