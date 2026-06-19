@@ -1270,8 +1270,14 @@ export class FarmScene extends Phaser.Scene {
         const isSelected = decoration.id === selectedDecorationId;
         const isUnlocked = this.economy.level >= decoration.unlockLevel;
 
+        // Wrap the buttons into rows so the (now longer) decoration list stays
+        // on-screen instead of running off the right edge.
+        const perRow = 7;
+        const col = index % perRow;
+        const row = Math.floor(index / perRow);
+
         const button = this.add
-          .text(130 + index * 150, 384, `${t(decoration.name)}\nL${decoration.unlockLevel}`, {
+          .text(130 + col * 150, 384 + row * 38, `${t(decoration.name)}\nL${decoration.unlockLevel}`, {
             color: '#ffffff',
             backgroundColor: isSelected ? '#5f3b8a' : isUnlocked ? '#7751a1' : '#777777',
             fontSize: '11px',

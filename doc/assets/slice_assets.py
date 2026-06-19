@@ -101,6 +101,18 @@ JOBS = [
         (0.50, 0.75, 0.75, 1.00, 'ui', 'icon_hoe'),
         (0.75, 0.75, 1.00, 1.00, 'ui', 'icon_seed'),
     ]),
+    # Phase 2 — extra decorations (3x3 grid, already transparent source)
+    ('decor_phase2_real_transparent.png', [
+        (0.000, 0.000, 0.333, 0.333, 'decor', 'decor_tree'),
+        (0.333, 0.000, 0.667, 0.333, 'decor', 'decor_pond'),
+        (0.667, 0.000, 1.000, 0.333, 'decor', 'decor_well'),
+        (0.000, 0.333, 0.333, 0.667, 'decor', 'decor_scarecrow'),
+        (0.333, 0.333, 0.667, 0.667, 'decor', 'decor_flower_bed'),
+        (0.667, 0.333, 1.000, 0.667, 'decor', 'decor_haystack'),
+        (0.000, 0.667, 0.333, 1.000, 'decor', 'decor_lamp'),
+        (0.333, 0.667, 0.667, 1.000, 'decor', 'decor_path_tile'),
+        (0.667, 0.667, 1.000, 1.000, 'decor', 'decor_fence_post'),
+    ]),
 ]
 
 MIN_AREA = 1200
@@ -132,8 +144,15 @@ def main():
         src = Image.open(path).convert('RGBA')
         W, H = src.size
         arr = np.array(src)
-        fg = make_alpha(arr)
-        arr[:, :, 3] = np.where(fg, 255, 0).astype(np.uint8)
+        # Some sheets are already exported with a real alpha channel; others have
+        # a baked-in light-gray checkerboard background. Reuse the existing alpha
+        # when the source is already meaningfully transparent, otherwise derive
+        # the foreground by flood-filling the checkerboard from the borders.
+        if (arr[:, :, 3] < 16).mean() > 0.02:
+            fg = arr[:, :, 3] > 32
+        else:
+            fg = make_alpha(arr)
+        arr[:, :, 3] = np.where(fg, arr[:, :, 3], 0).astype(np.uint8)
         img = Image.fromarray(arr, 'RGBA')
         labels, n = ndimage.label(fg)
         if n == 0:
