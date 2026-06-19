@@ -20,7 +20,7 @@ export function createTranslationRoutes(pool: Pool): Router {
    *   ...
    * }
    */
-  router.get('/:lang/:namespace', async (req: Request, res: Response) => {
+  router.get('/:lang/:namespace', async (req: Request, res: Response): Promise<void> => {
     try {
       const { lang, namespace } = req.params;
 
@@ -31,10 +31,11 @@ export function createTranslationRoutes(pool: Pool): Router {
       );
 
       if (langResult.rows.length === 0) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'Language not found',
         });
+        return;
       }
 
       const languageId = langResult.rows[0].id;
@@ -70,12 +71,14 @@ export function createTranslationRoutes(pool: Pool): Router {
         translations,
         count: translationsResult.rows.length,
       });
+      return;
     } catch (err) {
       console.error('Error fetching translations:', err);
       res.status(500).json({
         success: false,
         error: 'Failed to fetch translations',
       });
+      return;
     }
   });
 
@@ -83,7 +86,7 @@ export function createTranslationRoutes(pool: Pool): Router {
    * GET /api/v1/languages
    * Fetch list of available languages
    */
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', async (_req: Request, res: Response): Promise<void> => {
     try {
       const result = await pool.query(
         'SELECT id, code, name, native_name, active FROM languages ORDER BY name'
@@ -94,12 +97,14 @@ export function createTranslationRoutes(pool: Pool): Router {
         success: true,
         languages: result.rows,
       });
+      return;
     } catch (err) {
       console.error('Error fetching languages:', err);
       res.status(500).json({
         success: false,
         error: 'Failed to fetch languages',
       });
+      return;
     }
   });
 
@@ -108,7 +113,7 @@ export function createTranslationRoutes(pool: Pool): Router {
    * Get translation statistics for a language
    * (How many strings are translated vs. missing)
    */
-  router.get('/stats/:lang', async (req: Request, res: Response) => {
+  router.get('/stats/:lang', async (req: Request, res: Response): Promise<void> => {
     try {
       const { lang } = req.params;
 
@@ -138,12 +143,14 @@ export function createTranslationRoutes(pool: Pool): Router {
           percentageComplete: percentageTranslated,
         },
       });
+      return;
     } catch (err) {
       console.error('Error fetching translation stats:', err);
       res.status(500).json({
         success: false,
         error: 'Failed to fetch translation stats',
       });
+      return;
     }
   });
 
@@ -151,7 +158,7 @@ export function createTranslationRoutes(pool: Pool): Router {
    * POST /api/v1/translations (Admin only)
    * Create or update a translation
    */
-  router.post('/', async (req: Request, res: Response) => {
+  router.post('/', async (req: Request, res: Response): Promise<void> => {
     try {
       // TODO: Add authentication/authorization check
       // if (!req.user?.isAdmin) {
@@ -161,10 +168,11 @@ export function createTranslationRoutes(pool: Pool): Router {
       const { language, namespace, key, value, context, pluralForm } = req.body;
 
       if (!language || !namespace || !key || !value) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Missing required fields',
         });
+        return;
       }
 
       // Get or create translation key
@@ -185,7 +193,8 @@ export function createTranslationRoutes(pool: Pool): Router {
       );
 
       if (langResult.rows.length === 0) {
-        return res.status(404).json({ success: false, error: 'Language not found' });
+        res.status(404).json({ success: false, error: 'Language not found' });
+        return;
       }
 
       const languageId = langResult.rows[0].id;
@@ -205,12 +214,14 @@ export function createTranslationRoutes(pool: Pool): Router {
         success: true,
         translation: updateResult.rows[0],
       });
+      return;
     } catch (err) {
       console.error('Error creating/updating translation:', err);
       res.status(500).json({
         success: false,
         error: 'Failed to create/update translation',
       });
+      return;
     }
   });
 
