@@ -17,6 +17,8 @@ export type FarmTile = {
   careUpdatedAt?: number;
   weedIntervalSeen?: number;
   pestIntervalSeen?: number;
+  // Phase P3 multi-season tracking (1-based current season).
+  season?: number;
 };
 
 export const GRID_COLUMNS = 6;

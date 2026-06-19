@@ -80,7 +80,8 @@ const isValidFarmTile = (value: unknown): value is FarmTile => {
     (tile.wateredAt === undefined || typeof tile.wateredAt === 'number') &&
     (tile.careUpdatedAt === undefined || typeof tile.careUpdatedAt === 'number') &&
     (tile.weedIntervalSeen === undefined || typeof tile.weedIntervalSeen === 'number') &&
-    (tile.pestIntervalSeen === undefined || typeof tile.pestIntervalSeen === 'number')
+    (tile.pestIntervalSeen === undefined || typeof tile.pestIntervalSeen === 'number') &&
+    (tile.season === undefined || typeof tile.season === 'number')
   );
 };
 

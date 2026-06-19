@@ -844,7 +844,9 @@ export class FarmScene extends Phaser.Scene {
       visual.title.setText(`${growth.crop.name} • ${growth.stageLabel}`);
       const statusPart = growth.ready ? 'Ready' : `${Math.floor(growth.progress * 100)}%`;
       const problemPart = problems.length > 0 ? ` | ${problems.join(',')}` : '';
-      visual.subtitle.setText(`${statusPart} | HP ${health}${problemPart}`);
+      const totalSeasons = growth.crop.seasons ?? 1;
+      const seasonPart = totalSeasons > 1 ? ` | S${tile.season ?? 1}/${totalSeasons}` : '';
+      visual.subtitle.setText(`${statusPart} | HP ${health}${seasonPart}${problemPart}`);
     };
 
     const renderGrid = (): void => {
@@ -926,6 +928,7 @@ export class FarmScene extends Phaser.Scene {
             tile.cropId = undefined;
             tile.plantedAt = undefined;
             tile.decorationId = undefined;
+            tile.season = undefined;
             clearTileCare(tile);
             this.statusMessage = 'Cleared withered crop with the hoe.';
             saveCurrent();
@@ -988,10 +991,22 @@ export class FarmScene extends Phaser.Scene {
             this.economy.xp += xpGain;
             this.economy.level = getLevelFromXp(this.economy.xp);
 
-            tile.state = 'empty';
-            tile.cropId = undefined;
-            tile.plantedAt = undefined;
-            clearTileCare(tile);
+            // Multi-season crops regrow for the next season instead of clearing.
+            const totalSeasons = growth.crop.seasons ?? 1;
+            const currentSeason = tile.season ?? 1;
+            let seasonSuffix = '';
+            if (currentSeason < totalSeasons) {
+              tile.plantedAt = Date.now();
+              tile.season = currentSeason + 1;
+              initTileCare(tile, Date.now());
+              seasonSuffix = ` Regrowing season ${tile.season}/${totalSeasons}.`;
+            } else {
+              tile.state = 'empty';
+              tile.cropId = undefined;
+              tile.plantedAt = undefined;
+              tile.season = undefined;
+              clearTileCare(tile);
+            }
 
             if (this.economy.level > previousLevel) {
               const unlockedNames = getUnlockedCropNames(previousLevel, this.economy.level);
@@ -1002,7 +1017,7 @@ export class FarmScene extends Phaser.Scene {
               return;
             }
 
-            this.statusMessage = `${growth.crop.name} harvested. +1 in inventory. +${xpGain} XP.`;
+            this.statusMessage = `${growth.crop.name} harvested. +1 in inventory. +${xpGain} XP.${seasonSuffix}`;
 
             saveCurrent();
             refreshTileVisual(tile);
@@ -1028,6 +1043,7 @@ export class FarmScene extends Phaser.Scene {
           tile.cropId = selectedCrop.id;
           tile.plantedAt = Date.now();
           tile.decorationId = undefined;
+          tile.season = 1;
           initTileCare(tile, Date.now());
           this.economy.coins -= selectedCrop.seedPrice;
           this.statusMessage = `${selectedCrop.name} planted. -${selectedCrop.seedPrice} coins.`;

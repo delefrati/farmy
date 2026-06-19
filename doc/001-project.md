@@ -150,11 +150,17 @@ Phase P3 - Multi-season and fertilizer parity
   * multi-season crops (regrowth cycles);
   * fertilizer types with different time reduction values;
   * optional friend-usable fertilizer variant.
-* Current status: TODO.
+* Current status: PARTIAL (multi-season DONE; fertilizer pending design input).
 * Exit criteria:
   * at least one crop supports more than one harvest season;
   * fertilizer usage is inventory-based and persisted;
   * growth reduction rules are deterministic and validated.
+* Implementation notes:
+  * crops define optional `seasons` (strawberry 3, corn 2, tomato 1);
+  * harvesting a non-final season regrows the crop (fresh growth + reset care)
+    instead of clearing the tile; final season clears as before;
+  * current season persisted on the tile (save v4) and shown in tile subtitle;
+  * fertilizer (single-player + friend variant) not yet implemented.
 
 Phase P3b - Animal lifecycle depth
 

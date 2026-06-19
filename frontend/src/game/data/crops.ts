@@ -10,6 +10,7 @@ export const crops: CropDefinition[] = [
     xp: 4,
     unlockLevel: 1,
     stages: ['seed', 'sprout', 'small', 'ready'],
+    seasons: 3,
   },
   {
     id: 'corn',
@@ -20,6 +21,7 @@ export const crops: CropDefinition[] = [
     xp: 10,
     unlockLevel: 2,
     stages: ['seed', 'sprout', 'small', 'ready'],
+    seasons: 2,
   },
   {
     id: 'tomato',
@@ -30,6 +32,7 @@ export const crops: CropDefinition[] = [
     xp: 18,
     unlockLevel: 3,
     stages: ['seed', 'sprout', 'small', 'ready'],
+    seasons: 1,
   },
 ];
 

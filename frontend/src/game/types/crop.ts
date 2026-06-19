@@ -7,4 +7,6 @@ export type CropDefinition = {
   xp: number;
   unlockLevel: number;
   stages: string[];
+  // Number of harvest cycles before the plant is used up. Defaults to 1.
+  seasons?: number;
 };
