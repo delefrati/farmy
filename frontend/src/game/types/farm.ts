@@ -19,6 +19,8 @@ export type FarmTile = {
   pestIntervalSeen?: number;
   // Phase P3 multi-season tracking (1-based current season).
   season?: number;
+  // Phase P3 fertilizer: stage index that was last fertilized (one use/stage).
+  fertilizedStage?: number;
 };
 
 export const GRID_COLUMNS = 6;

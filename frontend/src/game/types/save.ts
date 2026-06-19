@@ -8,6 +8,7 @@ export type SaveGame = {
   savedAt: string;
   economy: PlayerEconomy;
   inventory: PlayerInventory;
+  fertilizers: PlayerInventory;
   animals: PlayerAnimals;
   selectedCropId: string;
   farmTiles: FarmTile[];

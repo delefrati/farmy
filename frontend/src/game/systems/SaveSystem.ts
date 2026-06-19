@@ -6,7 +6,7 @@ import { defaultCropId } from '../data/crops';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 
 type LegacySaveGameV1 = {
   version: number;
@@ -21,6 +21,18 @@ type LegacySaveGameV2 = {
   savedAt: string;
   economy: PlayerEconomy;
   inventory: PlayerInventory;
+  selectedCropId: string;
+  farmTiles: FarmTile[];
+};
+
+// v3 and v4 share the same structure (animals present, tiles carry optional
+// care/season fields), differing only in version number and tile contents.
+type LegacySaveGameV3OrV4 = {
+  version: number;
+  savedAt: string;
+  economy: PlayerEconomy;
+  inventory: PlayerInventory;
+  animals: PlayerAnimals;
   selectedCropId: string;
   farmTiles: FarmTile[];
 };
@@ -81,7 +93,8 @@ const isValidFarmTile = (value: unknown): value is FarmTile => {
     (tile.careUpdatedAt === undefined || typeof tile.careUpdatedAt === 'number') &&
     (tile.weedIntervalSeen === undefined || typeof tile.weedIntervalSeen === 'number') &&
     (tile.pestIntervalSeen === undefined || typeof tile.pestIntervalSeen === 'number') &&
-    (tile.season === undefined || typeof tile.season === 'number')
+    (tile.season === undefined || typeof tile.season === 'number') &&
+    (tile.fertilizedStage === undefined || typeof tile.fertilizedStage === 'number')
   );
 };
 
@@ -96,6 +109,7 @@ const isValidSaveGame = (value: unknown): value is SaveGame => {
     typeof save.savedAt === 'string' &&
     isValidEconomy(save.economy) &&
     isValidInventory(save.inventory) &&
+    isValidInventory(save.fertilizers) &&
     isValidAnimals(save.animals) &&
     typeof save.selectedCropId === 'string' &&
     Array.isArray(save.farmTiles) &&
@@ -115,6 +129,25 @@ const isValidLegacySaveGameV2 = (value: unknown): value is LegacySaveGameV2 => {
     typeof save.savedAt === 'string' &&
     isValidEconomy(save.economy) &&
     isValidInventory(save.inventory) &&
+    typeof save.selectedCropId === 'string' &&
+    Array.isArray(save.farmTiles) &&
+    save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
+    save.farmTiles.every(isValidFarmTile)
+  );
+};
+
+const isValidLegacySaveGameV3OrV4 = (value: unknown): value is LegacySaveGameV3OrV4 => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const save = value as Partial<LegacySaveGameV3OrV4>;
+  return (
+    typeof save.version === 'number' &&
+    typeof save.savedAt === 'string' &&
+    isValidEconomy(save.economy) &&
+    isValidInventory(save.inventory) &&
+    isValidAnimals(save.animals) &&
     typeof save.selectedCropId === 'string' &&
     Array.isArray(save.farmTiles) &&
     save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
@@ -146,6 +179,7 @@ export class SaveSystem {
       savedAt: new Date().toISOString(),
       economy: createDefaultEconomy(),
       inventory: createDefaultInventory(),
+      fertilizers: createDefaultInventory(),
       animals: createDefaultAnimals(),
       selectedCropId: defaultCropId,
       farmTiles: createDefaultFarmTiles(),
@@ -155,6 +189,7 @@ export class SaveSystem {
   saveGame(saveInput: {
     economy: PlayerEconomy;
     inventory: PlayerInventory;
+    fertilizers: PlayerInventory;
     animals: PlayerAnimals;
     selectedCropId: string;
     farmTiles: FarmTile[];
@@ -164,6 +199,7 @@ export class SaveSystem {
       savedAt: new Date().toISOString(),
       economy: saveInput.economy,
       inventory: saveInput.inventory,
+      fertilizers: saveInput.fertilizers,
       animals: saveInput.animals,
       selectedCropId: saveInput.selectedCropId,
       farmTiles: saveInput.farmTiles,
@@ -196,10 +232,14 @@ export class SaveSystem {
         return parsed;
       }
 
-      // v3 shares the same structure as v4 (care fields are optional on tiles),
-      // so migrate it by bumping the version.
-      if (isValidSaveGame(parsed) && parsed.version === 3) {
-        const migrated: SaveGame = { ...parsed, version: SAVE_VERSION };
+      // v3 and v4 share the same structure (care/season fields are optional on
+      // tiles); both lack the fertilizers map added in v5.
+      if (isValidLegacySaveGameV3OrV4(parsed) && (parsed.version === 3 || parsed.version === 4)) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          fertilizers: createDefaultInventory(),
+        };
         this.saveGame(migrated);
         return migrated;
       }
@@ -209,6 +249,7 @@ export class SaveSystem {
           ...parsed,
           version: SAVE_VERSION,
           inventory: createDefaultInventory(),
+          fertilizers: createDefaultInventory(),
           animals: createDefaultAnimals(),
         };
         this.saveGame(migrated);
@@ -219,6 +260,7 @@ export class SaveSystem {
         const migrated: SaveGame = {
           ...parsed,
           version: SAVE_VERSION,
+          fertilizers: createDefaultInventory(),
           animals: createDefaultAnimals(),
         };
         this.saveGame(migrated);

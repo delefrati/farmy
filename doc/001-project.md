@@ -150,7 +150,7 @@ Phase P3 - Multi-season and fertilizer parity
   * multi-season crops (regrowth cycles);
   * fertilizer types with different time reduction values;
   * optional friend-usable fertilizer variant.
-* Current status: PARTIAL (multi-season DONE; fertilizer pending design input).
+* Current status: DONE (multi-season + single-player fertilizer; friend variant deferred to P4b).
 * Exit criteria:
   * at least one crop supports more than one harvest season;
   * fertilizer usage is inventory-based and persisted;
@@ -160,7 +160,18 @@ Phase P3 - Multi-season and fertilizer parity
   * harvesting a non-final season regrows the crop (fresh growth + reset care)
     instead of clearing the tile; final season clears as before;
   * current season persisted on the tile (save v4) and shown in tile subtitle;
-  * fertilizer (single-player + friend variant) not yet implemented.
+  * three coins-only fertilizers (normal -30s/15c, fast -75s/35c, super
+    -165s/80c) matching the original 1:2.5:5.5 reduction ratio; data in
+    `data/fertilizers.ts`;
+  * fertilizers stored in a dedicated `fertilizers` save map (save v5, with
+    v1-v4 migrations) to avoid entanglement with sellable inventory;
+  * parity rule enforced: a crop can be fertilized only once per growth stage
+    (tracked via `FarmTile.fertilizedStage`);
+  * UX mirrors the original tool model: toggle Fertilizer mode (F), then click a
+    growing crop to apply; buy with B, switch type with , / .; reduction is
+    deterministic and dev-speed aware;
+  * friend-usable "love" fertilizer intentionally deferred to the social phase.
+
 
 Phase P3b - Animal lifecycle depth
 

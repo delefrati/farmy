@@ -10,6 +10,8 @@ import { RemoteSaveService } from '../services/RemoteSaveService';
 import { getLevelFromXp, getXpToNextLevel } from '../data/progression';
 import { decorations, defaultDecorationId } from '../data/decorations';
 import type { DecorationDefinition } from '../types/decoration';
+import { fertilizers, defaultFertilizerId } from '../data/fertilizers';
+import type { FertilizerDefinition } from '../types/fertilizer';
 import {
   CARE,
   clearTileCare,
@@ -49,6 +51,8 @@ export class FarmScene extends Phaser.Scene {
 
   private inventory: PlayerInventory = {};
 
+  private fertilizers: PlayerInventory = {};
+
   private animals: PlayerAnimals = { chickenCoops: 0, eggs: 0, lastEggTickAt: Date.now() };
 
   private statusMessage = '';
@@ -69,11 +73,14 @@ export class FarmScene extends Phaser.Scene {
     let lastSyncLabel = 'never';
     let decorationMode = false;
     let selectedDecorationId = defaultDecorationId;
+    let fertilizerMode = false;
+    let selectedFertilizerId = defaultFertilizerId;
 
     const loaded = this.saveSystem.loadGame();
     this.farmTiles = loaded.farmTiles;
     this.economy = loaded.economy;
     this.inventory = loaded.inventory;
+    this.fertilizers = loaded.fertilizers;
     this.animals = loaded.animals;
     this.selectedCropId = loaded.selectedCropId;
 
@@ -185,14 +192,14 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 220, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor mode', {
+      .text(24, 220, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch fert', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
-    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor mode');
+    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch fert');
 
     this.add
       .rectangle(480, 290, 860, 420, 0x6c9a4b)
@@ -309,6 +316,28 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
+    const fertilizerModeButton = this.add
+      .text(890, 112, 'Fertilizer (F)', {
+        color: '#ffffff',
+        backgroundColor: '#2f6f3b',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const buyFertilizerButton = this.add
+      .text(890, 140, 'Buy Fertilizer (B)', {
+        color: '#ffffff',
+        backgroundColor: '#2f6f3b',
+        fontSize: '12px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
     const getCrop = (cropId: string | undefined): CropDefinition | undefined => {
       if (!cropId) {
         return undefined;
@@ -335,6 +364,19 @@ export class FarmScene extends Phaser.Scene {
       return selected ?? decorations[0];
     };
 
+    const getFertilizer = (fertilizerId: string | undefined): FertilizerDefinition | undefined => {
+      if (!fertilizerId) {
+        return undefined;
+      }
+
+      return fertilizers.find((fertilizer) => fertilizer.id === fertilizerId);
+    };
+
+    const getSelectedFertilizer = (): FertilizerDefinition => {
+      const selected = getFertilizer(selectedFertilizerId);
+      return selected ?? fertilizers[0];
+    };
+
     const refreshSelectedSeedLabel = (): void => {
       const selected = getSelectedCrop();
       selectedSeedText.setText(`Selected seed: ${selected.name} (Cost: ${selected.seedPrice})`);
@@ -344,14 +386,19 @@ export class FarmScene extends Phaser.Scene {
 
       const selectedDecoration = getSelectedDecoration();
       const modeLabel = decorationMode ? 'ON' : 'OFF';
+      const selectedFertilizer = getSelectedFertilizer();
+      const fertLabel = fertilizerMode ? 'ON' : 'OFF';
+      const fertOwned = this.fertilizers[selectedFertilizer.id] ?? 0;
       decorationModeText.setText(
-        `Decor Mode: ${modeLabel} | Decor: ${selectedDecoration.name} (${selectedDecoration.price} coins) | Hotkey: G`,
+        `Decor: ${modeLabel} ${selectedDecoration.name} (${selectedDecoration.price}c) [G] | ` +
+          `Fert: ${fertLabel} ${selectedFertilizer.name} -${selectedFertilizer.reduceSeconds}s ` +
+          `(${selectedFertilizer.price}c, own ${fertOwned}) [F toggle, B buy, ,/. switch]`,
       );
     };
 
     const getGrowth = (
       tile: FarmTile,
-    ): { crop: CropDefinition; stageLabel: string; progress: number; ready: boolean } | undefined => {
+    ): { crop: CropDefinition; stageLabel: string; stageIndex: number; progress: number; ready: boolean } | undefined => {
       const crop = getCrop(tile.cropId);
 
       if (!crop || !tile.plantedAt) {
@@ -368,6 +415,7 @@ export class FarmScene extends Phaser.Scene {
       return {
         crop,
         stageLabel: crop.stages[stageIndex],
+        stageIndex,
         progress,
         ready: progress >= 1,
       };
@@ -383,6 +431,7 @@ export class FarmScene extends Phaser.Scene {
       this.saveSystem.saveGame({
         economy: this.economy,
         inventory: this.inventory,
+        fertilizers: this.fertilizers,
         animals: this.animals,
         selectedCropId: this.selectedCropId,
         farmTiles: this.farmTiles,
@@ -393,6 +442,7 @@ export class FarmScene extends Phaser.Scene {
       return this.saveSystem.saveGame({
         economy: this.economy,
         inventory: this.inventory,
+        fertilizers: this.fertilizers,
         animals: this.animals,
         selectedCropId: this.selectedCropId,
         farmTiles: this.farmTiles,
@@ -722,6 +772,41 @@ export class FarmScene extends Phaser.Scene {
       statusText.setText(this.statusMessage);
     };
 
+    const buyFertilizer = (): void => {
+      const fertilizer = getSelectedFertilizer();
+
+      if (this.economy.level < fertilizer.unlockLevel) {
+        this.statusMessage = `${fertilizer.name} unlocks at level ${fertilizer.unlockLevel}.`;
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      if (this.economy.coins < fertilizer.price) {
+        this.statusMessage = `Not enough coins to buy ${fertilizer.name}.`;
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      this.economy.coins -= fertilizer.price;
+      this.fertilizers[fertilizer.id] = (this.fertilizers[fertilizer.id] ?? 0) + 1;
+      this.statusMessage = `Bought ${fertilizer.name}. -${fertilizer.price} coins.`;
+
+      saveCurrent();
+      refreshHud();
+      refreshSelectedSeedLabel();
+      statusText.setText(this.statusMessage);
+    };
+
+    const cycleFertilizer = (direction: 1 | -1): void => {
+      const currentIndex = fertilizers.findIndex((item) => item.id === selectedFertilizerId);
+      const base = currentIndex < 0 ? 0 : currentIndex;
+      const nextIndex = (base + direction + fertilizers.length) % fertilizers.length;
+      selectedFertilizerId = fertilizers[nextIndex].id;
+      refreshSelectedSeedLabel();
+      this.statusMessage = `${fertilizers[nextIndex].name} selected.`;
+      statusText.setText(this.statusMessage);
+    };
+
     const uploadRemoteSave = async (): Promise<void> => {
       if (isSyncing) {
         return;
@@ -781,6 +866,7 @@ export class FarmScene extends Phaser.Scene {
         this.farmTiles = remoteSave.farmTiles;
         this.economy = remoteSave.economy;
         this.inventory = remoteSave.inventory;
+        this.fertilizers = remoteSave.fertilizers;
         this.selectedCropId = remoteSave.selectedCropId;
         this.statusMessage = 'Remote save downloaded.';
         lastSyncLabel = new Date().toLocaleTimeString();
@@ -921,6 +1007,67 @@ export class FarmScene extends Phaser.Scene {
             return;
           }
 
+          if (fertilizerMode) {
+            const fertilizer = getSelectedFertilizer();
+
+            if (tile.state !== 'planted') {
+              this.statusMessage = 'Fertilizer can only be used on a growing crop.';
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            const growth = getGrowth(tile);
+            if (!growth) {
+              this.statusMessage = 'Fertilizer can only be used on a growing crop.';
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            if (growth.ready) {
+              this.statusMessage = 'Crop is already ready to harvest.';
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            if (this.economy.level < fertilizer.unlockLevel) {
+              this.statusMessage = `${fertilizer.name} unlocks at level ${fertilizer.unlockLevel}.`;
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            if ((this.fertilizers[fertilizer.id] ?? 0) <= 0) {
+              this.statusMessage = `No ${fertilizer.name} owned. Buy one with B.`;
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            // Parity rule: fertilizer can only be applied once per growth stage.
+            const lastFertilizedStage = tile.fertilizedStage ?? -1;
+            if (growth.stageIndex <= lastFertilizedStage) {
+              this.statusMessage = 'Already fertilized this growth stage. Wait for the next stage.';
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            // Move the planted time back so the crop's remaining wait shrinks.
+            // Divide by the dev speed scale so the reduction is consistent in
+            // real time across 1x/10x/100x.
+            const reductionMs = (fertilizer.reduceSeconds / growthTimeScale) * 1000;
+            tile.plantedAt = (tile.plantedAt ?? Date.now()) - reductionMs;
+            this.fertilizers[fertilizer.id] -= 1;
+
+            const afterGrowth = getGrowth(tile);
+            tile.fertilizedStage = afterGrowth ? afterGrowth.stageIndex : growth.stageIndex;
+
+            this.statusMessage = `${fertilizer.name} applied. -${fertilizer.reduceSeconds}s growth.`;
+
+            saveCurrent();
+            refreshTileVisual(tile);
+            refreshSelectedSeedLabel();
+            statusText.setText(this.statusMessage);
+            return;
+          }
+
           const selectedCrop = getSelectedCrop();
 
           if (tile.state === 'dead') {
@@ -929,6 +1076,7 @@ export class FarmScene extends Phaser.Scene {
             tile.plantedAt = undefined;
             tile.decorationId = undefined;
             tile.season = undefined;
+            tile.fertilizedStage = undefined;
             clearTileCare(tile);
             this.statusMessage = 'Cleared withered crop with the hoe.';
             saveCurrent();
@@ -998,6 +1146,7 @@ export class FarmScene extends Phaser.Scene {
             if (currentSeason < totalSeasons) {
               tile.plantedAt = Date.now();
               tile.season = currentSeason + 1;
+              tile.fertilizedStage = undefined;
               initTileCare(tile, Date.now());
               seasonSuffix = ` Regrowing season ${tile.season}/${totalSeasons}.`;
             } else {
@@ -1005,6 +1154,7 @@ export class FarmScene extends Phaser.Scene {
               tile.cropId = undefined;
               tile.plantedAt = undefined;
               tile.season = undefined;
+              tile.fertilizedStage = undefined;
               clearTileCare(tile);
             }
 
@@ -1044,6 +1194,7 @@ export class FarmScene extends Phaser.Scene {
           tile.plantedAt = Date.now();
           tile.decorationId = undefined;
           tile.season = 1;
+          tile.fertilizedStage = undefined;
           initTileCare(tile, Date.now());
           this.economy.coins -= selectedCrop.seedPrice;
           this.statusMessage = `${selectedCrop.name} planted. -${selectedCrop.seedPrice} coins.`;
@@ -1063,6 +1214,7 @@ export class FarmScene extends Phaser.Scene {
       this.farmTiles = reset.farmTiles;
       this.economy = reset.economy;
       this.inventory = reset.inventory;
+      this.fertilizers = reset.fertilizers;
       this.animals = reset.animals;
       this.selectedCropId = reset.selectedCropId;
       this.statusMessage = 'Save reset to default state.';
@@ -1086,6 +1238,13 @@ export class FarmScene extends Phaser.Scene {
     });
     buyCoopButton.on('pointerdown', buyChickenCoop);
     collectEggsButton.on('pointerdown', collectEggs);
+    fertilizerModeButton.on('pointerdown', () => {
+      fertilizerMode = !fertilizerMode;
+      this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
+      refreshSelectedSeedLabel();
+      statusText.setText(this.statusMessage);
+    });
+    buyFertilizerButton.on('pointerdown', buyFertilizer);
     uploadButton.on('pointerdown', () => {
       void uploadRemoteSave();
     });
@@ -1143,6 +1302,15 @@ export class FarmScene extends Phaser.Scene {
     });
     this.input.keyboard?.on('keydown-A', buyChickenCoop);
     this.input.keyboard?.on('keydown-E', collectEggs);
+    this.input.keyboard?.on('keydown-F', () => {
+      fertilizerMode = !fertilizerMode;
+      this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
+      refreshSelectedSeedLabel();
+      statusText.setText(this.statusMessage);
+    });
+    this.input.keyboard?.on('keydown-B', buyFertilizer);
+    this.input.keyboard?.on('keydown-COMMA', () => cycleFertilizer(-1));
+    this.input.keyboard?.on('keydown-PERIOD', () => cycleFertilizer(1));
     this.input.keyboard?.on('keydown-G', () => {
       decorationMode = !decorationMode;
       this.statusMessage = decorationMode ? 'Decoration mode enabled.' : 'Decoration mode disabled.';
