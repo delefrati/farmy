@@ -126,12 +126,16 @@ This section reflects the current implementation state in the repository and loc
   * `Sell Inventory` action converts stored crops to coins using crop sell price
   * selling is available via button and `S` keyboard shortcut
   * inventory and economy are saved immediately after selling
+* Phase 9 seed shop baseline is implemented:
+  * seed selection UI allows switching active crop
+  * crop selection enforces unlock level rules
+  * selected seed remains persisted in save data
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
-* Gameplay loop now includes planting, growth, harvesting, inventory, and selling baseline.
-* Balance tuning and progression design are still pending.
+* Gameplay loop now includes planting, growth, harvesting, inventory, selling, and seed selection.
+* Balance tuning and progression UX polish are still pending.
 
 ### Recently Fixed
 
@@ -140,13 +144,13 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Shop flow and economy balancing.
-* Progression tuning for levels/unlocks.
+* Economy balancing for seed costs, sell prices, and growth times.
+* Progression tuning for levels/unlocks and UI feedback.
 * Animal/decor/social phases.
 
 ### Recommended Next Steps
 
-1. Add a minimal shop flow (buy/sell panel and selected seed switching).
+1. Add simple progression feedback (level-up notification and unlock hint updates).
 2. Tune progression and economy values (growth time, sell price, XP curve).
 3. Connect gameplay systems to backend endpoints incrementally.
 

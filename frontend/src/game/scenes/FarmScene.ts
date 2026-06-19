@@ -42,8 +42,6 @@ export class FarmScene extends Phaser.Scene {
     this.inventory = loaded.inventory;
     this.selectedCropId = loaded.selectedCropId;
 
-    const selectedCrop = crops.find((crop) => crop.id === this.selectedCropId) ?? crops[0];
-    const selectedCropPrice = selectedCrop.seedPrice;
     const tileVisuals = new Map<string, TileVisual>();
 
     this.add
@@ -62,8 +60,8 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
-    this.add
-      .text(24, 80, `Selected seed: ${selectedCrop.name} (Cost: ${selectedCropPrice})`, {
+    const selectedSeedText = this.add
+      .text(24, 80, '', {
         color: '#2f4f1f',
         fontSize: '16px',
         fontFamily: 'Arial',
@@ -121,6 +119,16 @@ export class FarmScene extends Phaser.Scene {
       return crops.find((crop) => crop.id === cropId);
     };
 
+    const getSelectedCrop = (): CropDefinition => {
+      const selected = getCrop(this.selectedCropId);
+      return selected ?? crops[0];
+    };
+
+    const refreshSelectedSeedLabel = (): void => {
+      const selected = getSelectedCrop();
+      selectedSeedText.setText(`Selected seed: ${selected.name} (Cost: ${selected.seedPrice})`);
+    };
+
     const getGrowth = (
       tile: FarmTile,
     ): { crop: CropDefinition; stageLabel: string; progress: number; ready: boolean } | undefined => {
@@ -162,6 +170,51 @@ export class FarmScene extends Phaser.Scene {
 
       const text = entries.map(([cropId, amount]) => `${cropId} x${amount}`).join(' | ');
       return `Inventory: ${text}`;
+    };
+
+    const renderSeedSelector = (): void => {
+      const selectorTitle = this.add
+        .text(430, 58, 'Seed Shop:', {
+          color: '#1f3f10',
+          fontSize: '16px',
+          fontFamily: 'Arial',
+        })
+        .setDepth(2);
+
+      selectorTitle.setText('Seed Shop:');
+
+      crops.forEach((crop, index) => {
+        const isSelected = crop.id === this.selectedCropId;
+        const isUnlocked = this.economy.level >= crop.unlockLevel;
+
+        const button = this.add
+          .text(520 + index * 140, 56, `${crop.name}\nL${crop.unlockLevel}`, {
+            color: '#ffffff',
+            backgroundColor: isSelected ? '#357a38' : isUnlocked ? '#4b6d33' : '#777777',
+            fontSize: '12px',
+            fontFamily: 'Arial',
+            padding: { x: 8, y: 6 },
+            align: 'center',
+          })
+          .setInteractive({ useHandCursor: true })
+          .setDepth(2);
+
+        button.on('pointerdown', () => {
+          if (!isUnlocked) {
+            this.statusMessage = `${crop.name} unlocks at level ${crop.unlockLevel}.`;
+            statusText.setText(this.statusMessage);
+            return;
+          }
+
+          this.selectedCropId = crop.id;
+          saveCurrent();
+          refreshSelectedSeedLabel();
+
+          this.statusMessage = `${crop.name} seed selected.`;
+          statusText.setText(this.statusMessage);
+          this.scene.restart();
+        });
+      });
     };
 
     const sellInventory = (): void => {
@@ -265,6 +318,8 @@ export class FarmScene extends Phaser.Scene {
         refreshTileVisual(tile);
 
         rect.on('pointerdown', () => {
+          const selectedCrop = getSelectedCrop();
+
           if (tile.state === 'planted') {
             const growth = getGrowth(tile);
             if (!growth?.ready) {
@@ -292,7 +347,13 @@ export class FarmScene extends Phaser.Scene {
             return;
           }
 
-          if (this.economy.coins < selectedCropPrice) {
+          if (this.economy.level < selectedCrop.unlockLevel) {
+            this.statusMessage = `${selectedCrop.name} unlocks at level ${selectedCrop.unlockLevel}.`;
+            statusText.setText(this.statusMessage);
+            return;
+          }
+
+          if (this.economy.coins < selectedCrop.seedPrice) {
             this.statusMessage = `Not enough coins to plant ${selectedCrop.name}.`;
             statusText.setText(this.statusMessage);
             return;
@@ -301,8 +362,8 @@ export class FarmScene extends Phaser.Scene {
           tile.state = 'planted';
           tile.cropId = selectedCrop.id;
           tile.plantedAt = Date.now();
-          this.economy.coins -= selectedCropPrice;
-          this.statusMessage = `${selectedCrop.name} planted. -${selectedCropPrice} coins.`;
+          this.economy.coins -= selectedCrop.seedPrice;
+          this.statusMessage = `${selectedCrop.name} planted. -${selectedCrop.seedPrice} coins.`;
 
           saveCurrent();
           refreshTileVisual(tile);
@@ -336,6 +397,8 @@ export class FarmScene extends Phaser.Scene {
 
     hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
     inventoryText.setText(getInventoryLabel());
+    refreshSelectedSeedLabel();
+    renderSeedSelector();
 
     renderGrid();
 
