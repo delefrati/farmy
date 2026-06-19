@@ -322,11 +322,49 @@ Phase P7 - Economy parity tuning pass
   * long crop timers profile set (with dev-speed override kept);
   * care costs/rewards tuning;
   * steal risk vs reward balancing.
-* Current status: PARTIAL (economy and progression tuned for MVP speed).
+* Current status: DONE (save v12).
+* Implementation notes:
+  * `PacingSystem.ts` defines two profiles: `dev-fast` (growthMultiplier 1) and
+    `nostalgia` (growthMultiplier 40, original-like long timers). Default is
+    `dev-fast`. `effectiveGrowthScale(devGrowthSpeed, profileId) =
+    devGrowthSpeed / profile.growthMultiplier`.
+  * `SaveGame.pacingProfileId` persists the selection (save v12; v11->v12
+    migration seeds `dev-fast`). The profile flows through every
+    growth/care/death/fertilizer/animal simulation call in `FarmScene` via a
+    single `effectiveScale()` closure, so growth, care intervals, death grace,
+    and fertilizer reductions all stay proportional — relative crop efficiency
+    is identical across profiles; only the absolute pace differs.
+  * In-game toggle: "Pacing: <name> (P)" button + `P` shortcut cycles profiles
+    and persists immediately. The transient DEV 1x/10x/100x override still
+    stacks on top for testing.
+  * `NeighborScene` intentionally ignores pacing — neighbor farms are
+    pre-seeded scenario farms whose "ready to steal" tiles use base
+    `growSeconds`; applying a 40x slowdown there would break the visit loop.
+* Target metrics (nostalgia profile, `growHours = baseGrowSeconds * 40 / 3600`):
+  * `profitPerHour = (sellPrice - seedPrice) / growHours`,
+    `xpPerHour = xp / growHours`.
+
+  | Crop       | Tier | grow (s) | grow (h, nostalgia) | profit/h | xp/h |
+  | ---------- | ---- | -------- | ------------------- | -------- | ---- |
+  | strawberry | L1   | 90       | 1.000               | 6.00     | 4.00 |
+  | rose       | L1   | 150      | 1.667               | 1.20     | 3.60 |
+  | sunflower  | L2   | 210      | 2.333               | 1.71     | 3.86 |
+  | corn       | L2   | 240      | 2.667               | 7.50     | 3.75 |
+  | tomato     | L3   | 480      | 5.333               | 8.25     | 3.38 |
+
+  * Food crops climb in profit/hour with tier (strawberry 6 -> corn 7.5 ->
+    tomato 8.25), rewarding the longer commitment; flowers trade raw profit for
+    decoration/popularity value, so their profit/hour stays low by design.
+  * Relative efficiency is profile-independent: switching to `dev-fast` divides
+    every `growHours` by 40, multiplying all rates by 40 uniformly, so the
+    ranking above is unchanged — `dev-fast` is purely a development accelerator.
 * Exit criteria:
-  * at least two pacing profiles exist (dev-fast and nostalgia);
-  * documented target metrics for profit/hour and xp/hour per crop tier;
-  * one full balancing pass completed after social mechanics are live.
+  * at least two pacing profiles exist (dev-fast and nostalgia); [met]
+  * documented target metrics for profit/hour and xp/hour per crop tier; [met]
+  * one full balancing pass completed after social mechanics are live. [met —
+    pass run with P4-P6 social mechanics (help/steal caps, dog, gifts) live;
+    caps + steal budget keep social profit bounded relative to the table above.]
+
 
 Phase P8 - Final sync and conflict UX (last item)
 

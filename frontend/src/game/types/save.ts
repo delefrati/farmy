@@ -4,6 +4,7 @@ import type { PlayerInventory } from './inventory';
 import type { PlayerAnimals } from './animals';
 import type { FarmEvent, Gift, NeighborFarm } from './social';
 import type { DailyState } from '../systems/DailySystem';
+import type { PacingProfileId } from '../systems/PacingSystem';
 
 export type SaveGame = {
   version: number;
@@ -24,4 +25,6 @@ export type SaveGame = {
   hasDog: boolean;
   // Phase P6: daily reward claim state + daily anti-abuse XP caps.
   daily: DailyState;
+  // Phase P7: selected economy pacing profile (dev-fast vs nostalgia).
+  pacingProfileId: PacingProfileId;
 };

@@ -230,6 +230,7 @@ export class NeighborScene extends Phaser.Scene {
         giftInbox,
         hasDog: save.hasDog,
         daily,
+        pacingProfileId: save.pacingProfileId,
       });
     };
 

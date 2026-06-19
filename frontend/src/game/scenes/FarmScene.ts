@@ -26,6 +26,13 @@ import {
   type DailyState,
 } from '../systems/DailySystem';
 import {
+  defaultPacingProfileId,
+  effectiveGrowthScale,
+  getPacingProfile,
+  pacingProfiles,
+  type PacingProfileId,
+} from '../systems/PacingSystem';
+import {
   ANIMAL,
   createAnimalInstance,
   feedAnimal,
@@ -81,6 +88,8 @@ export class FarmScene extends Phaser.Scene {
 
   private daily: DailyState = createDailyState(Date.now());
 
+  private pacingProfileId: PacingProfileId = defaultPacingProfileId;
+
   private statusMessage = '';
 
   private readonly tileSize = { width: 120, height: 90 };
@@ -114,13 +123,19 @@ export class FarmScene extends Phaser.Scene {
     this.giftInbox = loaded.giftInbox;
     this.hasDog = loaded.hasDog;
     this.daily = rolloverDaily(loaded.daily, Date.now());
+    this.pacingProfileId = loaded.pacingProfileId;
     this.selectedCropId = loaded.selectedCropId;
+
+    // Effective growth scale folds the persistent pacing profile (nostalgia
+    // slows crops 40x) into the transient DEV speed multiplier so every
+    // growth/care/death/fertilizer/animal call advances at the same rate.
+    const effectiveScale = () => effectiveGrowthScale(growthTimeScale, this.pacingProfileId);
 
     // Advance crop care for any time that passed while the game was closed.
     this.farmTiles.forEach((tile) => {
-      simulateTileCare(tile, Date.now(), growthTimeScale);
+      simulateTileCare(tile, Date.now(), effectiveScale());
       const crop = crops.find((item) => item.id === tile.cropId);
-      if (crop && isCropDead(tile, crop.growSeconds, Date.now(), growthTimeScale)) {
+      if (crop && isCropDead(tile, crop.growSeconds, Date.now(), effectiveScale())) {
         tile.state = 'dead';
       }
     });
@@ -129,7 +144,7 @@ export class FarmScene extends Phaser.Scene {
     this.animals.animals.forEach((animal) => {
       const def = getAnimalDefinition(animal.defId);
       if (def) {
-        simulateAnimal(animal, def, Date.now(), growthTimeScale);
+        simulateAnimal(animal, def, Date.now(), effectiveScale());
       }
     });
 
@@ -282,6 +297,17 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
+    const pacingButton = this.add
+      .text(24, 284, '', {
+        color: '#ffffff',
+        backgroundColor: '#5a3d8a',
+        fontSize: '12px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 4 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
     const animalsText = this.add
       .text(820, 150, '', {
         color: '#5b3c18',
@@ -342,14 +368,14 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog. Click a locked plot to unlock it.', {
+      .text(24, 326, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog. Click a locked plot to unlock it.', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
-    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily. Click a locked plot to unlock it.');
+    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing. Click a locked plot to unlock it.');
 
     this.add
       .rectangle(640, 640, 816, 420, 0x6c9a4b)
@@ -605,7 +631,7 @@ export class FarmScene extends Phaser.Scene {
         return undefined;
       }
 
-      const elapsedSeconds = Math.max(0, (Date.now() - tile.plantedAt) / 1000) * growthTimeScale;
+      const elapsedSeconds = Math.max(0, (Date.now() - tile.plantedAt) / 1000) * effectiveScale();
       const progress = Math.min(elapsedSeconds / crop.growSeconds, 1);
       const stageIndex = Math.min(
         Math.floor(progress * (crop.stages.length - 1)),
@@ -756,6 +782,7 @@ export class FarmScene extends Phaser.Scene {
         giftInbox: this.giftInbox,
         hasDog: this.hasDog,
         daily: this.daily,
+        pacingProfileId: this.pacingProfileId,
       });
     };
 
@@ -773,6 +800,7 @@ export class FarmScene extends Phaser.Scene {
         giftInbox: this.giftInbox,
         hasDog: this.hasDog,
         daily: this.daily,
+        pacingProfileId: this.pacingProfileId,
       });
     };
 
@@ -796,7 +824,7 @@ export class FarmScene extends Phaser.Scene {
       this.animals.animals.forEach((animal) => {
         const def = getAnimalDefinition(animal.defId);
         if (def) {
-          simulateAnimal(animal, def, now, growthTimeScale);
+          simulateAnimal(animal, def, now, effectiveScale());
         }
       });
     };
@@ -987,6 +1015,26 @@ export class FarmScene extends Phaser.Scene {
       });
       this.statusMessage = `DEV speed set to ${growthTimeScale}x.`;
       statusText.setText(this.statusMessage);
+    };
+
+    const refreshPacingLabel = (): void => {
+      const profile = getPacingProfile(this.pacingProfileId);
+      pacingButton.setText(`Pacing: ${profile.name} (P)`);
+    };
+
+    const cyclePacing = (): void => {
+      const index = pacingProfiles.findIndex((profile) => profile.id === this.pacingProfileId);
+      const next = pacingProfiles[(index + 1) % pacingProfiles.length];
+      this.pacingProfileId = next.id;
+      refreshPacingLabel();
+      this.farmTiles.forEach((tile) => {
+        if (tile.state === 'planted') {
+          refreshTileVisual(tile);
+        }
+      });
+      this.statusMessage = `Pacing profile: ${next.name}. ${next.description}`;
+      statusText.setText(this.statusMessage);
+      saveCurrent();
     };
 
     const refreshAuthLabel = (): void => {
@@ -1527,7 +1575,7 @@ export class FarmScene extends Phaser.Scene {
             // Move the planted time back so the crop's remaining wait shrinks.
             // Divide by the dev speed scale so the reduction is consistent in
             // real time across 1x/10x/100x.
-            const reductionMs = (fertilizer.reduceSeconds / growthTimeScale) * 1000;
+            const reductionMs = (fertilizer.reduceSeconds / effectiveScale()) * 1000;
             tile.plantedAt = (tile.plantedAt ?? Date.now()) - reductionMs;
             this.fertilizers[fertilizer.id] -= 1;
 
@@ -1697,6 +1745,7 @@ export class FarmScene extends Phaser.Scene {
       this.giftInbox = reset.giftInbox;
       this.hasDog = reset.hasDog;
       this.daily = reset.daily;
+      this.pacingProfileId = reset.pacingProfileId;
       this.selectedCropId = reset.selectedCropId;
       this.statusMessage = 'Save reset to default state.';
       this.scene.restart();
@@ -1731,6 +1780,7 @@ export class FarmScene extends Phaser.Scene {
     collectGiftsButton.on('pointerdown', collectGifts);
     buyDogButton.on('pointerdown', buyDog);
     claimDailyButton.on('pointerdown', claimDaily);
+    pacingButton.on('pointerdown', cyclePacing);
     fertilizerModeButton.on('pointerdown', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
@@ -1799,6 +1849,7 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-C', collectGifts);
     this.input.keyboard?.on('keydown-K', buyDog);
     this.input.keyboard?.on('keydown-J', claimDaily);
+    this.input.keyboard?.on('keydown-P', cyclePacing);
     this.input.keyboard?.on('keydown-F', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
@@ -1850,6 +1901,7 @@ export class FarmScene extends Phaser.Scene {
     refreshAuthLabel();
     setSyncLabel('idle');
     refreshDevSpeedLabel();
+    refreshPacingLabel();
     refreshSelectedSeedLabel();
     renderSeedSelector();
     renderDecorationSelector();
@@ -1866,9 +1918,9 @@ export class FarmScene extends Phaser.Scene {
         this.farmTiles.forEach((tile) => {
           if (tile.state === 'planted') {
             hasPlanted = true;
-            simulateTileCare(tile, Date.now(), growthTimeScale);
+            simulateTileCare(tile, Date.now(), effectiveScale());
             const crop = getCrop(tile.cropId);
-            if (crop && isCropDead(tile, crop.growSeconds, Date.now(), growthTimeScale)) {
+            if (crop && isCropDead(tile, crop.growSeconds, Date.now(), effectiveScale())) {
               tile.state = 'dead';
             }
             refreshTileVisual(tile);

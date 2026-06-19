@@ -5,11 +5,12 @@ import { createDefaultAnimals, type AnimalState, type PlayerAnimals } from '../t
 import { defaultCropId } from '../data/crops';
 import { createNeighborFarms, createStarterGifts } from './SocialSystem';
 import { createDailyState, type DailyState } from './DailySystem';
+import { defaultPacingProfileId, isPacingProfileId } from './PacingSystem';
 import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 11;
+const SAVE_VERSION = 12;
 
 // Animal state shape used before v6 (aggregate chicken coops + pooled eggs).
 type LegacyAnimals = {
@@ -108,7 +109,10 @@ type LegacySaveGameV8 = {
 // v9 and v10 share the same TS shape as a full save minus the daily state
 // (v10 only added the optional FarmTile.locked over v9). The daily systems
 // (reward + caps) were added in v11.
-type LegacySaveGamePreDaily = Omit<SaveGame, 'daily'>;
+type LegacySaveGamePreDaily = Omit<SaveGame, 'daily' | 'pacingProfileId'>;
+
+// v11 is a full save minus the pacing profile, which was added in v12.
+type LegacySaveGamePrePacing = Omit<SaveGame, 'pacingProfileId'>;
 
 const isLegacyAnimals = (value: unknown): value is LegacyAnimals => {
   if (!value || typeof value !== 'object') {
@@ -347,6 +351,16 @@ const isValidPreDailySave = (value: unknown): value is LegacySaveGamePreDaily =>
 };
 
 const isValidSaveGame = (value: unknown): value is SaveGame => {
+  if (!isValidPrePacingSave(value)) {
+    return false;
+  }
+
+  return isPacingProfileId((value as Partial<SaveGame>).pacingProfileId);
+};
+
+// Everything a full save needs except the pacing profile added in v12. Shared
+// by the v12 validator and the v11 -> v12 migration detection.
+const isValidPrePacingSave = (value: unknown): value is LegacySaveGamePrePacing => {
   if (!isValidPreDailySave(value)) {
     return false;
   }
@@ -528,6 +542,7 @@ export class SaveSystem {
       giftInbox: createStarterGifts(now),
       hasDog: false,
       daily: createDailyState(now),
+      pacingProfileId: defaultPacingProfileId,
     };
   }
 
@@ -544,6 +559,7 @@ export class SaveSystem {
     giftInbox: Gift[];
     hasDog: boolean;
     daily: DailyState;
+    pacingProfileId: SaveGame['pacingProfileId'];
   }): SaveGame {
     const save: SaveGame = {
       version: SAVE_VERSION,
@@ -560,6 +576,7 @@ export class SaveSystem {
       giftInbox: saveInput.giftInbox,
       hasDog: saveInput.hasDog,
       daily: saveInput.daily,
+      pacingProfileId: saveInput.pacingProfileId,
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -591,6 +608,19 @@ export class SaveSystem {
 
       const now = Date.now();
 
+      // v11 only lacked the pacing profile (P7). v11 is structurally identical
+      // to v12 except for that field, so it is detected by version number and
+      // seeded with the default (dev-fast) profile.
+      if (isValidPrePacingSave(parsed) && parsed.version === 11) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          pacingProfileId: defaultPacingProfileId,
+        };
+        this.saveGame(migrated);
+        return migrated;
+      }
+
       // v10 only lacked the daily systems (reward + caps) added in v11. v10 is
       // structurally identical to v11 except for the daily field, so it is
       // detected by version number and seeded with a fresh daily state.
@@ -599,6 +629,7 @@ export class SaveSystem {
           ...parsed,
           version: SAVE_VERSION,
           daily: createDailyState(now),
+          pacingProfileId: defaultPacingProfileId,
         };
         this.saveGame(migrated);
         return migrated;
@@ -614,6 +645,7 @@ export class SaveSystem {
           version: SAVE_VERSION,
           farmTiles: withLockedBottomPlots(parsed.farmTiles),
           daily: createDailyState(now),
+          pacingProfileId: defaultPacingProfileId,
         };
         this.saveGame(migrated);
         return migrated;
@@ -628,6 +660,7 @@ export class SaveSystem {
           neighbors: withNeighborDogs(parsed.neighbors),
           hasDog: false,
           daily: createDailyState(now),
+          pacingProfileId: defaultPacingProfileId,
         };
         this.saveGame(migrated);
         return migrated;
@@ -644,6 +677,7 @@ export class SaveSystem {
           giftInbox: createStarterGifts(now),
           hasDog: false,
           daily: createDailyState(now),
+          pacingProfileId: defaultPacingProfileId,
         };
         this.saveGame(migrated);
         return migrated;
@@ -661,6 +695,7 @@ export class SaveSystem {
           giftInbox: createStarterGifts(now),
           hasDog: false,
           daily: createDailyState(now),
+          pacingProfileId: defaultPacingProfileId,
         };
         this.saveGame(migrated);
         return migrated;
@@ -684,6 +719,7 @@ export class SaveSystem {
           giftInbox: createStarterGifts(now),
           hasDog: false,
           daily: createDailyState(now),
+          pacingProfileId: defaultPacingProfileId,
         };
         this.saveGame(migrated);
         return migrated;
@@ -708,6 +744,7 @@ export class SaveSystem {
           giftInbox: createStarterGifts(now),
           hasDog: false,
           daily: createDailyState(now),
+          pacingProfileId: defaultPacingProfileId,
         };
         this.saveGame(migrated);
         return migrated;
@@ -726,6 +763,7 @@ export class SaveSystem {
           giftInbox: createStarterGifts(now),
           hasDog: false,
           daily: createDailyState(now),
+          pacingProfileId: defaultPacingProfileId,
         };
         this.saveGame(migrated);
         return migrated;
@@ -743,6 +781,7 @@ export class SaveSystem {
           giftInbox: createStarterGifts(now),
           hasDog: false,
           daily: createDailyState(now),
+          pacingProfileId: defaultPacingProfileId,
         };
         this.saveGame(migrated);
         return migrated;
