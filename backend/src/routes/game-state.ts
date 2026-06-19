@@ -26,7 +26,9 @@ type GameStatePayload = {
 };
 
 const KEY_PREFIX = 'farmy:game-state:';
+const TOKEN_KEY_PREFIX = 'farmy:game-state-token:';
 const GRID_TILE_COUNT = 24;
+const TOKEN_HEADER_NAME = 'x-profile-token';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -95,6 +97,15 @@ const getProfileId = (req: Request): string | null => {
   return profileId;
 };
 
+const getProfileToken = (req: Request): string | null => {
+  const token = req.header(TOKEN_HEADER_NAME)?.trim();
+  if (!token || token.length < 6) {
+    return null;
+  }
+
+  return token;
+};
+
 export const createGameStateRoutes = (redisClient: GameStateRedisClient): Router => {
   const router = Router();
 
@@ -105,11 +116,28 @@ export const createGameStateRoutes = (redisClient: GameStateRedisClient): Router
       return;
     }
 
+    const profileToken = getProfileToken(req);
+    if (!profileToken) {
+      res.status(401).json({ success: false, error: 'profile_token_required' });
+      return;
+    }
+
     try {
       const raw = await redisClient.get(`${KEY_PREFIX}${profileId}`);
       if (!raw) {
         res.status(404).json({ success: false, error: 'game_state_not_found' });
         return;
+      }
+
+      const tokenKey = `${TOKEN_KEY_PREFIX}${profileId}`;
+      const storedToken = await redisClient.get(tokenKey);
+      if (storedToken && storedToken !== profileToken) {
+        res.status(403).json({ success: false, error: 'profile_token_mismatch' });
+        return;
+      }
+
+      if (!storedToken) {
+        await redisClient.set(tokenKey, profileToken);
       }
 
       const data = JSON.parse(raw) as unknown;
@@ -131,12 +159,29 @@ export const createGameStateRoutes = (redisClient: GameStateRedisClient): Router
       return;
     }
 
+    const profileToken = getProfileToken(req);
+    if (!profileToken) {
+      res.status(401).json({ success: false, error: 'profile_token_required' });
+      return;
+    }
+
     if (!isValidGameStatePayload(req.body)) {
       res.status(400).json({ success: false, error: 'invalid_game_state_payload' });
       return;
     }
 
     try {
+      const tokenKey = `${TOKEN_KEY_PREFIX}${profileId}`;
+      const storedToken = await redisClient.get(tokenKey);
+      if (storedToken && storedToken !== profileToken) {
+        res.status(403).json({ success: false, error: 'profile_token_mismatch' });
+        return;
+      }
+
+      if (!storedToken) {
+        await redisClient.set(tokenKey, profileToken);
+      }
+
       await redisClient.set(`${KEY_PREFIX}${profileId}`, JSON.stringify(req.body));
       res.json({ success: true });
     } catch (error) {

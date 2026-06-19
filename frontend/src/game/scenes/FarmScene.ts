@@ -43,6 +43,7 @@ export class FarmScene extends Phaser.Scene {
     let isSyncing = false;
     let lastSyncLabel = 'never';
     const syncProfileId = this.remoteSaveService.getProfileId();
+    const syncTokenPreview = this.remoteSaveService.getTokenPreview();
 
     const loaded = this.saveSystem.loadGame();
     this.farmTiles = loaded.farmTiles;
@@ -250,16 +251,20 @@ export class FarmScene extends Phaser.Scene {
 
     const setSyncLabel = (state: 'idle' | 'syncing' | 'success' | 'error', message?: string): void => {
       if (state === 'syncing') {
-        syncText.setText(`Sync: in progress... | Profile: ${syncProfileId}`);
+        syncText.setText(`Sync: in progress... | Profile: ${syncProfileId} | Token: ${syncTokenPreview}`);
         return;
       }
 
       if (message) {
-        syncText.setText(`Sync: ${message} | Last sync: ${lastSyncLabel} | Profile: ${syncProfileId}`);
+        syncText.setText(
+          `Sync: ${message} | Last sync: ${lastSyncLabel} | Profile: ${syncProfileId} | Token: ${syncTokenPreview}`,
+        );
         return;
       }
 
-      syncText.setText(`Sync: ${state} | Last sync: ${lastSyncLabel} | Profile: ${syncProfileId}`);
+      syncText.setText(
+        `Sync: ${state} | Last sync: ${lastSyncLabel} | Profile: ${syncProfileId} | Token: ${syncTokenPreview}`,
+      );
     };
 
     const renderSeedSelector = (): void => {

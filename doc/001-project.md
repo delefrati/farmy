@@ -139,6 +139,7 @@ This section reflects the current implementation state in the repository and loc
   * frontend upload/download actions sync local save with backend profile
   * remote payload validation now enforces full 6x4 farm tile grid
   * Vite dev proxy now forwards `/api/*` to backend for local sync testing
+  * auth-lite ownership is enforced via `x-profile-token` header (required for GET/PUT)
 * Dev-only growth speed controls are implemented:
   * growth can run at `1x`, `10x`, or `100x` in development mode
   * speed toggles available via UI buttons and keys `1/2/3`
@@ -146,12 +147,13 @@ This section reflects the current implementation state in the repository and loc
   * scene now shows sync state (`idle/syncing/success/error`)
   * last successful sync timestamp is displayed in UI
   * active sync profile id is displayed and configurable (`?profile=<id>` / env / localStorage)
+  * profile token is configurable (`?token=<value>` / env / localStorage) and shown as masked preview
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
 * Local single-player gameplay MVP is now functional: plant, grow, harvest, store, select seeds, and sell.
-* Backend-connected persistence baseline is now available with basic sync feedback; auth/profile identity and conflict resolution are pending.
+* Backend-connected persistence baseline now includes auth-lite profile ownership; full account identity and conflict resolution are pending.
 
 ### Recently Fixed
 
@@ -160,7 +162,7 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Auth/profile identity for remote save ownership.
+* Full account identity/auth lifecycle (beyond token-per-profile).
 * Merge/conflict strategy between local and remote saves.
 * Economy balancing for seed costs, sell prices, growth times, and XP curve.
 * UI polish for shop and feedback panel.
@@ -168,7 +170,7 @@ This section reflects the current implementation state in the repository and loc
 
 ### Recommended Next Steps
 
-1. Add authenticated profile identity for save sync (replace `dev-local` profile id).
+1. Define real user auth flow for save sync (replacing auth-lite token ownership).
 2. Tune progression and economy values (growth time, sell price, XP curve).
 3. Add basic UI polish pass for controls and status panel.
 
