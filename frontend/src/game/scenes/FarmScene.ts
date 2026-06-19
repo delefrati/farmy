@@ -41,6 +41,7 @@ export class FarmScene extends Phaser.Scene {
     const isDevMode = import.meta.env.DEV;
     let growthTimeScale: 1 | 10 | 100 = 1;
     let isSyncing = false;
+    let lastSyncLabel = 'never';
 
     const loaded = this.saveSystem.loadGame();
     this.farmTiles = loaded.farmTiles;
@@ -90,8 +91,16 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
+    const syncText = this.add
+      .text(24, 142, 'Sync: idle | Last sync: never', {
+        color: '#1f5c99',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
     const devSpeedText = this.add
-      .text(24, 142, '', {
+      .text(24, 160, '', {
         color: '#7a3b00',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -238,6 +247,20 @@ export class FarmScene extends Phaser.Scene {
       statusText.setText(this.statusMessage);
     };
 
+    const setSyncLabel = (state: 'idle' | 'syncing' | 'success' | 'error', message?: string): void => {
+      if (state === 'syncing') {
+        syncText.setText('Sync: in progress...');
+        return;
+      }
+
+      if (message) {
+        syncText.setText(`Sync: ${message} | Last sync: ${lastSyncLabel}`);
+        return;
+      }
+
+      syncText.setText(`Sync: ${state} | Last sync: ${lastSyncLabel}`);
+    };
+
     const renderSeedSelector = (): void => {
       this.add
         .text(430, 58, 'Seed Shop:', {
@@ -329,12 +352,16 @@ export class FarmScene extends Phaser.Scene {
       }
 
       isSyncing = true;
+      setSyncLabel('syncing');
       try {
         const currentSave = buildCurrentSave();
         await this.remoteSaveService.uploadSave(currentSave);
         this.statusMessage = 'Save uploaded to backend.';
+        lastSyncLabel = new Date().toLocaleTimeString();
+        setSyncLabel('success', 'uploaded');
       } catch (error) {
         this.statusMessage = `Upload failed: ${String(error)}`;
+        setSyncLabel('error', 'upload failed');
       } finally {
         isSyncing = false;
         statusText.setText(this.statusMessage);
@@ -347,10 +374,12 @@ export class FarmScene extends Phaser.Scene {
       }
 
       isSyncing = true;
+      setSyncLabel('syncing');
       try {
         const remoteSave = await this.remoteSaveService.downloadSave();
         if (!remoteSave) {
           this.statusMessage = 'No remote save found yet.';
+          setSyncLabel('idle', 'no remote save');
           statusText.setText(this.statusMessage);
           return;
         }
@@ -361,9 +390,12 @@ export class FarmScene extends Phaser.Scene {
         this.inventory = remoteSave.inventory;
         this.selectedCropId = remoteSave.selectedCropId;
         this.statusMessage = 'Remote save downloaded.';
+        lastSyncLabel = new Date().toLocaleTimeString();
+        setSyncLabel('success', 'downloaded');
         this.scene.restart();
       } catch (error) {
         this.statusMessage = `Download failed: ${String(error)}`;
+        setSyncLabel('error', 'download failed');
         statusText.setText(this.statusMessage);
       } finally {
         isSyncing = false;
@@ -579,6 +611,7 @@ export class FarmScene extends Phaser.Scene {
 
     hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
     inventoryText.setText(getInventoryLabel());
+    setSyncLabel('idle');
     refreshDevSpeedLabel();
     refreshSelectedSeedLabel();
     renderSeedSelector();

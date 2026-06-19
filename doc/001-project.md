@@ -138,15 +138,19 @@ This section reflects the current implementation state in the repository and loc
   * new API endpoints `GET/PUT /api/v1/game-state/:profileId` backed by Redis
   * frontend upload/download actions sync local save with backend profile
   * remote payload validation now enforces full 6x4 farm tile grid
+  * Vite dev proxy now forwards `/api/*` to backend for local sync testing
 * Dev-only growth speed controls are implemented:
   * growth can run at `1x`, `10x`, or `100x` in development mode
   * speed toggles available via UI buttons and keys `1/2/3`
+* Sync UX polish is implemented:
+  * scene now shows sync state (`idle/syncing/success/error`)
+  * last successful sync timestamp is displayed in UI
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
 * Local single-player gameplay MVP is now functional: plant, grow, harvest, store, select seeds, and sell.
-* Backend-connected persistence baseline is now available; auth/profile identity and conflict resolution are pending.
+* Backend-connected persistence baseline is now available with basic sync feedback; auth/profile identity and conflict resolution are pending.
 
 ### Recently Fixed
 
