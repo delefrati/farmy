@@ -387,7 +387,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U farmy_user"]
+      test: ["CMD-SHELL", "pg_isready -U farmy_user -d farmy_db"]
       interval: 10s
       timeout: 5s
       retries: 5

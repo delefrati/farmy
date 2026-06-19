@@ -2,7 +2,7 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
-import redis from 'redis';
+import { createClient } from 'redis';
 import { createTranslationRoutes } from './routes/translations';
 
 dotenv.config();
@@ -25,16 +25,16 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-pool.on('error', (err) => {
+pool.on('error', (err: unknown) => {
   console.error('Unexpected error on idle client', err);
 });
 
 // Redis connection
-const redisClient = redis.createClient({
+const redisClient = createClient({
   url: process.env.REDIS_URL,
 });
 
-redisClient.on('error', (err) => {
+redisClient.on('error', (err: unknown) => {
   console.error('Redis client error', err);
 });
 
