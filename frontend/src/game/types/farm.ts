@@ -1,4 +1,4 @@
-export type FarmTileState = 'empty' | 'planted';
+export type FarmTileState = 'empty' | 'planted' | 'dead';
 
 export type FarmTile = {
   id: string;

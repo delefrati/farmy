@@ -76,7 +76,6 @@ Already aligned with the historical loop:
 
 Still missing for closer original parity:
 
-* mature-window pressure and spoilage timing
 * multi-season crops and fertilizer acceleration
 * animal lifecycle depth (feeding, growing-to-sell animals, status bars, lifespan)
 * social loop (friend visits, help actions, stealing limits, optional sabotage)
@@ -132,11 +131,17 @@ Phase P2 - Mature window, wither, and hoe cleanup
   * mature grace window;
   * wither/dead transition if ignored;
   * tile residue/dead cleanup with hoe action.
-* Current status: TODO.
+* Current status: DONE.
 * Exit criteria:
   * mature crops can expire into dead state;
   * dead/residue tiles cannot be replanted until cleaned;
   * state transitions are timestamp-based and persist across reload.
+* Implementation notes:
+  * crops wither if health reaches 0 or if left past their mature grace window
+    (`MATURE_GRACE_MULTIPLIER` of grow time) via `isCropDead` in `CareSystem.ts`;
+  * dead tiles render as `Withered` and must be cleared with a hoe click before
+    replanting or decorating;
+  * `dead` tile state is persisted in save v4 and resolves correctly after reload.
 
 Phase P3 - Multi-season and fertilizer parity
 

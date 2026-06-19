@@ -69,7 +69,7 @@ const isValidFarmTile = (value: unknown): value is FarmTile => {
     typeof tile.id === 'string' &&
     typeof tile.x === 'number' &&
     typeof tile.y === 'number' &&
-    (tile.state === 'empty' || tile.state === 'planted') &&
+    (tile.state === 'empty' || tile.state === 'planted' || tile.state === 'dead') &&
     (tile.cropId === undefined || typeof tile.cropId === 'string') &&
     (tile.plantedAt === undefined || typeof tile.plantedAt === 'number') &&
     (tile.decorationId === undefined || typeof tile.decorationId === 'string') &&

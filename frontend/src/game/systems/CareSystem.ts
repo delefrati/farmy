@@ -15,6 +15,9 @@ export const CARE = {
   // Health changes per scaled second.
   HEALTH_DECAY_PER_PROBLEM_PER_SEC: 0.7,
   HEALTH_REGEN_PER_SEC: 0.25,
+  // After a crop is ready, the player has this fraction of the grow time as a
+  // grace window before the crop withers and dies.
+  MATURE_GRACE_MULTIPLIER: 0.75,
 } as const;
 
 // Deterministic hash → unit float in [0, 1). Using the tile id and interval
@@ -156,4 +159,25 @@ export const getActiveProblems = (tile: FarmTile): string[] => {
     problems.push('Dry');
   }
   return problems;
+};
+
+// A planted crop dies if its health reaches zero, or if it is left unharvested
+// past its mature grace window. Both checks are timestamp/elapsed based so they
+// resolve correctly after the game has been closed for a while.
+export const isCropDead = (
+  tile: FarmTile,
+  growSeconds: number,
+  now: number,
+  scale: number,
+): boolean => {
+  if (tile.state !== 'planted' || !tile.plantedAt) {
+    return false;
+  }
+
+  if ((tile.health ?? CARE.MAX_HEALTH) <= 0) {
+    return true;
+  }
+
+  const grownSeconds = Math.max(0, (now - tile.plantedAt) / 1000) * scale;
+  return grownSeconds >= growSeconds * (1 + CARE.MATURE_GRACE_MULTIPLIER);
 };

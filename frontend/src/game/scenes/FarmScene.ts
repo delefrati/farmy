@@ -15,6 +15,7 @@ import {
   clearTileCare,
   getActiveProblems,
   initTileCare,
+  isCropDead,
   removePests,
   removeWeeds,
   simulateTileCare,
@@ -77,7 +78,13 @@ export class FarmScene extends Phaser.Scene {
     this.selectedCropId = loaded.selectedCropId;
 
     // Advance crop care for any time that passed while the game was closed.
-    this.farmTiles.forEach((tile) => simulateTileCare(tile, Date.now(), growthTimeScale));
+    this.farmTiles.forEach((tile) => {
+      simulateTileCare(tile, Date.now(), growthTimeScale);
+      const crop = crops.find((item) => item.id === tile.cropId);
+      if (crop && isCropDead(tile, crop.growSeconds, Date.now(), growthTimeScale)) {
+        tile.state = 'dead';
+      }
+    });
 
     const tileVisuals = new Map<string, TileVisual>();
 
@@ -808,6 +815,13 @@ export class FarmScene extends Phaser.Scene {
         return;
       }
 
+      if (tile.state === 'dead') {
+        visual.rect.setFillStyle(0x5a5a5a);
+        visual.title.setText('Withered');
+        visual.subtitle.setText('Clear with hoe (click)');
+        return;
+      }
+
       const growth = getGrowth(tile);
       if (!growth) {
         visual.rect.setFillStyle(0x7a5230);
@@ -906,6 +920,19 @@ export class FarmScene extends Phaser.Scene {
           }
 
           const selectedCrop = getSelectedCrop();
+
+          if (tile.state === 'dead') {
+            tile.state = 'empty';
+            tile.cropId = undefined;
+            tile.plantedAt = undefined;
+            tile.decorationId = undefined;
+            clearTileCare(tile);
+            this.statusMessage = 'Cleared withered crop with the hoe.';
+            saveCurrent();
+            refreshTileVisual(tile);
+            statusText.setText(this.statusMessage);
+            return;
+          }
 
           if (tile.state === 'planted') {
             // Care-first: resolve the most urgent problem before harvesting.
@@ -1157,6 +1184,10 @@ export class FarmScene extends Phaser.Scene {
           if (tile.state === 'planted') {
             hasPlanted = true;
             simulateTileCare(tile, Date.now(), growthTimeScale);
+            const crop = getCrop(tile.cropId);
+            if (crop && isCropDead(tile, crop.growSeconds, Date.now(), growthTimeScale)) {
+              tile.state = 'dead';
+            }
             refreshTileVisual(tile);
           }
         });
