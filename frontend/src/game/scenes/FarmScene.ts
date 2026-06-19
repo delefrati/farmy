@@ -35,6 +35,8 @@ export class FarmScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor('#9fdd7a');
+    const isDevMode = import.meta.env.DEV;
+    let growthTimeScale: 1 | 10 | 100 = 1;
 
     const loaded = this.saveSystem.loadGame();
     this.farmTiles = loaded.farmTiles;
@@ -80,6 +82,14 @@ export class FarmScene extends Phaser.Scene {
       .text(24, 122, 'Inventory: empty', {
         color: '#2f4f1f',
         fontSize: '14px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
+    const devSpeedText = this.add
+      .text(24, 142, '', {
+        color: '#7a3b00',
+        fontSize: '13px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
@@ -138,7 +148,7 @@ export class FarmScene extends Phaser.Scene {
         return undefined;
       }
 
-      const elapsedSeconds = Math.max(0, (Date.now() - tile.plantedAt) / 1000);
+      const elapsedSeconds = Math.max(0, (Date.now() - tile.plantedAt) / 1000) * growthTimeScale;
       const progress = Math.min(elapsedSeconds / crop.growSeconds, 1);
       const stageIndex = Math.min(
         Math.floor(progress * (crop.stages.length - 1)),
@@ -170,6 +180,27 @@ export class FarmScene extends Phaser.Scene {
 
       const text = entries.map(([cropId, amount]) => `${cropId} x${amount}`).join(' | ');
       return `Inventory: ${text}`;
+    };
+
+    const refreshDevSpeedLabel = (): void => {
+      if (!isDevMode) {
+        devSpeedText.setText('');
+        return;
+      }
+
+      devSpeedText.setText(`DEV Growth Speed: ${growthTimeScale}x`);
+    };
+
+    const applyDevSpeed = (nextScale: 1 | 10 | 100): void => {
+      growthTimeScale = nextScale;
+      refreshDevSpeedLabel();
+      this.farmTiles.forEach((tile) => {
+        if (tile.state === 'planted') {
+          refreshTileVisual(tile);
+        }
+      });
+      this.statusMessage = `DEV speed set to ${growthTimeScale}x.`;
+      statusText.setText(this.statusMessage);
     };
 
     const renderSeedSelector = (): void => {
@@ -402,6 +433,49 @@ export class FarmScene extends Phaser.Scene {
     resetButton.on('pointerdown', resetSave);
     sellButton.on('pointerdown', sellInventory);
 
+    if (isDevMode) {
+      const speedOne = this.add
+        .text(620, 98, '1x', {
+          color: '#ffffff',
+          backgroundColor: '#7a3b00',
+          fontSize: '13px',
+          fontFamily: 'Arial',
+          padding: { x: 8, y: 4 },
+        })
+        .setInteractive({ useHandCursor: true })
+        .setDepth(2);
+
+      const speedTen = this.add
+        .text(665, 98, '10x', {
+          color: '#ffffff',
+          backgroundColor: '#7a3b00',
+          fontSize: '13px',
+          fontFamily: 'Arial',
+          padding: { x: 8, y: 4 },
+        })
+        .setInteractive({ useHandCursor: true })
+        .setDepth(2);
+
+      const speedHundred = this.add
+        .text(720, 98, '100x', {
+          color: '#ffffff',
+          backgroundColor: '#7a3b00',
+          fontSize: '13px',
+          fontFamily: 'Arial',
+          padding: { x: 8, y: 4 },
+        })
+        .setInteractive({ useHandCursor: true })
+        .setDepth(2);
+
+      speedOne.on('pointerdown', () => applyDevSpeed(1));
+      speedTen.on('pointerdown', () => applyDevSpeed(10));
+      speedHundred.on('pointerdown', () => applyDevSpeed(100));
+
+      this.input.keyboard?.on('keydown-ONE', () => applyDevSpeed(1));
+      this.input.keyboard?.on('keydown-TWO', () => applyDevSpeed(10));
+      this.input.keyboard?.on('keydown-THREE', () => applyDevSpeed(100));
+    }
+
     this.input.keyboard?.on('keydown-R', resetSave);
     this.input.keyboard?.on('keydown-S', sellInventory);
 
@@ -411,6 +485,7 @@ export class FarmScene extends Phaser.Scene {
 
     hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
     inventoryText.setText(getInventoryLabel());
+    refreshDevSpeedLabel();
     refreshSelectedSeedLabel();
     renderSeedSelector();
 
