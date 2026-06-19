@@ -373,11 +373,32 @@ Phase P8 - Final sync and conflict UX (last item)
   * upload/download merge strategy options;
   * force upload/download controls;
   * explicit conflict resolution UI.
-* Current status: PARTIAL (basic timestamp conflict guard exists).
+* Current status: DONE.
+* Implementation notes:
+  * Save sync is whole-replace, never a field-level merge: merging two diverged
+    farm saves could yield invalid state (duplicated tiles, negative coins), so
+    the faithful + safe model is "the player explicitly picks which side wins
+    and the losing side is backed up".
+  * `systems/SyncSystem.ts` owns an auditable, localStorage-persisted sync
+    history (last 10 events) with typed actions (`upload`/`download`) and
+    outcomes (`uploaded`, `downloaded`, `forced-upload`, `forced-download`,
+    `conflict`, `blocked`, `failed`, `no-remote`).
+  * `SaveSystem` gained `backupCurrentSave` / `hasBackup` / `restoreBackup`
+    (separate `farmy.save.backup` key). Any destructive sync (forced download)
+    snapshots local progress first, so a conflict can never lose data.
+  * `FarmScene` adds a Sync panel (button + `Y` shortcut). A timestamp conflict
+    on upload/download auto-opens the panel instead of silently blocking. The
+    panel shows both save timestamps, force-upload ("Keep Mine"), force-download
+    ("Use Remote"), restore-backup (only when a backup exists), and the recent
+    history list.
 * Exit criteria:
-  * player can choose conflict strategy intentionally;
-  * sync outcomes are auditable via status/history;
-  * no sync data loss in tested conflict scenarios.
+  * player can choose conflict strategy intentionally; [met — force
+    upload/download + restore backup in the Sync panel]
+  * sync outcomes are auditable via status/history; [met — persisted history
+    list + status line per action]
+  * no sync data loss in tested conflict scenarios. [met — forced download
+    backs up local first; restore backup reinstates it via the normal
+    validate/migrate load path]
 
 Implementation rule for parity work:
 
