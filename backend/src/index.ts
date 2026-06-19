@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import { createClient } from 'redis';
 import { createTranslationRoutes } from './routes/translations';
+import { createGameStateRoutes } from './routes/game-state';
 
 dotenv.config();
 
@@ -79,6 +80,9 @@ app.get('/api/v1/farms', async (_req: Request, res: Response) => {
 
 // Translation API routes
 app.use('/api/v1/translations', createTranslationRoutes(pool));
+
+// Gameplay save sync routes
+app.use('/api/v1/game-state', createGameStateRoutes(redisClient));
 
 // Start server
 app.listen(port, () => {

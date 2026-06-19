@@ -118,6 +118,15 @@ export class SaveSystem {
     return save;
   }
 
+  replaceLocalSave(save: SaveGame): SaveGame {
+    if (!isValidSaveGame(save) || save.version !== SAVE_VERSION) {
+      throw new Error('invalid_save_payload');
+    }
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+    return save;
+  }
+
   loadGame(): SaveGame {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) {

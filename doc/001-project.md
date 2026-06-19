@@ -134,12 +134,19 @@ This section reflects the current implementation state in the repository and loc
   * level-up message now appears when XP crosses threshold
   * unlock messaging shows newly unlocked crops
   * seed lock/unlock checks use current player level
+* Phase 11 backend save sync baseline is implemented:
+  * new API endpoints `GET/PUT /api/v1/game-state/:profileId` backed by Redis
+  * frontend upload/download actions sync local save with backend profile
+  * remote payload validation now enforces full 6x4 farm tile grid
+* Dev-only growth speed controls are implemented:
+  * growth can run at `1x`, `10x`, or `100x` in development mode
+  * speed toggles available via UI buttons and keys `1/2/3`
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
 * Local single-player gameplay MVP is now functional: plant, grow, harvest, store, select seeds, and sell.
-* Backend-connected persistence, economy balancing, and UX polish are still pending.
+* Backend-connected persistence baseline is now available; auth/profile identity and conflict resolution are pending.
 
 ### Recently Fixed
 
@@ -148,14 +155,15 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Backend gameplay endpoints (save/profile/inventory sync).
+* Auth/profile identity for remote save ownership.
+* Merge/conflict strategy between local and remote saves.
 * Economy balancing for seed costs, sell prices, growth times, and XP curve.
 * UI polish for shop and feedback panel.
 * Animal/decor/social phases.
 
 ### Recommended Next Steps
 
-1. Expose gameplay persistence endpoints on backend and wire frontend save sync.
+1. Add authenticated profile identity for save sync (replace `dev-local` profile id).
 2. Tune progression and economy values (growth time, sell price, XP curve).
 3. Add basic UI polish pass for controls and status panel.
 

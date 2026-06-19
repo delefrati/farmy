@@ -5,6 +5,7 @@ import type { PlayerEconomy } from '../types/economy';
 import type { PlayerInventory } from '../types/inventory';
 import { crops, defaultCropId } from '../data/crops';
 import type { CropDefinition } from '../types/crop';
+import { RemoteSaveService } from '../services/RemoteSaveService';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
@@ -14,6 +15,8 @@ type TileVisual = {
 
 export class FarmScene extends Phaser.Scene {
   private readonly saveSystem = new SaveSystem();
+
+  private readonly remoteSaveService = new RemoteSaveService();
 
   private farmTiles: FarmTile[] = [];
 
@@ -37,6 +40,7 @@ export class FarmScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#9fdd7a');
     const isDevMode = import.meta.env.DEV;
     let growthTimeScale: 1 | 10 | 100 = 1;
+    let isSyncing = false;
 
     const loaded = this.saveSystem.loadGame();
     this.farmTiles = loaded.farmTiles;
@@ -121,6 +125,28 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
+    const uploadButton = this.add
+      .text(455, 22, 'Upload Save (U)', {
+        color: '#ffffff',
+        backgroundColor: '#1f5c99',
+        fontSize: '16px',
+        fontFamily: 'Arial',
+        padding: { x: 12, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const downloadButton = this.add
+      .text(280, 22, 'Download Save (D)', {
+        color: '#ffffff',
+        backgroundColor: '#1f5c99',
+        fontSize: '16px',
+        fontFamily: 'Arial',
+        padding: { x: 12, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
     const getCrop = (cropId: string | undefined): CropDefinition | undefined => {
       if (!cropId) {
         return undefined;
@@ -165,6 +191,15 @@ export class FarmScene extends Phaser.Scene {
 
     const saveCurrent = (): void => {
       this.saveSystem.saveGame({
+        economy: this.economy,
+        inventory: this.inventory,
+        selectedCropId: this.selectedCropId,
+        farmTiles: this.farmTiles,
+      });
+    };
+
+    const buildCurrentSave = () => {
+      return this.saveSystem.saveGame({
         economy: this.economy,
         inventory: this.inventory,
         selectedCropId: this.selectedCropId,
@@ -286,6 +321,53 @@ export class FarmScene extends Phaser.Scene {
 
       this.statusMessage = `Sold inventory for +${totalCoins} coins.`;
       statusText.setText(this.statusMessage);
+    };
+
+    const uploadRemoteSave = async (): Promise<void> => {
+      if (isSyncing) {
+        return;
+      }
+
+      isSyncing = true;
+      try {
+        const currentSave = buildCurrentSave();
+        await this.remoteSaveService.uploadSave(currentSave);
+        this.statusMessage = 'Save uploaded to backend.';
+      } catch (error) {
+        this.statusMessage = `Upload failed: ${String(error)}`;
+      } finally {
+        isSyncing = false;
+        statusText.setText(this.statusMessage);
+      }
+    };
+
+    const downloadRemoteSave = async (): Promise<void> => {
+      if (isSyncing) {
+        return;
+      }
+
+      isSyncing = true;
+      try {
+        const remoteSave = await this.remoteSaveService.downloadSave();
+        if (!remoteSave) {
+          this.statusMessage = 'No remote save found yet.';
+          statusText.setText(this.statusMessage);
+          return;
+        }
+
+        this.saveSystem.replaceLocalSave(remoteSave);
+        this.farmTiles = remoteSave.farmTiles;
+        this.economy = remoteSave.economy;
+        this.inventory = remoteSave.inventory;
+        this.selectedCropId = remoteSave.selectedCropId;
+        this.statusMessage = 'Remote save downloaded.';
+        this.scene.restart();
+      } catch (error) {
+        this.statusMessage = `Download failed: ${String(error)}`;
+        statusText.setText(this.statusMessage);
+      } finally {
+        isSyncing = false;
+      }
     };
 
     const refreshTileVisual = (tile: FarmTile): void => {
@@ -432,6 +514,12 @@ export class FarmScene extends Phaser.Scene {
 
     resetButton.on('pointerdown', resetSave);
     sellButton.on('pointerdown', sellInventory);
+    uploadButton.on('pointerdown', () => {
+      void uploadRemoteSave();
+    });
+    downloadButton.on('pointerdown', () => {
+      void downloadRemoteSave();
+    });
 
     if (isDevMode) {
       const speedOne = this.add
@@ -478,6 +566,12 @@ export class FarmScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-R', resetSave);
     this.input.keyboard?.on('keydown-S', sellInventory);
+    this.input.keyboard?.on('keydown-U', () => {
+      void uploadRemoteSave();
+    });
+    this.input.keyboard?.on('keydown-D', () => {
+      void downloadRemoteSave();
+    });
 
     if (this.statusMessage) {
       statusText.setText(this.statusMessage);
