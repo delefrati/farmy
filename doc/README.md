@@ -35,12 +35,12 @@ farmy/
 ├── docker-compose.yml        # Orchestrate all services
 ├── nginx.conf.example        # Reverse proxy config
 ├── .env.example              # Environment variables template
-├── README.md                 # Main project documentation (this file)
 └── doc/
     ├── 001-project.md        # Full project plan
     ├── DOCKER_GUIDE.md       # Docker Compose usage and troubleshooting
     ├── I18N_CHECKLIST.md     # i18n implementation checklist
     ├── I18N_GUIDE.md         # Internationalization setup & management
+    ├── README.md             # Main project documentation (this file)
     └── backend/
         └── README.md         # Backend API documentation
 ```
@@ -189,7 +189,7 @@ npm run seed:translations
 
 This populates the database with English and Portuguese (Brazil) translations.
 
-See [doc/I18N_GUIDE.md](doc/I18N_GUIDE.md) for detailed internationalization setup and management.
+See [I18N_GUIDE.md](I18N_GUIDE.md) for detailed internationalization setup and management.
 
 ## Internationalization (i18n)
 
@@ -215,7 +215,7 @@ To add new translations:
 2. Use `t('key')` in components with the `useLanguage()` hook
 3. Seed database: `npm run seed:translations`
 
-For detailed instructions, see [doc/I18N_GUIDE.md](doc/I18N_GUIDE.md).
+For detailed instructions, see [I18N_GUIDE.md](I18N_GUIDE.md).
 
 ## Building
 
@@ -289,7 +289,7 @@ docker-compose restart api
 
 ## Project Phases
 
-See [doc/001-project.md](doc/001-project.md) for full details.
+See [001-project.md](001-project.md) for full details.
 
 ### Phase 1 — Project Base ✓
 
@@ -394,7 +394,7 @@ RabbitMQ (async jobs)
 
 ### Manual Testing
 
-See "Manual Test Checklist" in [doc/001-project.md](doc/001-project.md).
+See "Manual Test Checklist" in [001-project.md](001-project.md).
 
 ### Automated Testing
 

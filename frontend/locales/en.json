@@ -1,0 +1,80 @@
+{
+  "common": {
+    "appName": "Farmy",
+    "buttons": {
+      "plant": "Plant",
+      "harvest": "Harvest",
+      "sell": "Sell",
+      "buy": "Buy",
+      "cancel": "Cancel",
+      "save": "Save",
+      "reset": "Reset",
+      "close": "Close",
+      "ok": "OK",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "messages": {
+      "welcome": "Welcome to your farm!",
+      "success": "Success!",
+      "error": "An error occurred",
+      "loading": "Loading...",
+      "noFunds": "Not enough coins",
+      "tileOccupied": "This tile is already occupied"
+    }
+  },
+  "game": {
+    "farm": "Farm",
+    "coins": "Coins",
+    "xp": "XP",
+    "level": "Level",
+    "inventory": "Inventory",
+    "shop": "Shop",
+    "settings": "Settings",
+    "language": "Language"
+  },
+  "crops": {
+    "strawberry": "Strawberry",
+    "corn": "Corn",
+    "tomato": "Tomato",
+    "seedPrice": "Seed Price",
+    "sellPrice": "Sell Price",
+    "growTime": "Grow Time",
+    "xpReward": "XP Reward",
+    "unlockLevel": "Unlock at Level"
+  },
+  "decorations": {
+    "fence": "Fence",
+    "tree": "Tree",
+    "flowerPot": "Flower Pot",
+    "bench": "Bench",
+    "pond": "Pond",
+    "scarecrow": "Scarecrow"
+  },
+  "animals": {
+    "chicken": "Chicken",
+    "cow": "Cow",
+    "pig": "Pig",
+    "product": "Product",
+    "feedAnimal": "Feed Animal"
+  },
+  "ui": {
+    "farmGrid": "Farm Grid",
+    "selectedTile": "Selected Tile",
+    "cropStatus": "Crop Status",
+    "timeRemaining": "Time Remaining",
+    "ready": "Ready to Harvest",
+    "growing": "Growing",
+    "notReady": "Not Ready",
+    "empty": "Empty",
+    "selectLanguage": "Select Language"
+  },
+  "errors": {
+    "databaseError": "Database error",
+    "serverError": "Server error",
+    "connectionError": "Connection error",
+    "invalidInput": "Invalid input",
+    "unauthorized": "Unauthorized",
+    "notFound": "Not found"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "common": {
+    "appName": "Farmy",
+    "buttons": {
+      "plant": "Plantar",
+      "harvest": "Colher",
+      "sell": "Vender",
+      "buy": "Comprar",
+      "cancel": "Cancelar",
+      "save": "Salvar",
+      "reset": "Resetar",
+      "close": "Fechar",
+      "ok": "OK",
+      "yes": "Sim",
+      "no": "Não"
+    },
+    "messages": {
+      "welcome": "Bem-vindo à sua fazenda!",
+      "success": "Sucesso!",
+      "error": "Ocorreu um erro",
+      "loading": "Carregando...",
+      "noFunds": "Moedas insuficientes",
+      "tileOccupied": "Este espaço já está ocupado"
+    }
+  },
+  "game": {
+    "farm": "Fazenda",
+    "coins": "Moedas",
+    "xp": "XP",
+    "level": "Nível",
+    "inventory": "Inventário",
+    "shop": "Loja",
+    "settings": "Configurações",
+    "language": "Idioma"
+  },
+  "crops": {
+    "strawberry": "Morango",
+    "corn": "Milho",
+    "tomato": "Tomate",
+    "seedPrice": "Preço da Semente",
+    "sellPrice": "Preço de Venda",
+    "growTime": "Tempo de Crescimento",
+    "xpReward": "Recompensa XP",
+    "unlockLevel": "Desbloqueado no Nível"
+  },
+  "decorations": {
+    "fence": "Cerca",
+    "tree": "Árvore",
+    "flowerPot": "Vaso de Flores",
+    "bench": "Banco",
+    "pond": "Açude",
+    "scarecrow": "Espantalho"
+  },
+  "animals": {
+    "chicken": "Galinha",
+    "cow": "Vaca",
+    "pig": "Porco",
+    "product": "Produto",
+    "feedAnimal": "Alimentar Animal"
+  },
+  "ui": {
+    "farmGrid": "Grade da Fazenda",
+    "selectedTile": "Espaço Selecionado",
+    "cropStatus": "Status da Plantação",
+    "timeRemaining": "Tempo Restante",
+    "ready": "Pronto para Colher",
+    "growing": "Crescendo",
+    "notReady": "Não está Pronto",
+    "empty": "Vazio",
+    "selectLanguage": "Selecionar Idioma"
+  },
+  "errors": {
+    "databaseError": "Erro de banco de dados",
+    "serverError": "Erro de servidor",
+    "connectionError": "Erro de conexão",
+    "invalidInput": "Entrada inválida",
+    "unauthorized": "Não autorizado",
+    "notFound": "Não encontrado"
+  }
+}
