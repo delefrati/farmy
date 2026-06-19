@@ -63,6 +63,8 @@ import { cycleLocale, getLocaleLabel, onLocaleChange, t } from '../i18n';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
+  ground: Phaser.GameObjects.Image;
+  content: Phaser.GameObjects.Image;
   title: Phaser.GameObjects.Text;
   subtitle: Phaser.GameObjects.Text;
 };
@@ -1612,6 +1614,47 @@ export class FarmScene extends Phaser.Scene {
         return;
       }
 
+      // Skin the tile with art when textures are present; otherwise leave the
+      // image layers hidden so the fallback rectangle + text show through.
+      const applyImage = (
+        image: Phaser.GameObjects.Image,
+        key: string | null,
+        width: number,
+        height: number,
+      ): void => {
+        if (key && this.textures.exists(key)) {
+          image.setTexture(key);
+          image.setDisplaySize(width, height);
+          image.setVisible(true);
+        } else {
+          image.setVisible(false);
+        }
+      };
+
+      const sprites = ((): { ground: string; content: string | null } => {
+        if (tile.locked) {
+          return { ground: 'tile_locked', content: null };
+        }
+        if (tile.state === 'empty') {
+          const decoration = getDecoration(tile.decorationId);
+          return { ground: 'tile_soil', content: decoration ? `decor_${decoration.id}` : null };
+        }
+        if (tile.state === 'dead') {
+          return { ground: 'tile_soil', content: null };
+        }
+        const growthForSprite = getGrowth(tile);
+        if (!growthForSprite) {
+          return { ground: 'tile_soil', content: null };
+        }
+        return {
+          ground: 'tile_soil',
+          content: `crop_${growthForSprite.crop.id}_${growthForSprite.stageLabel}`,
+        };
+      })();
+
+      applyImage(visual.ground, sprites.ground, this.tileSize.width, this.tileSize.height);
+      applyImage(visual.content, sprites.content, this.tileSize.width - 16, this.tileSize.height - 16);
+
       // Phase P5b: a locked plot shows its unlock price instead of being usable.
       if (tile.locked) {
         const info = plotUnlockInfo(tile);
@@ -1713,6 +1756,22 @@ export class FarmScene extends Phaser.Scene {
           .setStrokeStyle(2, 0x4b6d33)
           .setInteractive({ useHandCursor: true });
 
+        // Optional art layers, drawn over the fallback rectangle. They stay
+        // hidden whenever the matching texture wasn't loaded, so the game still
+        // works with no art (pure shapes) and gradually skins itself as PNGs
+        // are added to public/assets.
+        const ground = this.add
+          .image(posX, posY, '__DEFAULT')
+          .setOrigin(0)
+          .setDepth(0)
+          .setVisible(false);
+
+        const content = this.add
+          .image(posX + this.tileSize.width / 2, posY + this.tileSize.height / 2, '__DEFAULT')
+          .setOrigin(0.5)
+          .setDepth(1)
+          .setVisible(false);
+
         const title = this.add
           .text(posX + 8, posY + 8, '', {
             color: '#f6efe2',
@@ -1729,7 +1788,7 @@ export class FarmScene extends Phaser.Scene {
           })
           .setDepth(2);
 
-        tileVisuals.set(tile.id, { rect, title, subtitle });
+        tileVisuals.set(tile.id, { rect, ground, content, title, subtitle });
         refreshTileVisual(tile);
 
         rect.on('pointerdown', () => {
