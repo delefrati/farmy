@@ -1,0 +1,39 @@
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: sans-serif;
+  background: #f6efe2;
+  color: #2f2a21;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+h1 {
+  margin: 0;
+}
+
+#game-root {
+  width: 960px;
+  max-width: calc(100vw - 32px);
+  height: 540px;
+  border: 2px solid #9f835f;
+  background: #d8f0c4;
+}
+
+#game-root canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
