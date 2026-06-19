@@ -198,7 +198,7 @@ export function createTranslationRoutes(pool: Pool): Router {
           value = EXCLUDED.value,
           last_updated_at = NOW()
         RETURNING *`,
-        [languageId, keyId, value, true, req.user?.username || 'api']
+        [languageId, keyId, value, true, 'api']
       );
 
       res.json({

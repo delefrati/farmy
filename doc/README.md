@@ -72,10 +72,10 @@ docker-compose ps
 4. Access the game:
 
 - **Frontend**: http://localhost:5173 (Vite dev server)
-- **API**: http://localhost:3001
-- **Database**: localhost:5432
-- **Redis**: localhost:6379
-- **RabbitMQ Admin**: http://localhost:15672 (guest/guest)
+- **API**: http://localhost:53001
+- **Database**: localhost:55432
+- **Redis**: localhost:56379
+- **RabbitMQ Admin**: http://localhost:55673 (guest/guest)
 
 ### Option 2: Frontend Only (No Backend)
 
@@ -91,7 +91,7 @@ The game works offline with `localStorage` only. Backend integration comes in Ph
 
 ## Services
 
-### PostgreSQL (Port 5432)
+### PostgreSQL (Host Port 55432)
 
 Stores:
 - User accounts
@@ -105,7 +105,7 @@ Access:
 docker-compose exec postgres psql -U farmy_user -d farmy_db
 ```
 
-### Redis (Port 6379)
+### Redis (Host Port 56379)
 
 Caching, session management, and real-time updates.
 
@@ -115,26 +115,26 @@ Access:
 docker-compose exec redis redis-cli
 ```
 
-### RabbitMQ (Port 5672, Admin 15672)
+### RabbitMQ (AMQP Host Port 55672, Admin Host Port 55673)
 
 Message queue for async tasks:
 - Crop growth notifications
 - Harvest reminders
 - Friend requests (later)
 
-Admin panel: http://localhost:15672 (guest/guest)
+Admin panel: http://localhost:55673 (guest/guest)
 
-### Node.js API (Port 3001)
+### Node.js API (Host Port 53001)
 
 Express server with health checks and initial CRUD endpoints.
 
 Health check:
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:53001/health
 ```
 
-### nginx (Port 80)
+### nginx (Host Port 5080)
 
 Reverse proxy that routes `/api/` requests to the Node.js backend.
 

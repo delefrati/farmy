@@ -26,9 +26,9 @@ docker-compose ps
 3. Verify API is responding:
 
 ```bash
-curl http://localhost:3001/health
-curl http://localhost:3001/api/health/db
-curl http://localhost:3001/api/health/redis
+curl http://localhost:53001/health
+curl http://localhost:53001/api/health/db
+curl http://localhost:53001/api/health/redis
 ```
 
 ### Local Development (without Docker)
@@ -62,7 +62,7 @@ Key variables:
 - `DATABASE_URL`: PostgreSQL connection string
 - `REDIS_URL`: Redis connection string
 - `RABBITMQ_URL`: RabbitMQ connection string
-- `PORT`: API server port (default: 3001)
+- `PORT`: API server port (default: 53001 for local .env)
 - `NODE_ENV`: Environment (development/production)
 - `JWT_SECRET`: Secret key for JWT tokens
 - `CORS_ORIGIN`: Allowed origins for CORS
@@ -131,8 +131,8 @@ docker-compose exec redis redis-cli
 ### RabbitMQ
 
 - Host: `rabbitmq` (or `localhost`)
-- Port: `5672` (AMQP)
-- Admin UI: `http://localhost:15672`
+- Port: `55672` (AMQP host port)
+- Admin UI: `http://localhost:55673`
 - Default credentials: `guest` / `guest`
 
 ## Scripts

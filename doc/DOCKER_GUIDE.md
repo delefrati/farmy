@@ -11,10 +11,10 @@ This document explains how to use Docker Compose to run Farmy locally with all s
 │                      │                      │                      │
 │   Frontend           │   Backend            │   Services           │
 │   (Vite/Phaser)      │   (Node.js)          │                      │
-│   Port 5173          │   Port 3001          │   PostgreSQL:5432    │
-│                      │                      │   Redis:6379         │
+│   Port 5173          │   Port 53001         │   PostgreSQL:55432   │
+│                      │                      │   Redis:56379        │
 │   http://localhost   │   http://localhost   │   RabbitMQ:5672      │
-│   :5173              │   :3001              │   nginx:80           │
+│   :5173              │   :53001             │   nginx:5080         │
 └──────────────────────┴──────────────────────┴──────────────────────┘
          ↓                      ↓
     Browser Game          API Routes
@@ -84,7 +84,7 @@ Open http://localhost:5173 in your browser to see the game.
 ### API Health Check
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:53001/health
 ```
 
 Should return: `{"status":"ok","message":"Server is running"}`
@@ -122,7 +122,7 @@ EXIT                   -- Quit
 
 ### RabbitMQ Admin
 
-Open http://localhost:15672 in your browser.
+Open http://localhost:55673 in your browser.
 
 Login with:
 - Username: `guest`
@@ -183,7 +183,7 @@ Edit `.env` to customize:
 ```
 DATABASE_USER=farmy_user
 DATABASE_PASSWORD=farmy_password
-PORT=3001
+PORT=53001
 NODE_ENV=development
 ```
 
@@ -196,7 +196,7 @@ Changes take effect on next `docker-compose up`.
 1. Edit code in `backend/src/`
 2. API automatically reloads with `ts-node`
 3. Check logs: `docker-compose logs -f api`
-4. Test: `curl http://localhost:3001/health`
+4. Test: `curl http://localhost:53001/health`
 
 ### Development: Run Database Migration
 
@@ -214,7 +214,7 @@ docker-compose exec api npm run seed
 
 ```bash
 curl -H "Content-Type: application/json" \
-  http://localhost:3001/api/v1/farms
+  http://localhost:53001/api/v1/farms
 ```
 
 ### Testing: Check Database
@@ -336,7 +336,7 @@ Shows CPU, memory, and I/O for each container.
 
 1. ✓ Services are running
 2. ✓ Frontend loads at http://localhost:5173
-3. ✓ API responds at http://localhost:3001/health
+3. ✓ API responds at http://localhost:53001/health
 4. → Start implementing game logic (see 001-project.md)
 
 Happy farming! 🌾

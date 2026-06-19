@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import redis from 'redis';
+import { createTranslationRoutes } from './routes/translations';
 
 dotenv.config();
 
@@ -42,12 +43,12 @@ redisClient.connect().catch((err) => {
 });
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
 // Database health check
-app.get('/api/health/db', async (req: Request, res: Response) => {
+app.get('/api/health/db', async (_req: Request, res: Response) => {
   try {
     const result = await pool.query('SELECT NOW()');
     res.json({ status: 'ok', database: 'connected', time: result.rows[0] });
@@ -57,7 +58,7 @@ app.get('/api/health/db', async (req: Request, res: Response) => {
 });
 
 // Redis health check
-app.get('/api/health/redis', async (req: Request, res: Response) => {
+app.get('/api/health/redis', async (_req: Request, res: Response) => {
   try {
     const pong = await redisClient.ping();
     res.json({ status: 'ok', redis: 'connected', message: pong });
@@ -67,7 +68,7 @@ app.get('/api/health/redis', async (req: Request, res: Response) => {
 });
 
 // Sample API route
-app.get('/api/v1/farms', async (req: Request, res: Response) => {
+app.get('/api/v1/farms', async (_req: Request, res: Response) => {
   try {
     const result = await pool.query('SELECT * FROM farms LIMIT 10');
     res.json({ success: true, data: result.rows });
@@ -75,6 +76,9 @@ app.get('/api/v1/farms', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: String(err) });
   }
 });
+
+// Translation API routes
+app.use('/api/v1/translations', createTranslationRoutes(pool));
 
 // Start server
 app.listen(port, () => {

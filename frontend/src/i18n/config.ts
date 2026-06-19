@@ -4,8 +4,8 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpBackend from 'i18next-http-loader';
 
 // Import local translation files (for offline/development)
-import enTranslations from '../locales/en.json';
-import ptBRTranslations from '../locales/pt-BR.json';
+import enTranslations from '../../locales/en.json';
+import ptBRTranslations from '../../locales/pt-BR.json';
 
 const resources = {
   en: { common: enTranslations },

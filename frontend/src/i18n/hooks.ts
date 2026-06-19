@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export type LanguageCode = 'en' | 'pt-BR';
 
@@ -84,7 +84,7 @@ export const useLanguage = () => {
  * Fallback to English if translation is missing
  */
 export const useTranslate = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const translate = useCallback(
     (key: string, defaultValue?: string, options?: any) => {

@@ -79,12 +79,12 @@ This checklist guides you through implementing multilingual support in Farmy.
 
 - [ ] Test translation API endpoint:
   ```bash
-  curl http://localhost:3001/api/v1/translations/en/common
+  curl http://localhost:53001/api/v1/translations/en/common
   ```
 
 - [ ] Test language list endpoint:
   ```bash
-  curl http://localhost:3001/api/v1/languages
+  curl http://localhost:53001/api/v1/languages
   ```
 
 - [ ] Load game in browser: http://localhost:5173
@@ -151,10 +151,10 @@ cd backend && npm run migrate
 npm run seed:translations
 
 # Test API endpoint
-curl http://localhost:3001/api/v1/translations/pt-BR/common
+curl http://localhost:53001/api/v1/translations/pt-BR/common
 
 # Check translation stats
-curl http://localhost:3001/api/v1/translations/stats/pt-BR
+curl http://localhost:53001/api/v1/translations/stats/pt-BR
 ```
 
 ## Translation Keys Structure
@@ -260,7 +260,7 @@ updated_by VARCHAR(255)
 - Add to JSON files and re-seed
 
 **Problem:** API returns 404
-- Solution: Verify backend is running: `curl http://localhost:3001/health`
+- Solution: Verify backend is running: `curl http://localhost:53001/health`
 
 ## Resources
 

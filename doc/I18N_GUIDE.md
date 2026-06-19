@@ -183,7 +183,7 @@ npm run seed:translations
 Or manually insert via API:
 
 ```bash
-curl -X POST http://localhost:3001/api/v1/translations \
+curl -X POST http://localhost:53001/api/v1/translations \
   -H "Content-Type: application/json" \
   -d '{
     "language": "en",
@@ -204,7 +204,7 @@ GET /api/v1/translations/:lang/:namespace
 Example:
 
 ```bash
-curl http://localhost:3001/api/v1/translations/pt-BR/common
+curl http://localhost:53001/api/v1/translations/pt-BR/common
 ```
 
 Response:
@@ -249,7 +249,7 @@ GET /api/v1/translations/stats/:lang
 Example:
 
 ```bash
-curl http://localhost:3001/api/v1/translations/stats/pt-BR
+curl http://localhost:53001/api/v1/translations/stats/pt-BR
 ```
 
 Response:
@@ -403,7 +403,7 @@ export const SUPPORTED_LANGUAGES: Language[] = [
 ### 4. Create Language in Database
 
 ```bash
-curl -X POST http://localhost:3001/api/v1/languages \
+curl -X POST http://localhost:53001/api/v1/languages \
   -H "Content-Type: application/json" \
   -d '{
     "code": "es",
@@ -449,7 +449,7 @@ npm run seed:translations
 ### Translations Not Loading
 
 1. Check browser console for errors
-2. Verify API is running: `curl http://localhost:3001/api/v1/languages`
+2. Verify API is running: `curl http://localhost:53001/api/v1/languages`
 3. Check database tables exist: `docker-compose exec postgres psql -U farmy_user -d farmy_db -c "\dt"`
 4. Re-seed translations: `npm run seed:translations`
 
@@ -466,7 +466,7 @@ This is normal during development. Add translations to JSON files and re-seed.
 To find all missing translations:
 
 ```bash
-curl http://localhost:3001/api/v1/translations/stats/pt-BR
+curl http://localhost:53001/api/v1/translations/stats/pt-BR
 ```
 
 ## Performance Considerations

@@ -7,8 +7,8 @@
 
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
-import enTranslations from '../../frontend/locales/en.json';
-import ptBRTranslations from '../../frontend/locales/pt-BR.json';
+import enTranslations from '../../../frontend/locales/en.json';
+import ptBRTranslations from '../../../frontend/locales/pt-BR.json';
 
 dotenv.config();
 
@@ -40,19 +40,19 @@ function flattenTranslations(obj: TranslationData, prefix = ''): Record<string, 
   return result;
 }
 
-async function seedTranslations() {
+export async function seedTranslations() {
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
     // Get or create languages
-    const engResult = await client.query(
+    await client.query(
       'INSERT INTO languages (code, name, native_name) VALUES ($1, $2, $3) ON CONFLICT (code) DO NOTHING RETURNING id',
       ['en', 'English', 'English']
     );
 
-    const ptbrResult = await client.query(
+    await client.query(
       'INSERT INTO languages (code, name, native_name) VALUES ($1, $2, $3) ON CONFLICT (code) DO NOTHING RETURNING id',
       ['pt-BR', 'Portuguese (Brazil)', 'Português (Brasil)']
     );
@@ -131,10 +131,12 @@ async function seedTranslations() {
   }
 }
 
-seedTranslations().then(() => {
-  console.log('✅ Seed completed successfully');
-  process.exit(0);
-}).catch((err) => {
-  console.error('❌ Seed failed:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  seedTranslations().then(() => {
+    console.log('✅ Seed completed successfully');
+    process.exit(0);
+  }).catch((err) => {
+    console.error('❌ Seed failed:', err);
+    process.exit(1);
+  });
+}
