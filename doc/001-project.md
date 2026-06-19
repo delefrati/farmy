@@ -150,7 +150,7 @@ Phase P3 - Multi-season and fertilizer parity
   * multi-season crops (regrowth cycles);
   * fertilizer types with different time reduction values;
   * optional friend-usable fertilizer variant.
-* Current status: DONE (multi-season + single-player fertilizer; friend variant deferred to P4b).
+* Current status: DONE (multi-season + coins fertilizers + friend-usable love fertilizer).
 * Exit criteria:
   * at least one crop supports more than one harvest season;
   * fertilizer usage is inventory-based and persisted;
@@ -170,7 +170,10 @@ Phase P3 - Multi-season and fertilizer parity
   * UX mirrors the original tool model: toggle Fertilizer mode (F), then click a
     growing crop to apply; buy with B, switch type with , / .; reduction is
     deterministic and dev-speed aware;
-  * friend-usable "love" fertilizer intentionally deferred to the social phase.
+  * friend-usable "love" fertilizer (`loveFertilizer` in `data/fertilizers.ts`,
+    not buyable) is applied while visiting a neighbor: clicking a still-growing
+    crop speeds its remaining wait (-60s), capped at `LOVE_LIMIT_PER_VISIT` per
+    visit and rewarded like a help action (subject to the daily help cap).
 
 
 Phase P3b - Animal lifecycle depth
@@ -522,28 +525,41 @@ This section reflects the current implementation state in the repository and loc
 
 ### In Progress / Partial
 
-* Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
-* Local single-player gameplay MVP is now functional: plant, grow, harvest, store, select seeds, and sell.
-* Backend-connected persistence now uses real account auth, but sync polishing is intentionally deprioritized.
+* Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints (beyond Redis-backed save sync + auth) are not implemented yet.
+* Daily reward + anti-abuse caps are enforced client-side (P6); server-side enforcement of the reset window is deferred until authoritative backend gameplay endpoints exist.
+* Neighbors are local simulated NPC farms (Maria / João / Ana); real multiplayer friend visits are deferred to the backend phase.
 
 ### Recently Fixed
 
 * nginx API forwarding is now working.
   * `http://localhost:5080/api/health/db` returns `200` and correctly proxies to the API service.
 
+### Mechanics Parity Backlog Status (P1–P8)
+
+The strict parity backlog in §2.3 is now fully implemented (all phases DONE):
+
+* P1 crop care + failure states; P2 mature window / wither / hoe; P3 multi-season + fertilizer; P3b animal lifecycle.
+* P4 social baseline (visit / help / steal / log); P4b flowers, gifts, popularity; P5 sabotage + dog/protection; P5b land expansion / locked plots.
+* P6 daily reward + anti-abuse caps (client-side); P7 economy pacing profiles (dev-fast / nostalgia); P8 sync conflict UX (force controls, backup, history).
+* Save format is at version 12.
+
 ### Not Started Yet (Gameplay)
 
+* Server-authoritative gameplay endpoints + backend enforcement of daily caps (P6 carry-over).
+* Real multiplayer friend visits (currently local NPC simulation).
 * Final economy balancing pass after longer playtest sessions.
 * Extended UI polish for shop and feedback panel visuals.
-* Social phase (friend visits and private interactions).
-* Final sync polish (manual merge/force actions and upload/download UX refinements).
+* Original art/audio assets (still placeholder shapes; no sound yet).
+* Wiring in-game UI strings through i18n (infra + locale files exist, strings still hardcoded).
 
 ### Recommended Next Steps
 
-1. Run a mechanics gap analysis against `doc/002-original.md` and convert missing core systems into an implementation backlog.
-2. Implement core crop-care loop parity: dryness, weeds, pests, and crop health/penalty flow.
-3. Implement social parity baseline: friend farm visit actions (help, steal, optional sabotage) plus event log.
-4. Keep sync UX as the last item: finalize upload/download conflict controls and merge strategy.
+1. Wire visible HUD/game strings through the existing i18n setup (English + pt-BR) for bilingual play.
+2. Add backend enforcement of daily caps/reset on the existing `PUT /game-state/me` path (fields already sync).
+3. Add cozy polish: plant/harvest/coin sound effects and ambient music (placeholder royalty-free).
+4. Run a longer-playtest economy balancing pass on the nostalgia pacing profile.
+5. Replace placeholder shapes with original pixel/cartoon assets.
+
 
 ---
 

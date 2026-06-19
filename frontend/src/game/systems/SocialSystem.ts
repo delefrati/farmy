@@ -27,6 +27,10 @@ export const SOCIAL = {
   DOG_PRICE: 60,
   DOG_CATCH_CHANCE: 0.35,
   DOG_FINE: 15,
+  // Love (friend-usable) fertilizer: how many of a neighbor's growing crops a
+  // single visit can speed up. It is a friendly gesture, not a steal, so it is
+  // capped separately and rewarded like a help action.
+  LOVE_LIMIT_PER_VISIT: 3,
 } as const;
 
 // Phase P5 product flag. Sabotage (placing bugs/weeds on a friend's farm) is a

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SaveSystem } from '../systems/SaveSystem';
 import { crops } from '../data/crops';
+import { loveFertilizer } from '../data/fertilizers';
 import type { CropDefinition } from '../types/crop';
 import type { FarmTile } from '../types/farm';
 import type { PlayerEconomy } from '../types/economy';
@@ -56,8 +57,10 @@ export class NeighborScene extends Phaser.Scene {
 
     // Steal budget is per-visit (resets each time the scene is entered).
     let stealBudget = SOCIAL.STEAL_LIMIT_PER_VISIT;
+    // Love fertilizer is also per-visit: a friendly speed-up for growing crops.
+    let loveBudget = SOCIAL.LOVE_LIMIT_PER_VISIT;
     let sabotageMode = false;
-    let statusMessage = 'Click a plot: clear a problem to help, or harvest a ripe crop to steal.';
+    let statusMessage = 'Click a plot: clear a problem to help, speed a growing crop with Love Fertilizer, or harvest a ripe crop to steal.';
 
     const tileVisuals = new Map<string, TileVisual>();
 
@@ -111,7 +114,7 @@ export class NeighborScene extends Phaser.Scene {
       .setDepth(1);
 
     this.add
-      .text(40, 118, 'Help clears a problem (water / weeds / pests). Stealing takes part of a ripe crop; the owner keeps the rest.', {
+      .text(40, 118, 'Help clears a problem (water / weeds / pests). A growing crop gets Love Fertilizer. Stealing takes part of a ripe crop; the owner keeps the rest.', {
         color: '#3f5f2f',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -203,6 +206,7 @@ export class NeighborScene extends Phaser.Scene {
       hudText.setText(`Coins: ${economy.coins} | XP: ${economy.xp} | Level: ${economy.level}`);
       budgetText.setText(
         `Steal budget this visit: ${stealBudget}/${SOCIAL.STEAL_LIMIT_PER_VISIT} | ` +
+          `Love fertilizer left: ${loveBudget}/${SOCIAL.LOVE_LIMIT_PER_VISIT} | ` +
           `Daily XP left — help: ${capRemaining(daily, 'help')}, steal: ${capRemaining(daily, 'steal')}`,
       );
     };
@@ -393,8 +397,53 @@ export class NeighborScene extends Phaser.Scene {
       }
 
       const growth = getGrowth(tile);
-      if (!growth?.ready) {
-        statusMessage = `${cropName} is still growing. Come back when it is ripe.`;
+      if (!growth) {
+        statusMessage = 'Nothing to do on this empty plot.';
+        statusText.setText(statusMessage);
+        return;
+      }
+
+      if (!growth.ready) {
+        // Still growing: offer the friendly Love Fertilizer speed-up instead of
+        // turning the player away. It is a help-style gesture (capped reward),
+        // limited per visit, and never steals anything.
+        if (loveBudget <= 0) {
+          statusMessage = 'No Love Fertilizer left for this visit. Come back later.';
+          statusText.setText(statusMessage);
+          return;
+        }
+
+        const reduceMs = loveFertilizer.reduceSeconds * 1000;
+        tile.plantedAt = Math.min(now, (tile.plantedAt ?? now) - reduceMs);
+        loveBudget -= 1;
+
+        const capped = capRemaining(daily, 'help') < SOCIAL.HELP_XP;
+        if (capped) {
+          events = pushEvent(
+            events,
+            'help',
+            `You used Love Fertilizer on ${neighbor.name}'s ${cropName}. Daily help limit reached — no reward.`,
+            now,
+          );
+          statusMessage = `Sped up ${neighbor.name}'s ${cropName}, but the daily help limit is reached — no XP/coins.`;
+        } else {
+          economy.coins += SOCIAL.HELP_COINS;
+          economy.xp += SOCIAL.HELP_XP;
+          economy.level = getLevelFromXp(economy.xp);
+          daily = recordCapXp(daily, 'help', SOCIAL.HELP_XP);
+          events = pushEvent(
+            events,
+            'help',
+            `You used Love Fertilizer on ${neighbor.name}'s ${cropName} (-${loveFertilizer.reduceSeconds}s). +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin.`,
+            now,
+          );
+          statusMessage = `Love Fertilizer on ${neighbor.name}'s ${cropName}. +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin. Left: ${loveBudget}.`;
+        }
+
+        saveCurrent();
+        refreshTileVisual(tile);
+        refreshHud();
+        refreshLog();
         statusText.setText(statusMessage);
         return;
       }
