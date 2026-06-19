@@ -12,6 +12,16 @@ import { decorations, defaultDecorationId } from '../data/decorations';
 import type { DecorationDefinition } from '../types/decoration';
 import { fertilizers, defaultFertilizerId } from '../data/fertilizers';
 import type { FertilizerDefinition } from '../types/fertilizer';
+import { animalDefinitions, getAnimalDefinition } from '../data/animals';
+import {
+  ANIMAL,
+  createAnimalInstance,
+  feedAnimal,
+  foodRemainingSeconds,
+  getGrowthStageLabel,
+  isFed,
+  simulateAnimal,
+} from '../systems/AnimalSystem';
 import {
   CARE,
   clearTileCare,
@@ -31,14 +41,6 @@ type TileVisual = {
 };
 
 export class FarmScene extends Phaser.Scene {
-  private static readonly CHICKEN_COOP_PRICE = 120;
-
-  private static readonly CHICKEN_COOP_UNLOCK_LEVEL = 3;
-
-  private static readonly EGG_SECONDS = 120;
-
-  private static readonly EGG_CAP_PER_COOP = 4;
-
   private readonly saveSystem = new SaveSystem();
 
   private readonly remoteSaveService = new RemoteSaveService();
@@ -53,7 +55,7 @@ export class FarmScene extends Phaser.Scene {
 
   private fertilizers: PlayerInventory = {};
 
-  private animals: PlayerAnimals = { chickenCoops: 0, eggs: 0, lastEggTickAt: Date.now() };
+  private animals: PlayerAnimals = { animals: [] };
 
   private statusMessage = '';
 
@@ -90,6 +92,14 @@ export class FarmScene extends Phaser.Scene {
       const crop = crops.find((item) => item.id === tile.cropId);
       if (crop && isCropDead(tile, crop.growSeconds, Date.now(), growthTimeScale)) {
         tile.state = 'dead';
+      }
+    });
+
+    // Advance animals for any time that passed while the game was closed.
+    this.animals.animals.forEach((animal) => {
+      const def = getAnimalDefinition(animal.defId);
+      if (def) {
+        simulateAnimal(animal, def, Date.now(), growthTimeScale);
       }
     });
 
@@ -186,22 +196,32 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const animalsText = this.add
-      .text(24, 322, '', {
+      .text(820, 150, '', {
         color: '#5b3c18',
         fontSize: '13px',
         fontFamily: 'Arial',
+        lineSpacing: 2,
+      })
+      .setDepth(1);
+
+    this.add
+      .text(820, 124, 'Barn', {
+        color: '#5b3c18',
+        fontSize: '15px',
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
       })
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch fert', {
+      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
-    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch fert');
+    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature');
 
     this.add
       .rectangle(640, 640, 816, 420, 0x6c9a4b)
@@ -296,8 +316,8 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
-    const buyCoopButton = this.add
-      .text(470, 54, 'Buy Coop (A)', {
+    const buyChickenButton = this.add
+      .text(820, 54, 'Buy Chicken', {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
         fontSize: '13px',
@@ -307,10 +327,43 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
-    const collectEggsButton = this.add
-      .text(600, 54, 'Collect Eggs (E)', {
+    const buyCalfButton = this.add
+      .text(940, 54, 'Buy Calf', {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const feedAnimalsButton = this.add
+      .text(1040, 54, 'Feed All (A)', {
+        color: '#ffffff',
+        backgroundColor: '#5f7b1d',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const collectProductsButton = this.add
+      .text(820, 88, 'Collect Products (E)', {
+        color: '#ffffff',
+        backgroundColor: '#7b4f1d',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const sellAnimalsButton = this.add
+      .text(1010, 88, 'Sell Mature (M)', {
+        color: '#ffffff',
+        backgroundColor: '#2f7a41',
         fontSize: '13px',
         fontFamily: 'Arial',
         padding: { x: 8, y: 5 },
@@ -377,6 +430,23 @@ export class FarmScene extends Phaser.Scene {
     const getSelectedFertilizer = (): FertilizerDefinition => {
       const selected = getFertilizer(selectedFertilizerId);
       return selected ?? fertilizers[0];
+    };
+
+    // Sell value for any inventory item: crops use their sellPrice, animal
+    // products use the producing animal's product sell value.
+    const animalProductValues: Record<string, number> = {};
+    animalDefinitions.forEach((def) => {
+      if (def.kind === 'productive' && def.productId && def.productSellValue) {
+        animalProductValues[def.productId] = def.productSellValue;
+      }
+    });
+
+    const getItemSellValue = (itemId: string): number => {
+      const crop = getCrop(itemId);
+      if (crop) {
+        return crop.sellPrice;
+      }
+      return animalProductValues[itemId] ?? 0;
     };
 
     const refreshSelectedSeedLabel = (): void => {
@@ -466,55 +536,66 @@ export class FarmScene extends Phaser.Scene {
       return `Inventory: ${text}`;
     };
 
-    const refreshAnimalsLabel = (): void => {
-      animalsText.setText(
-        `Animals: Chicken coops ${this.animals.chickenCoops} | Eggs ready ${this.animals.eggs}`,
-      );
+    const simulateAllAnimals = (): void => {
+      const now = Date.now();
+      this.animals.animals.forEach((animal) => {
+        const def = getAnimalDefinition(animal.defId);
+        if (def) {
+          simulateAnimal(animal, def, now, growthTimeScale);
+        }
+      });
     };
 
-    const updateEggProduction = (): void => {
-      if (this.animals.chickenCoops <= 0) {
+    const refreshAnimalsLabel = (): void => {
+      if (this.animals.animals.length === 0) {
+        animalsText.setText('Animals: none yet.\nBuy a Chicken (eggs) or a Calf (raise & sell).');
         return;
       }
 
       const now = Date.now();
-      const elapsedSeconds = Math.max(0, (now - this.animals.lastEggTickAt) / 1000);
-      const producedCycles = Math.floor(elapsedSeconds / FarmScene.EGG_SECONDS);
-      if (producedCycles <= 0) {
-        return;
-      }
+      const lines = this.animals.animals.map((animal) => {
+        const def = getAnimalDefinition(animal.defId);
+        if (!def) {
+          return '? unknown animal';
+        }
 
-      const maxEggs = this.animals.chickenCoops * FarmScene.EGG_CAP_PER_COOP;
-      const availableSpace = Math.max(maxEggs - this.animals.eggs, 0);
-      if (availableSpace <= 0) {
-        return;
-      }
+        const fed = isFed(animal, now);
+        const foodPart = fed ? `fed ${Math.ceil(foodRemainingSeconds(animal, now))}s` : 'HUNGRY';
 
-      const eggsToAdd = Math.min(producedCycles, availableSpace);
-      this.animals.eggs += eggsToAdd;
-      this.animals.lastEggTickAt += eggsToAdd * FarmScene.EGG_SECONDS * 1000;
+        if (def.kind === 'productive') {
+          const cap = def.produceCap ?? 0;
+          return `${def.name}: ${animal.storedProduct}/${cap} ${def.productLabel ?? 'product'} | ${foodPart}`;
+        }
 
-      refreshAnimalsLabel();
-      saveCurrent();
+        const stage = getGrowthStageLabel(animal, def);
+        const state = animal.matured ? 'READY to sell' : stage;
+        return `${def.name}: ${state} | ${foodPart}`;
+      });
+
+      animalsText.setText(`Animals (${this.animals.animals.length}):\n${lines.join('\n')}`);
     };
 
-    const buyChickenCoop = (): void => {
-      if (this.economy.level < FarmScene.CHICKEN_COOP_UNLOCK_LEVEL) {
-        this.statusMessage = `Chicken coop unlocks at level ${FarmScene.CHICKEN_COOP_UNLOCK_LEVEL}.`;
+    const buyAnimal = (defId: string): void => {
+      const def = getAnimalDefinition(defId);
+      if (!def) {
+        return;
+      }
+
+      if (this.economy.level < def.unlockLevel) {
+        this.statusMessage = `${def.name} unlocks at level ${def.unlockLevel}.`;
         statusText.setText(this.statusMessage);
         return;
       }
 
-      if (this.economy.coins < FarmScene.CHICKEN_COOP_PRICE) {
-        this.statusMessage = 'Not enough coins to buy a chicken coop.';
+      if (this.economy.coins < def.price) {
+        this.statusMessage = `Not enough coins to buy a ${def.name}.`;
         statusText.setText(this.statusMessage);
         return;
       }
 
-      this.economy.coins -= FarmScene.CHICKEN_COOP_PRICE;
-      this.animals.chickenCoops += 1;
-      this.animals.lastEggTickAt = Date.now();
-      this.statusMessage = `Chicken coop purchased. -${FarmScene.CHICKEN_COOP_PRICE} coins.`;
+      this.economy.coins -= def.price;
+      this.animals.animals.push(createAnimalInstance(def.id, Date.now()));
+      this.statusMessage = `${def.name} purchased. -${def.price} coins. Feed it to start.`;
 
       refreshHud();
       refreshAnimalsLabel();
@@ -522,28 +603,112 @@ export class FarmScene extends Phaser.Scene {
       statusText.setText(this.statusMessage);
     };
 
-    const collectEggs = (): void => {
-      updateEggProduction();
+    const feedAllAnimals = (): void => {
+      simulateAllAnimals();
 
-      if (this.animals.eggs <= 0) {
-        this.statusMessage = 'No eggs ready yet.';
+      if (this.animals.animals.length === 0) {
+        this.statusMessage = 'No animals to feed.';
         statusText.setText(this.statusMessage);
         return;
       }
 
-      const eggsCollected = this.animals.eggs;
-      this.inventory.egg = (this.inventory.egg ?? 0) + eggsCollected;
-      this.animals.eggs = 0;
-      this.animals.lastEggTickAt = Date.now();
+      const now = Date.now();
+      let fedCount = 0;
+      let spent = 0;
 
-      this.economy.xp += eggsCollected * 2;
+      this.animals.animals.forEach((animal) => {
+        const def = getAnimalDefinition(animal.defId);
+        if (!def) {
+          return;
+        }
+        if (this.economy.coins < def.feedPrice) {
+          return;
+        }
+        this.economy.coins -= def.feedPrice;
+        spent += def.feedPrice;
+        feedAnimal(animal, def, now);
+        fedCount += 1;
+      });
+
+      if (fedCount === 0) {
+        this.statusMessage = 'Not enough coins to feed any animal.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      this.economy.xp += fedCount * ANIMAL.FEED_XP;
       this.economy.level = getLevelFromXp(this.economy.xp);
+      this.statusMessage = `Fed ${fedCount} animal(s). -${spent} coins. +${fedCount * ANIMAL.FEED_XP} XP.`;
 
-      this.statusMessage = `Collected ${eggsCollected} eggs. +${eggsCollected * 2} XP.`;
+      refreshHud();
+      refreshAnimalsLabel();
+      saveCurrent();
+      statusText.setText(this.statusMessage);
+    };
+
+    const collectProducts = (): void => {
+      simulateAllAnimals();
+
+      let collected = 0;
+      this.animals.animals.forEach((animal) => {
+        const def = getAnimalDefinition(animal.defId);
+        if (!def || def.kind !== 'productive' || !def.productId) {
+          return;
+        }
+        if (animal.storedProduct > 0) {
+          this.inventory[def.productId] = (this.inventory[def.productId] ?? 0) + animal.storedProduct;
+          collected += animal.storedProduct;
+          animal.storedProduct = 0;
+        }
+      });
+
+      if (collected <= 0) {
+        this.statusMessage = 'No animal products ready yet.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      const xpGain = collected * ANIMAL.COLLECT_XP_PER_PRODUCT;
+      this.economy.xp += xpGain;
+      this.economy.level = getLevelFromXp(this.economy.xp);
+      this.statusMessage = `Collected ${collected} product(s). +${xpGain} XP.`;
 
       refreshHud();
       refreshAnimalsLabel();
       inventoryText.setText(getInventoryLabel());
+      saveCurrent();
+      statusText.setText(this.statusMessage);
+    };
+
+    const sellMaturedAnimals = (): void => {
+      simulateAllAnimals();
+
+      let totalCoins = 0;
+      let soldCount = 0;
+      this.animals.animals = this.animals.animals.filter((animal) => {
+        const def = getAnimalDefinition(animal.defId);
+        if (def && def.kind === 'growing' && animal.matured) {
+          totalCoins += def.sellValue ?? 0;
+          soldCount += 1;
+          return false;
+        }
+        return true;
+      });
+
+      if (soldCount <= 0) {
+        this.statusMessage = 'No mature animals ready to sell.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      this.economy.coins += totalCoins;
+      const xpGain = Math.max(1, Math.round(totalCoins / ANIMAL.SELL_XP_DIVISOR));
+      this.economy.xp += xpGain;
+      this.economy.level = getLevelFromXp(this.economy.xp);
+      this.statusMessage = `Sold ${soldCount} mature animal(s) for +${totalCoins} coins. +${xpGain} XP.`;
+
+      refreshHud();
+      refreshAnimalsLabel();
       saveCurrent();
       statusText.setText(this.statusMessage);
     };
@@ -747,24 +912,26 @@ export class FarmScene extends Phaser.Scene {
       }
 
       let totalCoins = 0;
+      const remaining: PlayerInventory = {};
 
-      entries.forEach(([cropId, amount]) => {
-        const crop = getCrop(cropId);
-        if (!crop) {
-          return;
+      entries.forEach(([itemId, amount]) => {
+        const unitValue = getItemSellValue(itemId);
+        if (unitValue > 0) {
+          totalCoins += unitValue * amount;
+        } else {
+          // Keep items that have no sell value (don't wipe them).
+          remaining[itemId] = amount;
         }
-
-        totalCoins += crop.sellPrice * amount;
       });
 
       if (totalCoins <= 0) {
-        this.statusMessage = 'No sellable crops found in inventory.';
+        this.statusMessage = 'No sellable items found in inventory.';
         statusText.setText(this.statusMessage);
         return;
       }
 
       this.economy.coins += totalCoins;
-      this.inventory = {};
+      this.inventory = remaining;
 
       saveCurrent();
       refreshHud();
@@ -1238,8 +1405,11 @@ export class FarmScene extends Phaser.Scene {
       refreshSelectedSeedLabel();
       statusText.setText(this.statusMessage);
     });
-    buyCoopButton.on('pointerdown', buyChickenCoop);
-    collectEggsButton.on('pointerdown', collectEggs);
+    buyChickenButton.on('pointerdown', () => buyAnimal('chicken'));
+    buyCalfButton.on('pointerdown', () => buyAnimal('calf'));
+    feedAnimalsButton.on('pointerdown', feedAllAnimals);
+    collectProductsButton.on('pointerdown', collectProducts);
+    sellAnimalsButton.on('pointerdown', sellMaturedAnimals);
     fertilizerModeButton.on('pointerdown', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
@@ -1302,8 +1472,9 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-L', () => {
       void login();
     });
-    this.input.keyboard?.on('keydown-A', buyChickenCoop);
-    this.input.keyboard?.on('keydown-E', collectEggs);
+    this.input.keyboard?.on('keydown-A', feedAllAnimals);
+    this.input.keyboard?.on('keydown-E', collectProducts);
+    this.input.keyboard?.on('keydown-M', sellMaturedAnimals);
     this.input.keyboard?.on('keydown-F', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
@@ -1364,7 +1535,8 @@ export class FarmScene extends Phaser.Scene {
       delay: 1000,
       loop: true,
       callback: () => {
-        updateEggProduction();
+        simulateAllAnimals();
+        refreshAnimalsLabel();
         let hasPlanted = false;
         this.farmTiles.forEach((tile) => {
           if (tile.state === 'planted') {
@@ -1377,9 +1549,9 @@ export class FarmScene extends Phaser.Scene {
             refreshTileVisual(tile);
           }
         });
-        // Persist care progression so decay/problems survive a reload even
-        // when the player performs no explicit action.
-        if (hasPlanted) {
+        // Persist care + animal progression so it survives a reload even when
+        // the player performs no explicit action.
+        if (hasPlanted || this.animals.animals.length > 0) {
           saveCurrent();
         }
       },

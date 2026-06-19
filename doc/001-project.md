@@ -181,11 +181,26 @@ Phase P3b - Animal lifecycle depth
   * productive animals (egg/milk/wool/honey) gated by feed state;
   * growing animals that mature and are sold;
   * animal status bars (food, growth, productivity) and optional lifespan.
-* Current status: PARTIAL (chicken coop + timed eggs only).
+* Current status: DONE.
+* Implementation notes:
+  * animals are now per-instance (`AnimalState[]`) rather than aggregate coops,
+    each tracking `fedUntil`, `storedProduct`, `produceProgressMs`, `growthMs`
+    and `matured`;
+  * two starter types in `data/animals.ts`: chicken (productive: feed -> lay
+    eggs to a cap -> collect -> sell eggs) and calf (growing: feed -> mature
+    through Calf/Heifer/Cow -> sell for coins);
+  * feeding is timestamp-based with a food duration (chicken 120s / calf 180s at
+    prototype scale, ~2:3 mirroring the original 8h:12h) and is dev-speed aware;
+  * only the fed portion of elapsed time advances produce/growth, so unfed
+    animals stall exactly like the original;
+  * barn panel exposes Buy Chicken / Buy Calf / Feed All (A) / Collect Products
+    (E) / Sell Mature (M); status text shows per-animal food + produce/growth;
+  * save bumped to v6 with a migration that converts legacy chicken coops into
+    hungry chicken instances and moves stored eggs into inventory.
 * Exit criteria:
-  * animals require feeding to produce or grow;
-  * at least one productive animal and one growing animal type exist;
-  * animal state is timestamp-based and persisted.
+  * animals require feeding to produce or grow; [met]
+  * at least one productive animal and one growing animal type exist; [met]
+  * animal state is timestamp-based and persisted. [met]
 
 Phase P4 - Social baseline: visit, help, steal, log
 
