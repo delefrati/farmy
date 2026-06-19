@@ -96,15 +96,15 @@ export class FarmScene extends Phaser.Scene {
     const tileVisuals = new Map<string, TileVisual>();
 
     this.add
-      .text(24, 24, 'FarmScene: Phase 8 Harvest + Sell Loop', {
-        color: '#1f3f10',
-        fontSize: '24px',
+      .text(24, 836, 'Farmy — mechanics prototype', {
+        color: '#3f5f2f',
+        fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
     const hudText = this.add
-      .text(24, 58, `Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`, {
+      .text(24, 100, `Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`, {
         color: '#2f4f1f',
         fontSize: '16px',
         fontFamily: 'Arial',
@@ -112,7 +112,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const progressionText = this.add
-      .text(24, 76, '', {
+      .text(24, 122, '', {
         color: '#2f4f1f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -120,7 +120,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const selectedSeedText = this.add
-      .text(24, 92, '', {
+      .text(24, 144, '', {
         color: '#2f4f1f',
         fontSize: '16px',
         fontFamily: 'Arial',
@@ -128,7 +128,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const selectedSeedMetaText = this.add
-      .text(24, 110, '', {
+      .text(24, 164, '', {
         color: '#335a2a',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -136,7 +136,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const decorationModeText = this.add
-      .text(24, 240, '', {
+      .text(24, 286, '', {
         color: '#5f3b8a',
         fontSize: '12px',
         fontFamily: 'Arial',
@@ -144,7 +144,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const statusText = this.add
-      .text(24, 128, 'Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.', {
+      .text(24, 188, 'Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.', {
         color: '#3f5f2f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -152,7 +152,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const inventoryText = this.add
-      .text(24, 148, 'Inventory: empty', {
+      .text(24, 210, 'Inventory: empty', {
         color: '#2f4f1f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -160,7 +160,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const syncText = this.add
-      .text(24, 166, 'Sync: idle | Last sync: never', {
+      .text(24, 230, 'Sync: idle | Last sync: never', {
         color: '#1f5c99',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -168,7 +168,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const authText = this.add
-      .text(24, 184, '', {
+      .text(24, 248, '', {
         color: '#0f4f8c',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -176,7 +176,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const devSpeedText = this.add
-      .text(24, 202, '', {
+      .text(24, 266, '', {
         color: '#7a3b00',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -184,7 +184,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const animalsText = this.add
-      .text(24, 258, '', {
+      .text(24, 322, '', {
         color: '#5b3c18',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -192,7 +192,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 220, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch fert', {
+      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch fert', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
@@ -202,12 +202,12 @@ export class FarmScene extends Phaser.Scene {
     controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch fert');
 
     this.add
-      .rectangle(480, 290, 860, 420, 0x6c9a4b)
+      .rectangle(640, 640, 816, 420, 0x6c9a4b)
       .setStrokeStyle(4, 0x4b6d33)
       .setDepth(0);
 
     const resetButton = this.add
-      .text(770, 22, 'Reset Save (R)', {
+      .text(790, 14, 'Reset Save (R)', {
         color: '#ffffff',
         backgroundColor: '#955728',
         fontSize: '16px',
@@ -218,7 +218,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const sellButton = this.add
-      .text(620, 22, 'Sell Inventory (S)', {
+      .text(630, 14, 'Sell Inventory (S)', {
         color: '#ffffff',
         backgroundColor: '#2f7a41',
         fontSize: '16px',
@@ -229,7 +229,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const uploadButton = this.add
-      .text(455, 22, 'Upload Save (U)', {
+      .text(470, 14, 'Upload Save (U)', {
         color: '#ffffff',
         backgroundColor: '#1f5c99',
         fontSize: '16px',
@@ -240,7 +240,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const downloadButton = this.add
-      .text(280, 22, 'Download Save (D)', {
+      .text(300, 14, 'Download Save (D)', {
         color: '#ffffff',
         backgroundColor: '#1f5c99',
         fontSize: '16px',
@@ -251,7 +251,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const registerButton = this.add
-      .text(24, 22, 'Register', {
+      .text(24, 14, 'Register', {
         color: '#ffffff',
         backgroundColor: '#345c7a',
         fontSize: '14px',
@@ -262,7 +262,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const loginButton = this.add
-      .text(120, 22, 'Login (L)', {
+      .text(120, 14, 'Login (L)', {
         color: '#ffffff',
         backgroundColor: '#345c7a',
         fontSize: '14px',
@@ -273,7 +273,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const logoutButton = this.add
-      .text(220, 22, 'Logout', {
+      .text(210, 14, 'Logout', {
         color: '#ffffff',
         backgroundColor: '#6f3c3c',
         fontSize: '14px',
@@ -284,7 +284,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const decorationModeButton = this.add
-      .text(890, 22, 'Decor Mode (G)', {
+      .text(24, 54, 'Decor Mode (G)', {
         color: '#ffffff',
         backgroundColor: '#5f3b8a',
         fontSize: '14px',
@@ -295,7 +295,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const buyCoopButton = this.add
-      .text(890, 56, 'Buy Coop (A)', {
+      .text(470, 54, 'Buy Coop (A)', {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
         fontSize: '13px',
@@ -306,7 +306,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const collectEggsButton = this.add
-      .text(890, 84, 'Collect Eggs (E)', {
+      .text(600, 54, 'Collect Eggs (E)', {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
         fontSize: '13px',
@@ -317,7 +317,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const fertilizerModeButton = this.add
-      .text(890, 112, 'Fertilizer (F)', {
+      .text(175, 54, 'Fertilizer (F)', {
         color: '#ffffff',
         backgroundColor: '#2f6f3b',
         fontSize: '13px',
@@ -328,7 +328,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const buyFertilizerButton = this.add
-      .text(890, 140, 'Buy Fertilizer (B)', {
+      .text(305, 54, 'Buy Fertilizer (B)', {
         color: '#ffffff',
         backgroundColor: '#2f6f3b',
         fontSize: '12px',
@@ -648,7 +648,7 @@ export class FarmScene extends Phaser.Scene {
 
     const renderSeedSelector = (): void => {
       this.add
-        .text(430, 58, 'Seed Shop:', {
+        .text(24, 340, 'Seed Shop:', {
           color: '#1f3f10',
           fontSize: '16px',
           fontFamily: 'Arial',
@@ -660,7 +660,7 @@ export class FarmScene extends Phaser.Scene {
         const isUnlocked = this.economy.level >= crop.unlockLevel;
 
         const button = this.add
-          .text(520 + index * 140, 56, `${crop.name}\nL${crop.unlockLevel}`, {
+          .text(130 + index * 140, 334, `${crop.name}\nL${crop.unlockLevel}`, {
             color: '#ffffff',
             backgroundColor: isSelected ? '#357a38' : isUnlocked ? '#4b6d33' : '#777777',
             fontSize: '12px',
@@ -691,7 +691,7 @@ export class FarmScene extends Phaser.Scene {
 
     const renderDecorationSelector = (): void => {
       this.add
-        .text(430, 94, 'Decorations:', {
+        .text(24, 390, 'Decorations:', {
           color: '#4f2f77',
           fontSize: '14px',
           fontFamily: 'Arial',
@@ -703,7 +703,7 @@ export class FarmScene extends Phaser.Scene {
         const isUnlocked = this.economy.level >= decoration.unlockLevel;
 
         const button = this.add
-          .text(520 + index * 150, 92, `${decoration.name}\nL${decoration.unlockLevel}`, {
+          .text(130 + index * 150, 384, `${decoration.name}\nL${decoration.unlockLevel}`, {
             color: '#ffffff',
             backgroundColor: isSelected ? '#5f3b8a' : isUnlocked ? '#7751a1' : '#777777',
             fontSize: '11px',
@@ -936,8 +936,8 @@ export class FarmScene extends Phaser.Scene {
     };
 
     const renderGrid = (): void => {
-      const originX = 100;
-      const originY = 130;
+      const originX = 256;
+      const originY = 444;
 
       this.farmTiles.forEach((tile) => {
         const posX = originX + tile.x * (this.tileSize.width + this.tileGap);
@@ -1254,7 +1254,7 @@ export class FarmScene extends Phaser.Scene {
 
     if (isDevMode) {
       const speedOne = this.add
-        .text(620, 98, '1x', {
+        .text(640, 336, '1x', {
           color: '#ffffff',
           backgroundColor: '#7a3b00',
           fontSize: '13px',
@@ -1265,7 +1265,7 @@ export class FarmScene extends Phaser.Scene {
         .setDepth(2);
 
       const speedTen = this.add
-        .text(665, 98, '10x', {
+        .text(688, 336, '10x', {
           color: '#ffffff',
           backgroundColor: '#7a3b00',
           fontSize: '13px',
@@ -1276,7 +1276,7 @@ export class FarmScene extends Phaser.Scene {
         .setDepth(2);
 
       const speedHundred = this.add
-        .text(720, 98, '100x', {
+        .text(742, 336, '100x', {
           color: '#ffffff',
           backgroundColor: '#7a3b00',
           fontSize: '13px',

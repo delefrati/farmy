@@ -25,9 +25,10 @@ h1 {
 }
 
 #game-root {
-  width: 960px;
+  width: 1280px;
   max-width: calc(100vw - 32px);
-  height: 540px;
+  aspect-ratio: 1280 / 860;
+  height: auto;
   border: 2px solid #9f835f;
   background: #d8f0c4;
 }
