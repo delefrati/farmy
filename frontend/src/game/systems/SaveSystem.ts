@@ -10,6 +10,7 @@ import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
+const BACKUP_KEY = 'farmy.save.backup';
 const SAVE_VERSION = 12;
 
 // Animal state shape used before v6 (aggregate chicken coops + pooled eggs).
@@ -797,5 +798,34 @@ export class SaveSystem {
 
   clearSave(): void {
     localStorage.removeItem(SAVE_KEY);
+  }
+
+  // Snapshot the current local save before a destructive sync (e.g. a forced
+  // download that overwrites local progress) so the player can never lose data
+  // outright. Returns false when there is nothing to back up.
+  backupCurrentSave(): boolean {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) {
+      return false;
+    }
+
+    localStorage.setItem(BACKUP_KEY, raw);
+    return true;
+  }
+
+  hasBackup(): boolean {
+    return localStorage.getItem(BACKUP_KEY) !== null;
+  }
+
+  // Restore the last backup as the active save. Validates + migrates through the
+  // normal load path so an older-format backup is still usable.
+  restoreBackup(): SaveGame | null {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    localStorage.setItem(SAVE_KEY, raw);
+    return this.loadGame();
   }
 }

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SaveSystem } from '../systems/SaveSystem';
 import type { FarmTile } from '../types/farm';
+import type { SaveGame } from '../types/save';
 import type { PlayerEconomy } from '../types/economy';
 import type { PlayerInventory } from '../types/inventory';
 import type { PlayerAnimals } from '../types/animals';
@@ -32,6 +33,12 @@ import {
   pacingProfiles,
   type PacingProfileId,
 } from '../systems/PacingSystem';
+import {
+  formatSyncHistory,
+  loadSyncHistory,
+  recordSyncEvent,
+  type SyncHistoryEntry,
+} from '../systems/SyncSystem';
 import {
   ANIMAL,
   createAnimalInstance,
@@ -375,7 +382,7 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
-    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing. Click a locked plot to unlock it.');
+    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing | Y sync. Click a locked plot to unlock it.');
 
     this.add
       .rectangle(640, 640, 816, 420, 0x6c9a4b)
@@ -422,6 +429,17 @@ export class FarmScene extends Phaser.Scene {
         fontSize: '16px',
         fontFamily: 'Arial',
         padding: { x: 12, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const syncPanelButton = this.add
+      .text(960, 14, 'Sync \u2699 (Y)', {
+        color: '#ffffff',
+        backgroundColor: '#345c7a',
+        fontSize: '14px',
+        fontFamily: 'Arial',
+        padding: { x: 10, y: 6 },
       })
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
@@ -1279,6 +1297,217 @@ export class FarmScene extends Phaser.Scene {
       statusText.setText(this.statusMessage);
     };
 
+    // ---- P8: cloud sync conflict resolution + auditable history ----
+    // The save is whole-replace only (no field merge): the player explicitly
+    // picks which side wins and the losing side is backed up, so a conflict can
+    // never silently destroy progress.
+    let syncHistory: SyncHistoryEntry[] = loadSyncHistory();
+    let conflictRemote: SaveGame | null = null;
+
+    const formatTimestamp = (iso: string): string => {
+      const ms = toTimestamp(iso);
+      return ms > 0 ? new Date(ms).toLocaleString() : 'unknown';
+    };
+
+    const syncPanelBg = this.add
+      .rectangle(640, 430, 580, 430, 0x12233a, 0.97)
+      .setStrokeStyle(2, 0x4f87c4)
+      .setDepth(50)
+      .setVisible(false);
+
+    const syncPanelTitle = this.add
+      .text(366, 234, 'Cloud Sync', {
+        color: '#ffffff',
+        fontSize: '18px',
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
+      })
+      .setDepth(51)
+      .setVisible(false);
+
+    const syncPanelInfo = this.add
+      .text(366, 268, '', {
+        color: '#d8e6f5',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        lineSpacing: 4,
+        wordWrap: { width: 528 },
+      })
+      .setDepth(51)
+      .setVisible(false);
+
+    const syncPanelHistory = this.add
+      .text(366, 392, '', {
+        color: '#aac4dd',
+        fontSize: '12px',
+        fontFamily: 'Arial',
+        lineSpacing: 3,
+        wordWrap: { width: 528 },
+      })
+      .setDepth(51)
+      .setVisible(false);
+
+    const makePanelButton = (x: number, label: string, bg: string): Phaser.GameObjects.Text =>
+      this.add
+        .text(x, 600, label, {
+          color: '#ffffff',
+          backgroundColor: bg,
+          fontSize: '13px',
+          fontFamily: 'Arial',
+          padding: { x: 10, y: 6 },
+        })
+        .setInteractive({ useHandCursor: true })
+        .setDepth(51)
+        .setVisible(false);
+
+    const forceUploadButton = makePanelButton(366, 'Keep Mine \u2191 (upload)', '#1f5c99');
+    const forceDownloadButton = makePanelButton(516, 'Use Remote \u2193 (download)', '#7a3b00');
+    const restoreBackupButton = makePanelButton(706, 'Restore Backup', '#4f6f3c');
+    const closeSyncButton = makePanelButton(836, 'Close', '#6f3c3c');
+
+    const syncPanelObjects: Array<Phaser.GameObjects.Text | Phaser.GameObjects.Rectangle> = [
+      syncPanelBg,
+      syncPanelTitle,
+      syncPanelInfo,
+      syncPanelHistory,
+      forceUploadButton,
+      forceDownloadButton,
+      restoreBackupButton,
+      closeSyncButton,
+    ];
+
+    const refreshSyncPanel = (): void => {
+      const localSave = this.saveSystem.loadGame();
+      const lines = [`Local save: ${formatTimestamp(localSave.savedAt)}`];
+
+      if (conflictRemote) {
+        lines.push(`Remote save: ${formatTimestamp(conflictRemote.savedAt)}`);
+        lines.push('\u26a0 Conflict detected. Choose which save to keep. The');
+        lines.push('   other side is backed up and can be restored.');
+      } else {
+        lines.push('Remote save: (use a sync action to compare)');
+        lines.push('Choose a forced action to override the timestamp guard.');
+      }
+
+      syncPanelInfo.setText(lines.join('\n'));
+      syncPanelHistory.setText(formatSyncHistory(syncHistory));
+      restoreBackupButton.setVisible(this.saveSystem.hasBackup());
+    };
+
+    const openSyncPanel = (remote?: SaveGame | null): void => {
+      conflictRemote = remote ?? null;
+      syncPanelObjects.forEach((object) => object.setVisible(true));
+      refreshSyncPanel();
+    };
+
+    const closeSyncPanel = (): void => {
+      conflictRemote = null;
+      syncPanelObjects.forEach((object) => object.setVisible(false));
+    };
+
+    const pushSyncHistory = (
+      action: SyncHistoryEntry['action'],
+      outcome: SyncHistoryEntry['outcome'],
+      detail: string,
+    ): void => {
+      syncHistory = recordSyncEvent(syncHistory, action, outcome, detail);
+      if (syncPanelBg.visible) {
+        refreshSyncPanel();
+      }
+    };
+
+    const applyDownloadedSave = (remoteSave: SaveGame): void => {
+      this.saveSystem.replaceLocalSave(remoteSave);
+      this.farmTiles = remoteSave.farmTiles;
+      this.economy = remoteSave.economy;
+      this.inventory = remoteSave.inventory;
+      this.fertilizers = remoteSave.fertilizers;
+      this.animals = remoteSave.animals;
+      this.neighbors = remoteSave.neighbors;
+      this.farmEvents = remoteSave.events;
+      this.popularity = remoteSave.popularity;
+      this.giftInbox = remoteSave.giftInbox;
+      this.hasDog = remoteSave.hasDog;
+      this.daily = remoteSave.daily;
+      this.pacingProfileId = remoteSave.pacingProfileId;
+      this.selectedCropId = remoteSave.selectedCropId;
+    };
+
+    const forceUpload = async (): Promise<void> => {
+      if (isSyncing) {
+        return;
+      }
+
+      isSyncing = true;
+      setSyncLabel('syncing');
+      try {
+        const currentSave = buildCurrentSave();
+        await this.remoteSaveService.uploadSave(currentSave);
+        this.statusMessage = 'Forced upload: local save now wins on the server.';
+        lastSyncLabel = new Date().toLocaleTimeString();
+        setSyncLabel('success', 'forced upload');
+        pushSyncHistory('upload', 'forced-upload', 'local overwrote remote');
+        closeSyncPanel();
+      } catch (error) {
+        this.statusMessage = `Forced upload failed: ${String(error)}`;
+        setSyncLabel('error', 'forced upload failed');
+        pushSyncHistory('upload', 'failed', String(error));
+      } finally {
+        isSyncing = false;
+        statusText.setText(this.statusMessage);
+      }
+    };
+
+    const forceDownload = async (): Promise<void> => {
+      if (isSyncing) {
+        return;
+      }
+
+      isSyncing = true;
+      setSyncLabel('syncing');
+      try {
+        const remoteSave = conflictRemote ?? (await this.remoteSaveService.downloadSave());
+        if (!remoteSave) {
+          this.statusMessage = 'No remote save to download.';
+          setSyncLabel('idle', 'no remote save');
+          pushSyncHistory('download', 'no-remote', 'remote empty');
+          statusText.setText(this.statusMessage);
+          return;
+        }
+
+        // Back up local progress before it is overwritten so nothing is lost.
+        this.saveSystem.backupCurrentSave();
+        applyDownloadedSave(remoteSave);
+        this.statusMessage = 'Forced download: remote save applied. Local backed up.';
+        lastSyncLabel = new Date().toLocaleTimeString();
+        setSyncLabel('success', 'forced download');
+        pushSyncHistory('download', 'forced-download', 'remote overwrote local (backup kept)');
+        closeSyncPanel();
+        this.scene.restart();
+      } catch (error) {
+        this.statusMessage = `Forced download failed: ${String(error)}`;
+        setSyncLabel('error', 'forced download failed');
+        pushSyncHistory('download', 'failed', String(error));
+        statusText.setText(this.statusMessage);
+      } finally {
+        isSyncing = false;
+      }
+    };
+
+    const restoreBackupSave = (): void => {
+      const restored = this.saveSystem.restoreBackup();
+      if (!restored) {
+        this.statusMessage = 'No backup available to restore.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      this.statusMessage = 'Backup restored as the active save.';
+      pushSyncHistory('download', 'forced-download', 'restored local backup');
+      closeSyncPanel();
+      this.scene.restart();
+    };
+
     const uploadRemoteSave = async (): Promise<void> => {
       if (isSyncing) {
         return;
@@ -1291,8 +1520,10 @@ export class FarmScene extends Phaser.Scene {
 
         const remoteSave = await this.remoteSaveService.downloadSave();
         if (remoteSave && toTimestamp(remoteSave.savedAt) > toTimestamp(currentSave.savedAt)) {
-          this.statusMessage = 'Upload blocked: remote save is newer. Download first.';
-          setSyncLabel('error', 'upload blocked by newer remote');
+          this.statusMessage = 'Upload conflict: remote save is newer. Resolve in the Sync panel.';
+          setSyncLabel('error', 'upload conflict');
+          pushSyncHistory('upload', 'conflict', 'remote newer than local');
+          openSyncPanel(remoteSave);
           statusText.setText(this.statusMessage);
           return;
         }
@@ -1301,9 +1532,11 @@ export class FarmScene extends Phaser.Scene {
         this.statusMessage = 'Save uploaded to backend.';
         lastSyncLabel = new Date().toLocaleTimeString();
         setSyncLabel('success', 'uploaded');
+        pushSyncHistory('upload', 'uploaded', 'local newer or equal');
       } catch (error) {
         this.statusMessage = `Upload failed: ${String(error)}`;
         setSyncLabel('error', 'upload failed');
+        pushSyncHistory('upload', 'failed', String(error));
       } finally {
         isSyncing = false;
         statusText.setText(this.statusMessage);
@@ -1323,36 +1556,31 @@ export class FarmScene extends Phaser.Scene {
         if (!remoteSave) {
           this.statusMessage = 'No remote save found yet.';
           setSyncLabel('idle', 'no remote save');
+          pushSyncHistory('download', 'no-remote', 'remote empty');
           statusText.setText(this.statusMessage);
           return;
         }
 
         if (toTimestamp(remoteSave.savedAt) < toTimestamp(localSave.savedAt)) {
-          this.statusMessage = 'Download blocked: local save is newer. Upload first.';
-          setSyncLabel('error', 'download blocked by newer local');
+          this.statusMessage = 'Download conflict: local save is newer. Resolve in the Sync panel.';
+          setSyncLabel('error', 'download conflict');
+          pushSyncHistory('download', 'conflict', 'local newer than remote');
+          openSyncPanel(remoteSave);
           statusText.setText(this.statusMessage);
           return;
         }
 
-        this.saveSystem.replaceLocalSave(remoteSave);
-        this.farmTiles = remoteSave.farmTiles;
-        this.economy = remoteSave.economy;
-        this.inventory = remoteSave.inventory;
-        this.fertilizers = remoteSave.fertilizers;
-        this.animals = remoteSave.animals;
-        this.neighbors = remoteSave.neighbors;
-        this.farmEvents = remoteSave.events;
-        this.popularity = remoteSave.popularity;
-        this.giftInbox = remoteSave.giftInbox;
-        this.hasDog = remoteSave.hasDog;
-        this.selectedCropId = remoteSave.selectedCropId;
+        this.saveSystem.backupCurrentSave();
+        applyDownloadedSave(remoteSave);
         this.statusMessage = 'Remote save downloaded.';
         lastSyncLabel = new Date().toLocaleTimeString();
         setSyncLabel('success', 'downloaded');
+        pushSyncHistory('download', 'downloaded', 'remote newer or equal');
         this.scene.restart();
       } catch (error) {
         this.statusMessage = `Download failed: ${String(error)}`;
         setSyncLabel('error', 'download failed');
+        pushSyncHistory('download', 'failed', String(error));
         statusText.setText(this.statusMessage);
       } finally {
         isSyncing = false;
@@ -1794,6 +2022,15 @@ export class FarmScene extends Phaser.Scene {
     downloadButton.on('pointerdown', () => {
       void downloadRemoteSave();
     });
+    syncPanelButton.on('pointerdown', () => openSyncPanel());
+    forceUploadButton.on('pointerdown', () => {
+      void forceUpload();
+    });
+    forceDownloadButton.on('pointerdown', () => {
+      void forceDownload();
+    });
+    restoreBackupButton.on('pointerdown', restoreBackupSave);
+    closeSyncButton.on('pointerdown', closeSyncPanel);
 
     if (isDevMode) {
       const speedOne = this.add
@@ -1888,6 +2125,13 @@ export class FarmScene extends Phaser.Scene {
     });
     this.input.keyboard?.on('keydown-D', () => {
       void downloadRemoteSave();
+    });
+    this.input.keyboard?.on('keydown-Y', () => {
+      if (syncPanelBg.visible) {
+        closeSyncPanel();
+      } else {
+        openSyncPanel();
+      }
     });
 
     if (this.statusMessage) {
