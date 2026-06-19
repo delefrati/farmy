@@ -34,6 +34,30 @@ export const crops: CropDefinition[] = [
     stages: ['seed', 'sprout', 'small', 'ready'],
     seasons: 1,
   },
+  {
+    id: 'rose',
+    name: 'Rose',
+    seedPrice: 18,
+    sellPrice: 20,
+    growSeconds: 150,
+    xp: 6,
+    unlockLevel: 1,
+    stages: ['seed', 'sprout', 'bud', 'ready'],
+    seasons: 1,
+    isFlower: true,
+  },
+  {
+    id: 'sunflower',
+    name: 'Sunflower',
+    seedPrice: 30,
+    sellPrice: 34,
+    growSeconds: 210,
+    xp: 9,
+    unlockLevel: 2,
+    stages: ['seed', 'sprout', 'bud', 'ready'],
+    seasons: 1,
+    isFlower: true,
+  },
 ];
 
 export const defaultCropId = 'strawberry';

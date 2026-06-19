@@ -1,7 +1,7 @@
 import { crops } from '../data/crops';
 import type { CropDefinition } from '../types/crop';
 import type { FarmTile } from '../types/farm';
-import type { FarmEvent, FarmEventKind, NeighborFarm } from '../types/social';
+import type { FarmEvent, FarmEventKind, Gift, NeighborFarm } from '../types/social';
 
 export const SOCIAL = {
   // Reward for a single help action (water / weed / pest removal) on a friend.
@@ -18,6 +18,10 @@ export const SOCIAL = {
   // Neighbor farm dimensions (smaller than the player's 6x4 field).
   NEIGHBOR_COLUMNS: 4,
   NEIGHBOR_ROWS: 3,
+  // Phase P4b: popularity awarded when the player collects a received flower.
+  POPULARITY_PER_GIFT: 5,
+  // Small XP nudge for gifting a flower out to a neighbor.
+  GIFT_OUT_XP: 1,
 } as const;
 
 // Small deterministic PRNG (mulberry32) so neighbor farms regenerate the same
@@ -152,3 +156,37 @@ export const formatEventTime = (at: number, now: number): string => {
   }
   return `${Math.floor(hours / 24)}d ago`;
 };
+
+// Phase P4b gift helpers.
+
+let giftCounter = 0;
+export const makeGiftId = (): string => {
+  giftCounter += 1;
+  return `gift_${Date.now().toString(36)}_${giftCounter.toString(36)}`;
+};
+
+export const flowerCrops = (): CropDefinition[] => crops.filter((crop) => crop.isFlower);
+
+export const isFlowerCrop = (cropId: string | undefined): boolean =>
+  Boolean(cropId && crops.find((crop) => crop.id === cropId)?.isFlower);
+
+export const makeGift = (fromName: string, flowerId: string, now: number): Gift => ({
+  id: makeGiftId(),
+  fromName,
+  flowerId,
+  at: now,
+});
+
+// Seed a couple of welcome gifts so a brand-new player can immediately see the
+// popularity track react when they collect them.
+export const createStarterGifts = (now: number): Gift[] => {
+  const flowers = flowerCrops();
+  if (flowers.length === 0) {
+    return [];
+  }
+  return [
+    makeGift('Maria', flowers[0].id, now),
+    makeGift('Ana', flowers[Math.min(1, flowers.length - 1)].id, now),
+  ];
+};
+

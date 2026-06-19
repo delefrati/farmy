@@ -2,7 +2,7 @@ import type { FarmTile } from './farm';
 import type { PlayerEconomy } from './economy';
 import type { PlayerInventory } from './inventory';
 import type { PlayerAnimals } from './animals';
-import type { FarmEvent, NeighborFarm } from './social';
+import type { FarmEvent, Gift, NeighborFarm } from './social';
 
 export type SaveGame = {
   version: number;
@@ -16,4 +16,7 @@ export type SaveGame = {
   // Phase P4 social baseline.
   neighbors: NeighborFarm[];
   events: FarmEvent[];
+  // Phase P4b social prestige.
+  popularity: number;
+  giftInbox: Gift[];
 };

@@ -245,11 +245,17 @@ Phase P4b - Flowers, gifts, and popularity
   * gift inbox (send/receive);
   * popularity score that increases from received flowers/gifts;
   * popularity shown distinctly from XP/level.
-* Current status: TODO.
+* Current status: DONE.
+* Implementation notes:
+  * Added two giftable flower crops (`rose`, `sunflower`) flagged with `isFlower` on `CropDefinition`; they grow like any other crop.
+  * `social.ts` gained a `Gift` type; `SocialSystem.ts` gained flower helpers (`flowerCrops`, `isFlowerCrop`, `makeGift`, `createStarterGifts`) and gift/popularity constants (`POPULARITY_PER_GIFT` 5, `GIFT_OUT_XP` 1).
+  * Save bumped to v8: `popularity` + `giftInbox` added to `SaveGame`, with a v7→v8 migration (seeds two starter gifts, popularity 0) plus pass-through in every older migration branch.
+  * NeighborScene: "Gift a Flower (F)" consumes a flower from inventory, grants `GIFT_OUT_XP`, and the neighbor reciprocates with a gift that lands in the player's inbox.
+  * FarmScene: popularity HUD line (`★ Popularity / Gifts waiting`) shown separately from coins/XP/level; "Collect Gifts (C)" converts inbox gifts into popularity and logs a system event.
 * Exit criteria:
-  * player can grow and gift a flower to a friend;
-  * receiving a gift raises a persisted popularity value;
-  * popularity is displayed separately from XP and level.
+  * player can grow and gift a flower to a friend; [met]
+  * receiving a gift raises a persisted popularity value; [met]
+  * popularity is displayed separately from XP and level. [met]
 
 Phase P5 - Sabotage and protection (dog/security)
 

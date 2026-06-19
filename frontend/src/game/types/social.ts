@@ -22,3 +22,12 @@ export type NeighborFarm = {
   name: string;
   tiles: FarmTile[];
 };
+
+// Phase P4b: a flower gift sitting in the player's inbox. Collecting it raises
+// the player's popularity (a social-prestige track separate from XP/level).
+export type Gift = {
+  id: string;
+  fromName: string;
+  flowerId: string;
+  at: number; // epoch milliseconds
+};

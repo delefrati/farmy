@@ -3,12 +3,12 @@ import { createDefaultEconomy, type PlayerEconomy } from '../types/economy';
 import { createDefaultInventory, type PlayerInventory } from '../types/inventory';
 import { createDefaultAnimals, type AnimalState, type PlayerAnimals } from '../types/animals';
 import { defaultCropId } from '../data/crops';
-import { createNeighborFarms } from './SocialSystem';
-import type { FarmEvent, NeighborFarm } from '../types/social';
+import { createNeighborFarms, createStarterGifts } from './SocialSystem';
+import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 7;
+const SAVE_VERSION = 8;
 
 // Animal state shape used before v6 (aggregate chicken coops + pooled eggs).
 type LegacyAnimals = {
@@ -70,6 +70,21 @@ type LegacySaveGameV6 = {
   animals: PlayerAnimals;
   selectedCropId: string;
   farmTiles: FarmTile[];
+};
+
+// v7 added neighbors + event log but had no prestige track (popularity / gift
+// inbox were added in v8).
+type LegacySaveGameV7 = {
+  version: number;
+  savedAt: string;
+  economy: PlayerEconomy;
+  inventory: PlayerInventory;
+  fertilizers: PlayerInventory;
+  animals: PlayerAnimals;
+  selectedCropId: string;
+  farmTiles: FarmTile[];
+  neighbors: NeighborFarm[];
+  events: FarmEvent[];
 };
 
 const isLegacyAnimals = (value: unknown): value is LegacyAnimals => {
@@ -223,6 +238,23 @@ const isValidEvent = (value: unknown): value is FarmEvent => {
 const isValidEvents = (value: unknown): value is FarmEvent[] =>
   Array.isArray(value) && value.every(isValidEvent);
 
+const isValidGift = (value: unknown): value is Gift => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const gift = value as Partial<Gift>;
+  return (
+    typeof gift.id === 'string' &&
+    typeof gift.fromName === 'string' &&
+    typeof gift.flowerId === 'string' &&
+    typeof gift.at === 'number'
+  );
+};
+
+const isValidGiftInbox = (value: unknown): value is Gift[] =>
+  Array.isArray(value) && value.every(isValidGift);
+
 const isValidSaveGame = (value: unknown): value is SaveGame => {
   if (!value || typeof value !== 'object') {
     return false;
@@ -241,7 +273,9 @@ const isValidSaveGame = (value: unknown): value is SaveGame => {
     save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
     save.farmTiles.every(isValidFarmTile) &&
     isValidNeighbors(save.neighbors) &&
-    isValidEvents(save.events)
+    isValidEvents(save.events) &&
+    typeof save.popularity === 'number' &&
+    isValidGiftInbox(save.giftInbox)
   );
 };
 
@@ -322,6 +356,28 @@ const isValidLegacySaveGameV6 = (value: unknown): value is LegacySaveGameV6 => {
   );
 };
 
+const isValidLegacySaveGameV7 = (value: unknown): value is LegacySaveGameV7 => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const save = value as Partial<LegacySaveGameV7>;
+  return (
+    typeof save.version === 'number' &&
+    typeof save.savedAt === 'string' &&
+    isValidEconomy(save.economy) &&
+    isValidInventory(save.inventory) &&
+    isValidInventory(save.fertilizers) &&
+    isValidAnimals(save.animals) &&
+    typeof save.selectedCropId === 'string' &&
+    Array.isArray(save.farmTiles) &&
+    save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
+    save.farmTiles.every(isValidFarmTile) &&
+    isValidNeighbors(save.neighbors) &&
+    isValidEvents(save.events)
+  );
+};
+
 const isValidLegacySaveGameV1 = (value: unknown): value is LegacySaveGameV1 => {
   if (!value || typeof value !== 'object') {
     return false;
@@ -353,6 +409,8 @@ export class SaveSystem {
       farmTiles: createDefaultFarmTiles(),
       neighbors: createNeighborFarms(now),
       events: [],
+      popularity: 0,
+      giftInbox: createStarterGifts(now),
     };
   }
 
@@ -365,6 +423,8 @@ export class SaveSystem {
     farmTiles: FarmTile[];
     neighbors: NeighborFarm[];
     events: FarmEvent[];
+    popularity: number;
+    giftInbox: Gift[];
   }): SaveGame {
     const save: SaveGame = {
       version: SAVE_VERSION,
@@ -377,6 +437,8 @@ export class SaveSystem {
       farmTiles: saveInput.farmTiles,
       neighbors: saveInput.neighbors,
       events: saveInput.events,
+      popularity: saveInput.popularity,
+      giftInbox: saveInput.giftInbox,
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -408,6 +470,18 @@ export class SaveSystem {
 
       const now = Date.now();
 
+      // v7 only lacked the prestige track (popularity + gift inbox) added in v8.
+      if (isValidLegacySaveGameV7(parsed) && parsed.version === 7) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          popularity: 0,
+          giftInbox: createStarterGifts(now),
+        };
+        this.saveGame(migrated);
+        return migrated;
+      }
+
       // v6 only lacked the social state (neighbors + event log) added in v7.
       if (isValidLegacySaveGameV6(parsed) && parsed.version === 6) {
         const migrated: SaveGame = {
@@ -415,6 +489,8 @@ export class SaveSystem {
           version: SAVE_VERSION,
           neighbors: createNeighborFarms(now),
           events: [],
+          popularity: 0,
+          giftInbox: createStarterGifts(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -433,6 +509,8 @@ export class SaveSystem {
           },
           neighbors: createNeighborFarms(now),
           events: [],
+          popularity: 0,
+          giftInbox: createStarterGifts(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -452,6 +530,8 @@ export class SaveSystem {
           },
           neighbors: createNeighborFarms(now),
           events: [],
+          popularity: 0,
+          giftInbox: createStarterGifts(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -466,6 +546,8 @@ export class SaveSystem {
           animals: createDefaultAnimals(),
           neighbors: createNeighborFarms(now),
           events: [],
+          popularity: 0,
+          giftInbox: createStarterGifts(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -479,6 +561,8 @@ export class SaveSystem {
           animals: createDefaultAnimals(),
           neighbors: createNeighborFarms(now),
           events: [],
+          popularity: 0,
+          giftInbox: createStarterGifts(now),
         };
         this.saveGame(migrated);
         return migrated;

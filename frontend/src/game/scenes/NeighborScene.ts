@@ -6,10 +6,10 @@ import type { FarmTile } from '../types/farm';
 import type { PlayerEconomy } from '../types/economy';
 import type { PlayerInventory } from '../types/inventory';
 import type { PlayerAnimals } from '../types/animals';
-import type { FarmEvent, NeighborFarm } from '../types/social';
+import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import { getLevelFromXp } from '../data/progression';
 import { removePests, removeWeeds, waterTile } from '../systems/CareSystem';
-import { pushEvent, SOCIAL } from '../systems/SocialSystem';
+import { flowerCrops, makeGift, pushEvent, SOCIAL } from '../systems/SocialSystem';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
@@ -47,6 +47,8 @@ export class NeighborScene extends Phaser.Scene {
     const animals: PlayerAnimals = save.animals;
     const neighbors: NeighborFarm[] = save.neighbors;
     let events: FarmEvent[] = save.events;
+    const popularity: number = save.popularity;
+    let giftInbox: Gift[] = save.giftInbox;
 
     const neighbor = neighbors.find((item) => item.id === this.neighborId) ?? neighbors[0];
 
@@ -132,6 +134,17 @@ export class NeighborScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
+    const giftButton = this.add
+      .text(320, 178, 'Gift a Flower (F)', {
+        color: '#ffffff',
+        backgroundColor: '#8a3b6a',
+        fontSize: '15px',
+        fontFamily: 'Arial',
+        padding: { x: 12, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
     this.add
       .text(960, 70, 'Activity log', {
         color: '#2f4f1f',
@@ -174,6 +187,8 @@ export class NeighborScene extends Phaser.Scene {
         farmTiles: save.farmTiles,
         neighbors,
         events,
+        popularity,
+        giftInbox,
       });
     };
 
@@ -355,7 +370,40 @@ export class NeighborScene extends Phaser.Scene {
       this.scene.start('FarmScene');
     };
 
+    const giftFlower = (): void => {
+      // Find the first flower the player actually has in stock.
+      const flower = flowerCrops().find((crop) => (inventory[crop.id] ?? 0) > 0);
+      if (!flower) {
+        statusMessage = 'No flowers to gift. Grow a Rose or Sunflower on your farm first.';
+        statusText.setText(statusMessage);
+        return;
+      }
+
+      const now = Date.now();
+      inventory[flower.id] = (inventory[flower.id] ?? 0) - 1;
+      economy.xp += SOCIAL.GIFT_OUT_XP;
+      economy.level = getLevelFromXp(economy.xp);
+
+      // The neighbor reciprocates with a flower of their own, which lands in the
+      // player's inbox and raises popularity once collected back home.
+      giftInbox = [makeGift(neighbor.name, flower.id, now), ...giftInbox];
+      events = pushEvent(
+        events,
+        'system',
+        `You gave a ${flower.name} to ${neighbor.name}. They sent one back!`,
+        now,
+      );
+      statusMessage = `Gave a ${flower.name} to ${neighbor.name}. A gift is waiting back home.`;
+
+      saveCurrent();
+      refreshHud();
+      refreshLog();
+      statusText.setText(statusMessage);
+    };
+
     backButton.on('pointerdown', goBack);
+    giftButton.on('pointerdown', giftFlower);
+    this.input.keyboard?.on('keydown-F', giftFlower);
     this.input.keyboard?.on('keydown-B', goBack);
     this.input.keyboard?.on('keydown-ESC', goBack);
 

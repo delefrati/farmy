@@ -13,8 +13,8 @@ import type { DecorationDefinition } from '../types/decoration';
 import { fertilizers, defaultFertilizerId } from '../data/fertilizers';
 import type { FertilizerDefinition } from '../types/fertilizer';
 import { animalDefinitions, getAnimalDefinition } from '../data/animals';
-import type { FarmEvent, NeighborFarm } from '../types/social';
-import { formatEventTime } from '../systems/SocialSystem';
+import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
+import { formatEventTime, pushEvent, SOCIAL } from '../systems/SocialSystem';
 import {
   ANIMAL,
   createAnimalInstance,
@@ -63,6 +63,10 @@ export class FarmScene extends Phaser.Scene {
 
   private farmEvents: FarmEvent[] = [];
 
+  private popularity = 0;
+
+  private giftInbox: Gift[] = [];
+
   private statusMessage = '';
 
   private readonly tileSize = { width: 120, height: 90 };
@@ -92,6 +96,8 @@ export class FarmScene extends Phaser.Scene {
     this.animals = loaded.animals;
     this.neighbors = loaded.neighbors;
     this.farmEvents = loaded.events;
+    this.popularity = loaded.popularity;
+    this.giftInbox = loaded.giftInbox;
     this.selectedCropId = loaded.selectedCropId;
 
     // Advance crop care for any time that passed while the game was closed.
@@ -130,6 +136,25 @@ export class FarmScene extends Phaser.Scene {
         padding: { x: 2, y: 1 },
       })
       .setDepth(1);
+
+    const popularityText = this.add
+      .text(360, 100, '', {
+        color: '#8a3b6a',
+        fontSize: '15px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
+    const collectGiftsButton = this.add
+      .text(360, 122, 'Collect Gifts (C)', {
+        color: '#ffffff',
+        backgroundColor: '#8a3b6a',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
 
     const progressionText = this.add
       .text(24, 122, '', {
@@ -263,14 +288,14 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature', {
+      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
-    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature');
+    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts');
 
     this.add
       .rectangle(640, 640, 816, 420, 0x6c9a4b)
@@ -546,6 +571,32 @@ export class FarmScene extends Phaser.Scene {
       hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
       const missingXp = getXpToNextLevel(this.economy.xp, this.economy.level);
       progressionText.setText(`Next level in ${missingXp} XP`);
+      popularityText.setText(`\u2605 Popularity: ${this.popularity} | Gifts waiting: ${this.giftInbox.length}`);
+    };
+
+    const collectGifts = (): void => {
+      if (this.giftInbox.length === 0) {
+        this.statusMessage = 'No gifts waiting. Gift a flower to a neighbor to get one back.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      const count = this.giftInbox.length;
+      const gained = count * SOCIAL.POPULARITY_PER_GIFT;
+      this.popularity += gained;
+      this.giftInbox = [];
+      this.farmEvents = pushEvent(
+        this.farmEvents,
+        'system',
+        `You collected ${count} flower gift(s). +${gained} popularity.`,
+        Date.now(),
+      );
+      this.statusMessage = `Collected ${count} gift(s). +${gained} popularity.`;
+
+      refreshHud();
+      refreshEventLog();
+      saveCurrent();
+      statusText.setText(this.statusMessage);
     };
 
     const refreshEventLog = (): void => {
@@ -576,6 +627,8 @@ export class FarmScene extends Phaser.Scene {
         farmTiles: this.farmTiles,
         neighbors: this.neighbors,
         events: this.farmEvents,
+        popularity: this.popularity,
+        giftInbox: this.giftInbox,
       });
     };
 
@@ -589,6 +642,8 @@ export class FarmScene extends Phaser.Scene {
         farmTiles: this.farmTiles,
         neighbors: this.neighbors,
         events: this.farmEvents,
+        popularity: this.popularity,
+        giftInbox: this.giftInbox,
       });
     };
 
@@ -1110,6 +1165,8 @@ export class FarmScene extends Phaser.Scene {
         this.animals = remoteSave.animals;
         this.neighbors = remoteSave.neighbors;
         this.farmEvents = remoteSave.events;
+        this.popularity = remoteSave.popularity;
+        this.giftInbox = remoteSave.giftInbox;
         this.selectedCropId = remoteSave.selectedCropId;
         this.statusMessage = 'Remote save downloaded.';
         lastSyncLabel = new Date().toLocaleTimeString();
@@ -1461,6 +1518,8 @@ export class FarmScene extends Phaser.Scene {
       this.animals = reset.animals;
       this.neighbors = reset.neighbors;
       this.farmEvents = reset.events;
+      this.popularity = reset.popularity;
+      this.giftInbox = reset.giftInbox;
       this.selectedCropId = reset.selectedCropId;
       this.statusMessage = 'Save reset to default state.';
       this.scene.restart();
@@ -1492,6 +1551,7 @@ export class FarmScene extends Phaser.Scene {
         button.on('pointerdown', () => visitNeighbor(neighbor.id));
       }
     });
+    collectGiftsButton.on('pointerdown', collectGifts);
     fertilizerModeButton.on('pointerdown', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
@@ -1557,6 +1617,7 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-A', feedAllAnimals);
     this.input.keyboard?.on('keydown-E', collectProducts);
     this.input.keyboard?.on('keydown-M', sellMaturedAnimals);
+    this.input.keyboard?.on('keydown-C', collectGifts);
     this.input.keyboard?.on('keydown-F', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
