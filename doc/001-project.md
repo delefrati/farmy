@@ -58,6 +58,23 @@ The first deliverable must be a working single-player local version.
 
 This section reflects the current implementation state in the repository and local runtime.
 
+### Latest Health Check (verified)
+
+* Verification time: 2026-06-18 (local run)
+* `docker compose ps`:
+  * `farmy-postgres`: healthy
+  * `farmy-redis`: healthy
+  * `farmy-rabbitmq`: healthy
+  * `farmy-api`: up
+  * `farmy-nginx`: up
+* Endpoint checks:
+  * `GET http://localhost:53001/health` → `200`
+  * `GET http://localhost:53001/api/health/db` → `200`
+  * `GET http://localhost:53001/api/health/redis` → `200`
+  * `GET http://localhost:5080/health` → `200`
+  * `GET http://localhost:5080/api/health/db` → `200` (nginx proxy working)
+  * `GET http://localhost:55673/api/overview` (RabbitMQ management, basic auth) → `200`
+
 ### Completed
 
 * Core documentation structure is in place (`README.md` at root, detailed docs under `doc/`).
@@ -84,9 +101,12 @@ This section reflects the current implementation state in the repository and loc
 
 ### In Progress / Partial
 
-* nginx proxy is up, but `http://localhost:5080/api/health/db` currently returns `404` while direct API returns `200`.
-  * This indicates proxy path forwarding still needs adjustment.
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
+
+### Recently Fixed
+
+* nginx API forwarding is now working.
+  * `http://localhost:5080/api/health/db` returns `200` and correctly proxies to the API service.
 
 ### Not Started Yet (Gameplay)
 
@@ -97,9 +117,9 @@ This section reflects the current implementation state in the repository and loc
 
 ### Recommended Next Steps
 
-1. Fix nginx `/api` proxy forwarding behavior.
-2. Implement Phase 1 frontend game base (BootScene + FarmScene) and verify build/run.
-3. Start Phase 3 farm grid after frontend base is stable.
+1. Implement Phase 1 frontend game base (BootScene + FarmScene) and verify build/run.
+2. Start Phase 3 farm grid after frontend base is stable.
+3. Add first gameplay endpoints after grid/state loop is in place.
 
 ---
 
