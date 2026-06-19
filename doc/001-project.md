@@ -98,10 +98,19 @@ This section reflects the current implementation state in the repository and loc
   * `frontend/src/i18n/config.ts`
   * `frontend/src/i18n/hooks.ts`
   * locale files in `frontend/locales/`
+* Frontend Phase 1 base is implemented:
+  * Vite + React + TypeScript scaffold in `frontend/`
+  * Phaser bootstrap (`BootScene` + `FarmScene`) wired and building
+  * Frontend local dev URL: `http://localhost:5173`
+* Phase 4 save system is implemented (initial version):
+  * `SaveSystem` with create/load/save/clear flows
+  * 6x4 tile state persisted in localStorage
+  * reset controls available (button + `R` shortcut)
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
+* Gameplay loop beyond persisted tile state is still pending (planting economy, growth, harvest, inventory).
 
 ### Recently Fixed
 
@@ -110,16 +119,15 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Phaser game bootstrap/scenes.
 * Farm grid, planting, growth, harvesting loop.
 * Inventory, economy, leveling, and shop systems.
-* Game save/load loop for gameplay state.
+* Animal/decor/social phases.
 
 ### Recommended Next Steps
 
-1. Implement Phase 1 frontend game base (BootScene + FarmScene) and verify build/run.
-2. Start Phase 3 farm grid after frontend base is stable.
-3. Add first gameplay endpoints after grid/state loop is in place.
+1. Finish Phase 3 farm grid interaction polish (selection highlight + clear tile feedback).
+2. Start Phase 5 planting/economy flow on top of current saved tile state.
+3. Add inventory + harvesting path, then connect to backend endpoints incrementally.
 
 ---
 
