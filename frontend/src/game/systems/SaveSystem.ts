@@ -8,7 +8,7 @@ import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 9;
+const SAVE_VERSION = 10;
 
 // Animal state shape used before v6 (aggregate chicken coops + pooled eggs).
 type LegacyAnimals = {
@@ -217,7 +217,8 @@ const isValidFarmTile = (value: unknown): value is FarmTile => {
     (tile.pestIntervalSeen === undefined || typeof tile.pestIntervalSeen === 'number') &&
     (tile.season === undefined || typeof tile.season === 'number') &&
     (tile.fertilizedStage === undefined || typeof tile.fertilizedStage === 'number') &&
-    (tile.stealRemaining === undefined || typeof tile.stealRemaining === 'number')
+    (tile.stealRemaining === undefined || typeof tile.stealRemaining === 'number') &&
+    (tile.locked === undefined || typeof tile.locked === 'boolean')
   );
 };
 
@@ -467,6 +468,16 @@ const isValidLegacySaveGameV1 = (value: unknown): value is LegacySaveGameV1 => {
 const withNeighborDogs = (neighbors: NeighborFarm[]): NeighborFarm[] =>
   neighbors.map((neighbor, index) => ({ ...neighbor, hasDog: index !== 0 }));
 
+// Pre-v10 saves had no locked plots. Lock the empty bottom-row plots (rows 2-3)
+// so migrated farms also start with room to expand, but never lock a plot that
+// already holds a crop or a decoration.
+const withLockedBottomPlots = (tiles: FarmTile[]): FarmTile[] =>
+  tiles.map((tile) =>
+    tile.y >= 2 && tile.state === 'empty' && !tile.decorationId
+      ? { ...tile, locked: true }
+      : { ...tile, locked: false },
+  );
+
 export class SaveSystem {
   createDefaultSave(): SaveGame {
     const now = Date.now();
@@ -545,11 +556,26 @@ export class SaveSystem {
 
       const now = Date.now();
 
+      // v9 only lacked the land-lock field (P5b). v9 is structurally identical
+      // to v10 (locked is optional), so it is detected by version number. Lock
+      // the empty bottom-row plots so existing players also get the expansion,
+      // while never locking a plot that already has a crop or decoration.
+      if (isValidSaveGame(parsed) && parsed.version === 9) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          farmTiles: withLockedBottomPlots(parsed.farmTiles),
+        };
+        this.saveGame(migrated);
+        return migrated;
+      }
+
       // v8 only lacked the guard dogs (player.hasDog + neighbor.hasDog) in v9.
       if (isValidLegacySaveGameV8(parsed) && parsed.version === 8) {
         const migrated: SaveGame = {
           ...parsed,
           version: SAVE_VERSION,
+          farmTiles: withLockedBottomPlots(parsed.farmTiles),
           neighbors: withNeighborDogs(parsed.neighbors),
           hasDog: false,
         };
@@ -562,6 +588,7 @@ export class SaveSystem {
         const migrated: SaveGame = {
           ...parsed,
           version: SAVE_VERSION,
+          farmTiles: withLockedBottomPlots(parsed.farmTiles),
           neighbors: withNeighborDogs(parsed.neighbors),
           popularity: 0,
           giftInbox: createStarterGifts(now),
@@ -576,6 +603,7 @@ export class SaveSystem {
         const migrated: SaveGame = {
           ...parsed,
           version: SAVE_VERSION,
+          farmTiles: withLockedBottomPlots(parsed.farmTiles),
           neighbors: createNeighborFarms(now),
           events: [],
           popularity: 0,
@@ -597,6 +625,7 @@ export class SaveSystem {
             ...parsed.inventory,
             egg: (parsed.inventory.egg ?? 0) + converted.eggsToInventory,
           },
+          farmTiles: withLockedBottomPlots(parsed.farmTiles),
           neighbors: createNeighborFarms(now),
           events: [],
           popularity: 0,
@@ -619,6 +648,7 @@ export class SaveSystem {
             ...parsed.inventory,
             egg: (parsed.inventory.egg ?? 0) + converted.eggsToInventory,
           },
+          farmTiles: withLockedBottomPlots(parsed.farmTiles),
           neighbors: createNeighborFarms(now),
           events: [],
           popularity: 0,

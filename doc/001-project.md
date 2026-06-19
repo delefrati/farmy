@@ -284,11 +284,17 @@ Phase P5b - Land expansion and plot unlocks
   * locked plots that can be unlocked with coins and/or level;
   * farm area growth beyond the initial 6x4 grid;
   * persistence of unlocked plot layout.
-* Current status: TODO.
+* Current status: DONE.
+* Implementation notes:
+  * The field stays a fixed 6x4 grid (the maximum area); the playable area starts at the top two rows and grows as locked plots are unlocked, mirroring the original "start small, expand" feel. (Physically enlarging the grid past 6x4 is deferred — the fixed grid keeps the save shape stable.)
+  * `FarmTile.locked?: boolean`; the bottom two rows start locked (`createDefaultFarmTiles` locks rows >= 2).
+  * `LandSystem.ts`: `plotUnlockInfo(tile)` gives each locked plot a coin cost (escalating per column) and a level requirement — row 2 is cheap/no gate, row 3 is pricier and needs level 2.
+  * FarmScene: locked plots render dark with a lock icon and their price; clicking a locked plot runs `attemptUnlock` (checks level then coins, deducts, sets `locked=false`, logs a `system` event). The click handler intercepts locked plots before any plant/decor/fertilize path, so planting respects locked vs unlocked.
+  * Save bumped to v10 (`FarmTile.locked`); the v9→v10 migration (and every older branch via `withLockedBottomPlots`) locks the empty bottom-row plots while never locking a plot that already holds a crop or decoration. `locked` round-trips through local save, reload, and upload/download sync.
 * Exit criteria:
-  * some plots start locked and can be unlocked;
-  * unlocked layout persists across reload and sync;
-  * planting respects locked vs unlocked plots.
+  * some plots start locked and can be unlocked; [met]
+  * unlocked layout persists across reload and sync; [met]
+  * planting respects locked vs unlocked plots. [met]
 
 Phase P6 - Daily systems and anti-abuse limits
 

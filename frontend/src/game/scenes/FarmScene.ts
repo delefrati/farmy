@@ -15,6 +15,7 @@ import type { FertilizerDefinition } from '../types/fertilizer';
 import { animalDefinitions, getAnimalDefinition } from '../data/animals';
 import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import { formatEventTime, pushEvent, SOCIAL } from '../systems/SocialSystem';
+import { plotUnlockInfo } from '../systems/LandSystem';
 import {
   ANIMAL,
   createAnimalInstance,
@@ -310,14 +311,14 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog', {
+      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog. Click a locked plot to unlock it.', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
-    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog');
+    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog. Click a locked plot to unlock it.');
 
     this.add
       .rectangle(640, 640, 816, 420, 0x6c9a4b)
@@ -1246,6 +1247,15 @@ export class FarmScene extends Phaser.Scene {
         return;
       }
 
+      // Phase P5b: a locked plot shows its unlock price instead of being usable.
+      if (tile.locked) {
+        const info = plotUnlockInfo(tile);
+        visual.rect.setFillStyle(0x3a3a3a);
+        visual.title.setText('\u{1F512} Locked');
+        visual.subtitle.setText(info.level > 1 ? `Lv ${info.level} + ${info.cost}c` : `Unlock: ${info.cost}c`);
+        return;
+      }
+
       if (tile.state === 'empty') {
         const decoration = getDecoration(tile.decorationId);
         if (decoration) {
@@ -1294,6 +1304,36 @@ export class FarmScene extends Phaser.Scene {
       visual.subtitle.setText(`${statusPart} | HP ${health}${seasonPart}${problemPart}`);
     };
 
+    const attemptUnlock = (tile: FarmTile): void => {
+      const info = plotUnlockInfo(tile);
+      if (this.economy.level < info.level) {
+        this.statusMessage = `Reach level ${info.level} to unlock this plot.`;
+        statusText.setText(this.statusMessage);
+        return;
+      }
+      if (this.economy.coins < info.cost) {
+        this.statusMessage = `Need ${info.cost} coins to unlock this plot.`;
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      this.economy.coins -= info.cost;
+      tile.locked = false;
+      this.farmEvents = pushEvent(
+        this.farmEvents,
+        'system',
+        `You unlocked a new plot for ${info.cost} coins.`,
+        Date.now(),
+      );
+      this.statusMessage = `Plot unlocked! -${info.cost} coins. Plant something new here.`;
+
+      saveCurrent();
+      refreshTileVisual(tile);
+      refreshHud();
+      refreshEventLog();
+      statusText.setText(this.statusMessage);
+    };
+
     const renderGrid = (): void => {
       const originX = 256;
       const originY = 444;
@@ -1328,6 +1368,12 @@ export class FarmScene extends Phaser.Scene {
         refreshTileVisual(tile);
 
         rect.on('pointerdown', () => {
+          // Phase P5b: a locked plot must be unlocked before anything else.
+          if (tile.locked) {
+            attemptUnlock(tile);
+            return;
+          }
+
           if (decorationMode) {
             const selectedDecoration = getSelectedDecoration();
 

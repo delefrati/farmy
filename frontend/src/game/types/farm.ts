@@ -24,6 +24,10 @@ export type FarmTile = {
   // Phase P4 social: how many units of a mature crop can still be stolen from
   // this tile (only used on neighbor farms).
   stealRemaining?: number;
+  // Phase P5b land expansion: a locked plot cannot be planted/decorated until
+  // the player unlocks it with coins (and sometimes a level). Undefined means
+  // unlocked (keeps older saves backward compatible).
+  locked?: boolean;
 };
 
 export const GRID_COLUMNS = 6;
@@ -42,6 +46,9 @@ export const createDefaultFarmTiles = (): FarmTile[] => {
         cropId: undefined,
         plantedAt: undefined,
         decorationId: undefined,
+        // Phase P5b: the bottom two rows start locked (kept in sync with
+        // LandSystem.FIRST_LOCKED_ROW = 2; inlined here to avoid a cycle).
+        locked: row >= 2,
       });
     }
   }
