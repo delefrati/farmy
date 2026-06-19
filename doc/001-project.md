@@ -106,11 +106,17 @@ This section reflects the current implementation state in the repository and loc
   * `SaveSystem` with create/load/save/clear flows
   * 6x4 tile state persisted in localStorage
   * reset controls available (button + `R` shortcut)
+* Phase 5 planting and economy baseline is implemented:
+  * crop definitions for strawberry/corn/tomato
+  * starting economy (`coins=100`, `xp=0`, `level=1`) persisted in save
+  * planting on empty tiles deducts seed cost and saves immediately
+  * guardrails for occupied tile and insufficient coins
+  * basic HUD/status text for economy and selected seed
 
 ### In Progress / Partial
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
-* Gameplay loop beyond persisted tile state is still pending (planting economy, growth, harvest, inventory).
+* Gameplay loop is partially implemented (save + basic planting), but growth/harvest/inventory are still pending.
 
 ### Recently Fixed
 
@@ -119,15 +125,16 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Farm grid, planting, growth, harvesting loop.
-* Inventory, economy, leveling, and shop systems.
+* Real-time growth stages and ready-to-harvest logic.
+* Harvesting and inventory systems.
+* Selling, leveling, and shop flow.
 * Animal/decor/social phases.
 
 ### Recommended Next Steps
 
-1. Finish Phase 3 farm grid interaction polish (selection highlight + clear tile feedback).
-2. Start Phase 5 planting/economy flow on top of current saved tile state.
-3. Add inventory + harvesting path, then connect to backend endpoints incrementally.
+1. Implement Phase 6 real-time growth (store `plantedAt`, compute stage by elapsed time).
+2. Implement Phase 7 harvesting + inventory persistence.
+3. Add Phase 8 selling flow and coin feedback loop.
 
 ---
 

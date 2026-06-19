@@ -1,8 +1,23 @@
 import { createDefaultFarmTiles, GRID_COLUMNS, GRID_ROWS, type FarmTile } from '../types/farm';
+import { createDefaultEconomy, type PlayerEconomy } from '../types/economy';
+import { defaultCropId } from '../data/crops';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
 const SAVE_VERSION = 1;
+
+const isValidEconomy = (value: unknown): value is PlayerEconomy => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const economy = value as Partial<PlayerEconomy>;
+  return (
+    typeof economy.coins === 'number' &&
+    typeof economy.xp === 'number' &&
+    typeof economy.level === 'number'
+  );
+};
 
 const isValidFarmTile = (value: unknown): value is FarmTile => {
   if (!value || typeof value !== 'object') {
@@ -14,7 +29,8 @@ const isValidFarmTile = (value: unknown): value is FarmTile => {
     typeof tile.id === 'string' &&
     typeof tile.x === 'number' &&
     typeof tile.y === 'number' &&
-    (tile.state === 'empty' || tile.state === 'planted')
+    (tile.state === 'empty' || tile.state === 'planted') &&
+    (tile.cropId === undefined || typeof tile.cropId === 'string')
   );
 };
 
@@ -27,6 +43,8 @@ const isValidSaveGame = (value: unknown): value is SaveGame => {
   return (
     typeof save.version === 'number' &&
     typeof save.savedAt === 'string' &&
+    isValidEconomy(save.economy) &&
+    typeof save.selectedCropId === 'string' &&
     Array.isArray(save.farmTiles) &&
     save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
     save.farmTiles.every(isValidFarmTile)
@@ -38,15 +56,19 @@ export class SaveSystem {
     return {
       version: SAVE_VERSION,
       savedAt: new Date().toISOString(),
+      economy: createDefaultEconomy(),
+      selectedCropId: defaultCropId,
       farmTiles: createDefaultFarmTiles(),
     };
   }
 
-  saveGame(farmTiles: FarmTile[]): SaveGame {
+  saveGame(saveInput: { economy: PlayerEconomy; selectedCropId: string; farmTiles: FarmTile[] }): SaveGame {
     const save: SaveGame = {
       version: SAVE_VERSION,
       savedAt: new Date().toISOString(),
-      farmTiles,
+      economy: saveInput.economy,
+      selectedCropId: saveInput.selectedCropId,
+      farmTiles: saveInput.farmTiles,
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -57,7 +79,7 @@ export class SaveSystem {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) {
       const initial = this.createDefaultSave();
-      this.saveGame(initial.farmTiles);
+      this.saveGame(initial);
       return initial;
     }
 
@@ -71,7 +93,7 @@ export class SaveSystem {
     }
 
     const fallback = this.createDefaultSave();
-    this.saveGame(fallback.farmTiles);
+    this.saveGame(fallback);
     return fallback;
   }
 
