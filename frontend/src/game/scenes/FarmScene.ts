@@ -13,6 +13,8 @@ import type { DecorationDefinition } from '../types/decoration';
 import { fertilizers, defaultFertilizerId } from '../data/fertilizers';
 import type { FertilizerDefinition } from '../types/fertilizer';
 import { animalDefinitions, getAnimalDefinition } from '../data/animals';
+import type { FarmEvent, NeighborFarm } from '../types/social';
+import { formatEventTime } from '../systems/SocialSystem';
 import {
   ANIMAL,
   createAnimalInstance,
@@ -57,6 +59,10 @@ export class FarmScene extends Phaser.Scene {
 
   private animals: PlayerAnimals = { animals: [] };
 
+  private neighbors: NeighborFarm[] = [];
+
+  private farmEvents: FarmEvent[] = [];
+
   private statusMessage = '';
 
   private readonly tileSize = { width: 120, height: 90 };
@@ -84,6 +90,8 @@ export class FarmScene extends Phaser.Scene {
     this.inventory = loaded.inventory;
     this.fertilizers = loaded.fertilizers;
     this.animals = loaded.animals;
+    this.neighbors = loaded.neighbors;
+    this.farmEvents = loaded.events;
     this.selectedCropId = loaded.selectedCropId;
 
     // Advance crop care for any time that passed while the game was closed.
@@ -210,6 +218,47 @@ export class FarmScene extends Phaser.Scene {
         fontSize: '15px',
         fontFamily: 'Arial',
         fontStyle: 'bold',
+      })
+      .setDepth(1);
+
+    this.add
+      .text(1058, 116, 'Neighbors', {
+        color: '#2f4f1f',
+        fontSize: '15px',
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
+      })
+      .setDepth(1);
+
+    const visitButtons: Phaser.GameObjects.Text[] = this.neighbors.map((neighbor, index) =>
+      this.add
+        .text(1058, 142 + index * 34, `Visit ${neighbor.name}`, {
+          color: '#ffffff',
+          backgroundColor: '#345c7a',
+          fontSize: '13px',
+          fontFamily: 'Arial',
+          padding: { x: 8, y: 5 },
+        })
+        .setInteractive({ useHandCursor: true })
+        .setDepth(2),
+    );
+
+    this.add
+      .text(1058, 142 + this.neighbors.length * 34 + 6, 'Activity log', {
+        color: '#2f4f1f',
+        fontSize: '14px',
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
+      })
+      .setDepth(1);
+
+    const eventLogText = this.add
+      .text(1058, 142 + this.neighbors.length * 34 + 28, '', {
+        color: '#3a5530',
+        fontSize: '11px',
+        fontFamily: 'Arial',
+        lineSpacing: 3,
+        wordWrap: { width: 210 },
       })
       .setDepth(1);
 
@@ -499,6 +548,24 @@ export class FarmScene extends Phaser.Scene {
       progressionText.setText(`Next level in ${missingXp} XP`);
     };
 
+    const refreshEventLog = (): void => {
+      if (this.farmEvents.length === 0) {
+        eventLogText.setText('No activity yet. Visit a neighbor!');
+        return;
+      }
+
+      const now = Date.now();
+      const lines = this.farmEvents
+        .slice(0, 8)
+        .map((event) => `• [${formatEventTime(event.at, now)}] ${event.message}`);
+      eventLogText.setText(lines.join('\n'));
+    };
+
+    const visitNeighbor = (neighborId: string): void => {
+      saveCurrent();
+      this.scene.start('NeighborScene', { neighborId });
+    };
+
     const saveCurrent = (): void => {
       this.saveSystem.saveGame({
         economy: this.economy,
@@ -507,6 +574,8 @@ export class FarmScene extends Phaser.Scene {
         animals: this.animals,
         selectedCropId: this.selectedCropId,
         farmTiles: this.farmTiles,
+        neighbors: this.neighbors,
+        events: this.farmEvents,
       });
     };
 
@@ -518,6 +587,8 @@ export class FarmScene extends Phaser.Scene {
         animals: this.animals,
         selectedCropId: this.selectedCropId,
         farmTiles: this.farmTiles,
+        neighbors: this.neighbors,
+        events: this.farmEvents,
       });
     };
 
@@ -1036,6 +1107,9 @@ export class FarmScene extends Phaser.Scene {
         this.economy = remoteSave.economy;
         this.inventory = remoteSave.inventory;
         this.fertilizers = remoteSave.fertilizers;
+        this.animals = remoteSave.animals;
+        this.neighbors = remoteSave.neighbors;
+        this.farmEvents = remoteSave.events;
         this.selectedCropId = remoteSave.selectedCropId;
         this.statusMessage = 'Remote save downloaded.';
         lastSyncLabel = new Date().toLocaleTimeString();
@@ -1385,6 +1459,8 @@ export class FarmScene extends Phaser.Scene {
       this.inventory = reset.inventory;
       this.fertilizers = reset.fertilizers;
       this.animals = reset.animals;
+      this.neighbors = reset.neighbors;
+      this.farmEvents = reset.events;
       this.selectedCropId = reset.selectedCropId;
       this.statusMessage = 'Save reset to default state.';
       this.scene.restart();
@@ -1410,6 +1486,12 @@ export class FarmScene extends Phaser.Scene {
     feedAnimalsButton.on('pointerdown', feedAllAnimals);
     collectProductsButton.on('pointerdown', collectProducts);
     sellAnimalsButton.on('pointerdown', sellMaturedAnimals);
+    visitButtons.forEach((button, index) => {
+      const neighbor = this.neighbors[index];
+      if (neighbor) {
+        button.on('pointerdown', () => visitNeighbor(neighbor.id));
+      }
+    });
     fertilizerModeButton.on('pointerdown', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
@@ -1522,6 +1604,7 @@ export class FarmScene extends Phaser.Scene {
     refreshHud();
     inventoryText.setText(getInventoryLabel());
     refreshAnimalsLabel();
+    refreshEventLog();
     refreshAuthLabel();
     setSyncLabel('idle');
     refreshDevSpeedLabel();

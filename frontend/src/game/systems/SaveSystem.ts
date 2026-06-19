@@ -3,10 +3,12 @@ import { createDefaultEconomy, type PlayerEconomy } from '../types/economy';
 import { createDefaultInventory, type PlayerInventory } from '../types/inventory';
 import { createDefaultAnimals, type AnimalState, type PlayerAnimals } from '../types/animals';
 import { defaultCropId } from '../data/crops';
+import { createNeighborFarms } from './SocialSystem';
+import type { FarmEvent, NeighborFarm } from '../types/social';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 6;
+const SAVE_VERSION = 7;
 
 // Animal state shape used before v6 (aggregate chicken coops + pooled eggs).
 type LegacyAnimals = {
@@ -53,6 +55,19 @@ type LegacySaveGameV5 = {
   inventory: PlayerInventory;
   fertilizers: PlayerInventory;
   animals: LegacyAnimals;
+  selectedCropId: string;
+  farmTiles: FarmTile[];
+};
+
+// v6 used the per-instance animals model but had no social state (neighbors /
+// event log were added in v7).
+type LegacySaveGameV6 = {
+  version: number;
+  savedAt: string;
+  economy: PlayerEconomy;
+  inventory: PlayerInventory;
+  fertilizers: PlayerInventory;
+  animals: PlayerAnimals;
   selectedCropId: string;
   farmTiles: FarmTile[];
 };
@@ -169,9 +184,44 @@ const isValidFarmTile = (value: unknown): value is FarmTile => {
     (tile.weedIntervalSeen === undefined || typeof tile.weedIntervalSeen === 'number') &&
     (tile.pestIntervalSeen === undefined || typeof tile.pestIntervalSeen === 'number') &&
     (tile.season === undefined || typeof tile.season === 'number') &&
-    (tile.fertilizedStage === undefined || typeof tile.fertilizedStage === 'number')
+    (tile.fertilizedStage === undefined || typeof tile.fertilizedStage === 'number') &&
+    (tile.stealRemaining === undefined || typeof tile.stealRemaining === 'number')
   );
 };
+
+const isValidNeighbor = (value: unknown): value is NeighborFarm => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const neighbor = value as Partial<NeighborFarm>;
+  return (
+    typeof neighbor.id === 'string' &&
+    typeof neighbor.name === 'string' &&
+    Array.isArray(neighbor.tiles) &&
+    neighbor.tiles.every(isValidFarmTile)
+  );
+};
+
+const isValidNeighbors = (value: unknown): value is NeighborFarm[] =>
+  Array.isArray(value) && value.every(isValidNeighbor);
+
+const isValidEvent = (value: unknown): value is FarmEvent => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const event = value as Partial<FarmEvent>;
+  return (
+    typeof event.id === 'string' &&
+    typeof event.at === 'number' &&
+    (event.kind === 'help' || event.kind === 'steal' || event.kind === 'system') &&
+    typeof event.message === 'string'
+  );
+};
+
+const isValidEvents = (value: unknown): value is FarmEvent[] =>
+  Array.isArray(value) && value.every(isValidEvent);
 
 const isValidSaveGame = (value: unknown): value is SaveGame => {
   if (!value || typeof value !== 'object') {
@@ -189,7 +239,9 @@ const isValidSaveGame = (value: unknown): value is SaveGame => {
     typeof save.selectedCropId === 'string' &&
     Array.isArray(save.farmTiles) &&
     save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
-    save.farmTiles.every(isValidFarmTile)
+    save.farmTiles.every(isValidFarmTile) &&
+    isValidNeighbors(save.neighbors) &&
+    isValidEvents(save.events)
   );
 };
 
@@ -250,6 +302,26 @@ const isValidLegacySaveGameV5 = (value: unknown): value is LegacySaveGameV5 => {
   );
 };
 
+const isValidLegacySaveGameV6 = (value: unknown): value is LegacySaveGameV6 => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const save = value as Partial<LegacySaveGameV6>;
+  return (
+    typeof save.version === 'number' &&
+    typeof save.savedAt === 'string' &&
+    isValidEconomy(save.economy) &&
+    isValidInventory(save.inventory) &&
+    isValidInventory(save.fertilizers) &&
+    isValidAnimals(save.animals) &&
+    typeof save.selectedCropId === 'string' &&
+    Array.isArray(save.farmTiles) &&
+    save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
+    save.farmTiles.every(isValidFarmTile)
+  );
+};
+
 const isValidLegacySaveGameV1 = (value: unknown): value is LegacySaveGameV1 => {
   if (!value || typeof value !== 'object') {
     return false;
@@ -269,6 +341,7 @@ const isValidLegacySaveGameV1 = (value: unknown): value is LegacySaveGameV1 => {
 
 export class SaveSystem {
   createDefaultSave(): SaveGame {
+    const now = Date.now();
     return {
       version: SAVE_VERSION,
       savedAt: new Date().toISOString(),
@@ -278,6 +351,8 @@ export class SaveSystem {
       animals: createDefaultAnimals(),
       selectedCropId: defaultCropId,
       farmTiles: createDefaultFarmTiles(),
+      neighbors: createNeighborFarms(now),
+      events: [],
     };
   }
 
@@ -288,6 +363,8 @@ export class SaveSystem {
     animals: PlayerAnimals;
     selectedCropId: string;
     farmTiles: FarmTile[];
+    neighbors: NeighborFarm[];
+    events: FarmEvent[];
   }): SaveGame {
     const save: SaveGame = {
       version: SAVE_VERSION,
@@ -298,6 +375,8 @@ export class SaveSystem {
       animals: saveInput.animals,
       selectedCropId: saveInput.selectedCropId,
       farmTiles: saveInput.farmTiles,
+      neighbors: saveInput.neighbors,
+      events: saveInput.events,
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -329,6 +408,18 @@ export class SaveSystem {
 
       const now = Date.now();
 
+      // v6 only lacked the social state (neighbors + event log) added in v7.
+      if (isValidLegacySaveGameV6(parsed) && parsed.version === 6) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          neighbors: createNeighborFarms(now),
+          events: [],
+        };
+        this.saveGame(migrated);
+        return migrated;
+      }
+
       // v5 had the fertilizers map but used the legacy aggregate animals shape.
       if (isValidLegacySaveGameV5(parsed) && parsed.version === 5) {
         const converted = convertLegacyAnimals(parsed.animals, now);
@@ -340,6 +431,8 @@ export class SaveSystem {
             ...parsed.inventory,
             egg: (parsed.inventory.egg ?? 0) + converted.eggsToInventory,
           },
+          neighbors: createNeighborFarms(now),
+          events: [],
         };
         this.saveGame(migrated);
         return migrated;
@@ -357,6 +450,8 @@ export class SaveSystem {
             ...parsed.inventory,
             egg: (parsed.inventory.egg ?? 0) + converted.eggsToInventory,
           },
+          neighbors: createNeighborFarms(now),
+          events: [],
         };
         this.saveGame(migrated);
         return migrated;
@@ -369,6 +464,8 @@ export class SaveSystem {
           inventory: createDefaultInventory(),
           fertilizers: createDefaultInventory(),
           animals: createDefaultAnimals(),
+          neighbors: createNeighborFarms(now),
+          events: [],
         };
         this.saveGame(migrated);
         return migrated;
@@ -380,6 +477,8 @@ export class SaveSystem {
           version: SAVE_VERSION,
           fertilizers: createDefaultInventory(),
           animals: createDefaultAnimals(),
+          neighbors: createNeighborFarms(now),
+          events: [],
         };
         this.saveGame(migrated);
         return migrated;

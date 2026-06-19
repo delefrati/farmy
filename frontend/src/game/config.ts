@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { FarmScene } from './scenes/FarmScene';
+import { NeighborScene } from './scenes/NeighborScene';
 
 export const createGameConfig = (parent: string | HTMLElement): Phaser.Types.Core.GameConfig => ({
   // Canvas renderer avoids WebGL text-texture artifacts (stray dark boxes /
@@ -15,5 +16,5 @@ export const createGameConfig = (parent: string | HTMLElement): Phaser.Types.Cor
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, FarmScene],
+  scene: [BootScene, FarmScene, NeighborScene],
 });

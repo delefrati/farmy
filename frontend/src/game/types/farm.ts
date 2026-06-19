@@ -21,6 +21,9 @@ export type FarmTile = {
   season?: number;
   // Phase P3 fertilizer: stage index that was last fertilized (one use/stage).
   fertilizedStage?: number;
+  // Phase P4 social: how many units of a mature crop can still be stolen from
+  // this tile (only used on neighbor farms).
+  stealRemaining?: number;
 };
 
 export const GRID_COLUMNS = 6;
