@@ -1,8 +1,8 @@
 import type { FarmTile } from '../types/farm';
 
-// Phase P5b: land expansion. The field is a fixed 6x4 grid, but only the top
-// two rows are usable at the start. The bottom two rows begin locked and are
-// unlocked one plot at a time with coins (the deeper row also needs a level),
+// Phase P5b: land expansion. The field is a fixed 4x6 grid, but only the top
+// two rows are usable at the start. The bottom rows begin locked and are
+// unlocked one plot at a time with coins (the deeper rows also need a level),
 // so the playable area grows over time the way the original farm expanded.
 export const LAND = {
   // Rows at this index or below start locked on a fresh farm.

@@ -58,3 +58,244 @@ Tips:
 - `icon_hoe.png` — a hoe tool
 - `icon_seed.png` — a seed bag
 - `icon_fertilizer.png` — a fertilizer bag
+
+---
+
+# Phase 2 assets — backgrounds, menu, decorations, effects
+
+Everything above skins the farm grid. The assets below skin the rest of the
+screen: the world background, the HUD/menu chrome, more decorations, and small
+juice (effects, status badges). All optional and gated behind
+`this.textures.exists(key)` like the rest, so they can be added incrementally.
+
+Keep the SAME style suffix as above so the whole game looks unified.
+
+## Backgrounds (`bg/`)
+Used as a full-scene image behind the grid (replaces the flat `#9fdd7a` /
+`#cfe8b0` fill on FarmScene / NeighborScene). Make them 1280x860 to match the
+canvas, with the action area kept calm/low-contrast so sprites read on top.
+
+- `bg_farm.png` — the player's farm: rolling green field, soft sky, distant
+  trees/hills, gentle path. Main scene backdrop.
+- `bg_neighbor.png` — a neighbor's farm: same world, slightly different palette
+  (cooler/greener) so visiting feels like a different place.
+- `bg_sky_strip.png` — optional tall sky/cloud strip for the top of the scene
+  (parallax-friendly, tileable horizontally).
+- `bg_fence_row.png` — a horizontal wooden fence strip to frame the field edge
+  (tileable horizontally).
+
+## Menu / HUD chrome (`ui/`)
+The HUD is currently colored text on flat rectangles. These give it a polished
+"game panel" frame. Use 9-slice friendly art (flat-color center, decorative
+corners) so it can stretch without distortion.
+
+- `panel_wood.png` — rounded wooden/parchment panel for HUD and modals (9-slice).
+- `panel_ribbon.png` — a small banner/ribbon header for panel titles.
+- `button_green.png` — primary action button (sell, plant, claim) — 9-slice.
+- `button_blue.png` — neutral/secondary button (sync, visit) — 9-slice.
+- `button_red.png` — destructive/warning button (reset, logout) — 9-slice.
+- `button_purple.png` — toggle button (pacing, language, decoration mode).
+- `badge_level.png` — small round badge for the level number.
+- `bar_frame.png` + `bar_fill.png` — XP / health bar frame and fill.
+- `coin_pill.png` — rounded plaque the coin count sits inside (top-left HUD).
+
+## Tool / action icons (`ui/`)
+Small icons to put ON the buttons and the per-tile action hints (currently
+text only). Square, ~128px, centered.
+
+- `icon_pesticide.png` — a bug-spray / pesticide bottle (remove pests).
+- `icon_weed.png` — a weed/grass tuft (remove weeds).
+- `icon_bug.png` — a cartoon bug/beetle (pest indicator + sabotage).
+- `icon_harvest.png` — a basket of produce (harvest action).
+- `icon_sell.png` — a price tag / coins-out (sell action).
+- `icon_gift.png` — a wrapped gift / bouquet (gifts inbox + send flower).
+- `icon_popularity.png` — a heart or star (popularity stat).
+- `icon_xp.png` — a star/spark (XP stat).
+- `icon_calendar.png` — a daily-reward calendar/checkmark.
+- `icon_dog.png` — a small guard-dog head (dog protection indicator).
+- `icon_lock.png` — a padlock (locked plot price tag; complements `tile_locked`).
+- `icon_sync.png` — a cloud / refresh arrows (save sync button).
+- `icon_globe.png` — a globe (language switcher).
+
+## Tile status overlays (`fx/`)
+Small badges drawn on a tile to show care state (currently text like
+"dry,weeds"). Transparent, ~96px, designed to sit in a tile corner.
+
+- `fx_dry.png` — a wilting / water-drop-with-cross "needs water" badge.
+- `fx_weeds.png` — weeds overlay sprite.
+- `fx_pests.png` — bugs overlay sprite.
+- `fx_dead.png` — withered/brown crop overlay (for the `dead` tile state).
+- `fx_ready.png` — a "ready!" sparkle/glow ring for harvestable crops.
+- `fx_lowhealth.png` — a red warning heart for low-health crops.
+
+## Effects / juice (`fx/`)
+Optional feedback animations. Provide as either a single PNG or a horizontal
+sprite-strip (note frame count in the file name, e.g. `_strip6`).
+
+- `fx_water_splash_strip6.png` — watering splash.
+- `fx_sparkle_strip5.png` — harvest / level-up sparkle.
+- `fx_coin_pop_strip4.png` — coins flying up when selling.
+- `fx_heart_strip4.png` — popularity / gift received.
+- `fx_dust_strip5.png` — hoe / clearing a dead crop.
+
+## More decorations (`decor/`)
+Beyond the two existing decorations. Same tile footprint as crops so they sit on
+the grid. Add matching entries to `data/decorations.ts` when introduced.
+
+- `decor_tree.png` — a round leafy shade tree.
+- `decor_pond.png` — a small pond.
+- `decor_well.png` — a stone water well.
+- `decor_scarecrow.png` — a friendly scarecrow.
+- `decor_flower_bed.png` — a bed of mixed flowers.
+- `decor_haystack.png` — a hay bale stack.
+- `decor_lamp.png` — a little garden lamp post.
+- `decor_path_tile.png` — a stone/dirt path tile.
+- `decor_fence_post.png` — a single fence post / corner.
+
+## Title / meta screens (`ui/`)
+For a polished entry point (not built yet, but worth generating once).
+
+- `logo_farmy.png` — the game logo/wordmark.
+- `bg_title.png` — title-screen background (1280x860).
+- `avatar_placeholder.png` — round player avatar frame for the HUD.
+- `neighbor_avatar_maria.png` / `_joao.png` / `_ana.png` — the three NPC
+  neighbor portraits (used on visit buttons + the visit header).
+
+---
+
+## Notes for whoever generates these
+- Match canvas size 1280x860 for full backgrounds.
+- Panels/buttons: keep a flat-color center and detail only the border so they
+  9-slice cleanly. Aim for ~32px corner insets.
+- Status overlays and effects: transparent background, strong silhouette so
+  they read at small (~48-96px) sizes on a busy tile.
+- Sprite strips: lay frames left-to-right, equal width, and include the frame
+  count in the file name (`_strip6`).
+- Drop files into the matching subfolder; the loader tolerates anything still
+  missing, so partial batches are fine.
+
+---
+
+# Ready-to-paste generation prompts (Phase 2)
+
+Generate each sheet SEPARATELY (one image per block below). Do NOT combine them
+into one contact sheet — that produces thumbnails too small to use. Each block
+already includes the shared style so it stays consistent with the first batch.
+
+After generating, hand the files to the dev; the existing
+`doc/assets/slice_assets.py` script slices grid sheets the same way it did for
+the crops.
+
+**Shared rules baked into every prompt below:**
+- glossy cartoon mobile farm game art, soft cel shading, thick clean outlines,
+  warm saturated colors, Hay Day / Happy Farm style.
+- NO text, NO labels, NO numbers anywhere in the image.
+- Items evenly spaced on a FULLY TRANSPARENT background (alpha), generous gaps.
+
+## 1. Background — player farm (generate alone, 1536x1024)
+```
+A glossy cartoon farm game background, top-down 3/4 view of a sunny green farm
+field: rolling grass, soft blue sky with a few fluffy clouds at the top, distant
+trees and gentle hills on the horizon, a dirt path, wooden fences at the edges.
+Calm, low-contrast center so game pieces placed on top stand out. Hay Day /
+Happy Farm style, warm saturated colors, no characters, no text, no UI.
+Full-bleed illustration, 1536x1024.
+```
+Export as `bg_farm.png` (dev will fit it to 1280x860).
+
+## 2. Background — neighbor farm (generate alone, 1536x1024)
+```
+Same as the farm background above, but a neighbor's farm: a slightly cooler,
+greener palette and a different layout of trees and path, so it feels like a
+different place. Glossy cartoon Hay Day / Happy Farm style, no characters, no
+text, no UI. Full-bleed illustration, 1536x1024.
+```
+Export as `bg_neighbor.png`.
+
+## 3. Buttons + panels (1024x1024, 2x3 grid, transparent)
+```
+A 2 by 3 grid of glossy cartoon game UI elements on a fully transparent
+background, evenly spaced, no text: top-left a green rounded wooden button,
+top-middle a blue rounded wooden button, top-right a red rounded wooden button,
+bottom-left a purple rounded wooden button, bottom-middle a large blank rounded
+wooden/parchment panel, bottom-right a small decorative banner ribbon. Thick
+clean outlines, soft shading, Hay Day / Happy Farm style. Each element blank
+(no icons, no text).
+```
+Slices to `button_green`, `button_blue`, `button_red`, `button_purple`,
+`panel_wood`, `panel_ribbon`.
+
+## 4. Tool / action icons (1024x1024, 4x4 grid, transparent)
+```
+A 4 by 4 grid of glossy cartoon farm game icons on a fully transparent
+background, evenly spaced, each icon centered in its cell, no text:
+1 bug-spray pesticide bottle, 2 a green weed tuft, 3 a cartoon beetle bug,
+4 a basket of harvested produce, 5 a price tag, 6 a wrapped gift box,
+7 a red heart, 8 a yellow star, 9 a daily calendar with a checkmark,
+10 a friendly dog head, 11 a gold padlock, 12 cloud-with-refresh-arrows,
+13 a globe, 14 a watering can, 15 a hoe tool, 16 a seed bag.
+Thick clean outlines, soft shading, bright colors, Hay Day / Happy Farm style.
+```
+Slices to `icon_pesticide`, `icon_weed`, `icon_bug`, `icon_harvest`,
+`icon_sell`, `icon_gift`, `icon_popularity`, `icon_xp`, `icon_calendar`,
+`icon_dog`, `icon_lock`, `icon_sync`, `icon_globe` (re-uses water/hoe/seed too).
+
+## 5. Tile status badges (1024x1024, 2x3 grid, transparent)
+```
+A 2 by 3 grid of glossy cartoon status badges for a farm game, on a fully
+transparent background, evenly spaced, no text: 1 a blue water drop with a small
+"needs water" wilting leaf, 2 a clump of green weeds, 3 a cluster of little bugs,
+4 a withered brown dead plant, 5 a golden sparkle/glow ring meaning "ready",
+6 a red warning heart meaning low health. Bold simple silhouettes that read at
+small sizes, thick outlines, Hay Day / Happy Farm style.
+```
+Slices to `fx_dry`, `fx_weeds`, `fx_pests`, `fx_dead`, `fx_ready`,
+`fx_lowhealth`.
+
+## 6. Effect strips (generate each alone, 1024x256, transparent)
+One image per effect; frames laid left-to-right, equal width.
+```
+A horizontal sprite-sheet strip of a glossy cartoon WATER SPLASH animation,
+6 equal frames left to right showing the splash appearing and fading, on a fully
+transparent background, no text. Bright cartoon style, thick outlines. 1024x256.
+```
+Repeat, swapping the subject, for:
+- sparkle burst, 5 frames -> `fx_sparkle_strip5.png`
+- gold coins popping upward, 4 frames -> `fx_coin_pop_strip4.png`
+- floating hearts, 4 frames -> `fx_heart_strip4.png`
+- brown dust puff, 5 frames -> `fx_dust_strip5.png`
+Water splash above -> `fx_water_splash_strip6.png`.
+
+## 7. Extra decorations (1254x1254, 3x3 grid, transparent)
+```
+A 3 by 3 grid of glossy cartoon farm decorations in top-down 3/4 view, on a
+fully transparent background, evenly spaced, each object centered, no text:
+1 a round leafy shade tree, 2 a small pond, 3 a stone water well,
+4 a friendly scarecrow, 5 a bed of mixed flowers, 6 a stack of hay bales,
+7 a little garden lamp post, 8 a stone path tile, 9 a single wooden fence post.
+Thick clean outlines, soft shading, Hay Day / Happy Farm style.
+```
+Slices to `decor_tree`, `decor_pond`, `decor_well`, `decor_scarecrow`,
+`decor_flower_bed`, `decor_haystack`, `decor_lamp`, `decor_path_tile`,
+`decor_fence_post`.
+
+## 8. Logo (generate alone, 1024x512, transparent)
+```
+A glossy cartoon game logo wordmark reading "Farmy" in chunky rounded
+hand-drawn letters, warm green and yellow with a thick cream outline and a small
+strawberry or leaf accent, on a fully transparent background. Playful, juicy,
+Hay Day / Happy Farm style. No background scene.
+```
+Export as `logo_farmy.png`.
+
+## 9. Neighbor avatars (1024x1024, 2x2 grid, transparent)
+```
+A 2 by 2 grid of glossy cartoon round character portrait icons of friendly farm
+neighbors, on a fully transparent background, each in a simple round frame, no
+text: top-left a cheerful woman with brown hair (Maria), top-right a smiling man
+with a straw hat (Joao), bottom-left a young woman with blonde braids (Ana),
+bottom-right a generic smiling farmer (placeholder). Thick outlines, warm colors,
+Hay Day / Happy Farm style.
+```
+Slices to `neighbor_avatar_maria`, `neighbor_avatar_joao`,
+`neighbor_avatar_ana`, `avatar_placeholder`.

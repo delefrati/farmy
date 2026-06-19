@@ -11,7 +11,7 @@ import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
 const BACKUP_KEY = 'farmy.save.backup';
-const SAVE_VERSION = 12;
+const SAVE_VERSION = 13;
 
 // Animal state shape used before v6 (aggregate chicken coops + pooled eggs).
 type LegacyAnimals = {
@@ -608,6 +608,20 @@ export class SaveSystem {
       }
 
       const now = Date.now();
+
+      // v12 -> v13 changed the field shape from 6x4 to 4x6 (isometric layout).
+      // The old tiles' coordinates no longer map onto the new grid, so the farm
+      // is regenerated to the fresh default while every other bit of progress
+      // (coins, level, inventory, animals, neighbors, daily) is preserved.
+      if (isValidSaveGame(parsed) && parsed.version === 12) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          farmTiles: createDefaultFarmTiles(),
+        };
+        this.saveGame(migrated);
+        return migrated;
+      }
 
       // v11 only lacked the pacing profile (P7). v11 is structurally identical
       // to v12 except for that field, so it is detected by version number and

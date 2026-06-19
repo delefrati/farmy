@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { assetManifest } from '../assets/manifest';
+import { assetManifest, spriteSheetManifest } from '../assets/manifest';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -20,9 +20,35 @@ export class BootScene extends Phaser.Scene {
     for (const entry of assetManifest) {
       this.load.image(entry.key, entry.url);
     }
+
+    for (const sheet of spriteSheetManifest) {
+      this.load.spritesheet(sheet.key, sheet.url, {
+        frameWidth: sheet.frameWidth,
+        frameHeight: sheet.frameHeight,
+      });
+    }
   }
 
   create(): void {
+    // Register an animation for each loaded effect sprite-sheet. Sheets that
+    // failed to load are skipped so a missing effect simply never plays.
+    for (const sheet of spriteSheetManifest) {
+      if (!this.textures.exists(sheet.key) || this.anims.exists(sheet.key)) {
+        continue;
+      }
+      this.anims.create({
+        key: sheet.key,
+        frames: this.anims.generateFrameNumbers(
+          sheet.key,
+          sheet.frameSequence
+            ? { frames: sheet.frameSequence }
+            : { start: 0, end: sheet.frameCount - 1 },
+        ),
+        frameRate: 12,
+        repeat: 0,
+      });
+    }
+
     this.scene.start('FarmScene');
   }
 }

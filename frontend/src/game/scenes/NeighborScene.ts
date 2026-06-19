@@ -43,6 +43,20 @@ export class NeighborScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor('#cfe8b0');
 
+    // Art backdrop for a neighbor's farm; prefer the dedicated neighbor image,
+    // fall back to the farm background, then to the flat color above.
+    const bgKey = this.textures.exists('bg_neighbor')
+      ? 'bg_neighbor'
+      : this.textures.exists('bg_farm')
+        ? 'bg_farm'
+        : null;
+    if (bgKey) {
+      this.add
+        .image(640, 430, bgKey)
+        .setDisplaySize(1280, 860)
+        .setDepth(-10);
+    }
+
     const save = this.saveSystem.loadGame();
     const economy: PlayerEconomy = save.economy;
     const inventory: PlayerInventory = save.inventory;

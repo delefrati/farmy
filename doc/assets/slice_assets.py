@@ -73,6 +73,34 @@ JOBS = [
         (0.0, 0.0, 0.5, 1.0, 'ui', 'icon_seed'),
         (0.5, 0.0, 1.0, 1.0, 'ui', 'icon_fertilizer'),
     ]),
+    # Phase 2 — buttons + panels (2 rows x 3 cols)
+    ('ChatGPT Image Jun 19, 2026, 01_05_15 PM.png', [
+        (0.000, 0.0, 0.333, 0.5, 'ui', 'button_green'),
+        (0.333, 0.0, 0.667, 0.5, 'ui', 'button_blue'),
+        (0.667, 0.0, 1.000, 0.5, 'ui', 'button_red'),
+        (0.000, 0.5, 0.333, 1.0, 'ui', 'button_purple'),
+        (0.333, 0.5, 0.667, 1.0, 'ui', 'panel_wood'),
+        (0.667, 0.5, 1.000, 1.0, 'ui', 'panel_ribbon'),
+    ]),
+    # Phase 2 — tool / action icons (4x4 grid)
+    ('ChatGPT Image Jun 19, 2026, 01_26_23 PM.png', [
+        (0.00, 0.00, 0.25, 0.25, 'ui', 'icon_pesticide'),
+        (0.25, 0.00, 0.50, 0.25, 'ui', 'icon_weed'),
+        (0.50, 0.00, 0.75, 0.25, 'ui', 'icon_bug'),
+        (0.75, 0.00, 1.00, 0.25, 'ui', 'icon_harvest'),
+        (0.00, 0.25, 0.25, 0.50, 'ui', 'icon_sell'),
+        (0.25, 0.25, 0.50, 0.50, 'ui', 'icon_gift'),
+        (0.50, 0.25, 0.75, 0.50, 'ui', 'icon_popularity'),
+        (0.75, 0.25, 1.00, 0.50, 'ui', 'icon_xp'),
+        (0.00, 0.50, 0.25, 0.75, 'ui', 'icon_calendar'),
+        (0.25, 0.50, 0.50, 0.75, 'ui', 'icon_dog'),
+        (0.50, 0.50, 0.75, 0.75, 'ui', 'icon_lock'),
+        (0.75, 0.50, 1.00, 0.75, 'ui', 'icon_sync'),
+        (0.00, 0.75, 0.25, 1.00, 'ui', 'icon_globe'),
+        (0.25, 0.75, 0.50, 1.00, 'ui', 'icon_water'),
+        (0.50, 0.75, 0.75, 1.00, 'ui', 'icon_hoe'),
+        (0.75, 0.75, 1.00, 1.00, 'ui', 'icon_seed'),
+    ]),
 ]
 
 MIN_AREA = 1200

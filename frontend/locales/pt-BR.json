@@ -112,7 +112,7 @@
 
     "Coins: {coins} | XP: {xp} | Level: {level}": "Moedas: {coins} | XP: {xp} | Nível: {level}",
     "Next level in {xp} XP": "Próximo nível em {xp} XP",
-    "\u2605 Popularity: {pop} | Gifts waiting: {gifts}": "\u2605 Popularidade: {pop} | Presentes aguardando: {gifts}",
+    "Popularity: {pop} | Gifts waiting: {gifts}": "Popularidade: {pop} | Presentes aguardando: {gifts}",
     "🐕 Guard dog: ON (protecting your farm)": "🐕 Cão de guarda: ATIVO (protegendo sua fazenda)",
     "🐕 Guard dog: none": "🐕 Cão de guarda: nenhum",
     "🎁 Daily reward ready: {label} (streak {streak})": "🎁 Recompensa diária disponível: {label} (sequência {streak})",

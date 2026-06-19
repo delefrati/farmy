@@ -67,6 +67,7 @@ type TileVisual = {
   content: Phaser.GameObjects.Image;
   title: Phaser.GameObjects.Text;
   subtitle: Phaser.GameObjects.Text;
+  badge: Phaser.GameObjects.Image;
 };
 
 export class FarmScene extends Phaser.Scene {
@@ -104,14 +105,22 @@ export class FarmScene extends Phaser.Scene {
 
   private readonly tileSize = { width: 120, height: 90 };
 
-  private readonly tileGap = 8;
-
   constructor() {
     super('FarmScene');
   }
 
   create(): void {
     this.cameras.main.setBackgroundColor('#9fdd7a');
+
+    // Full-scene art backdrop; falls back to the flat camera color above when
+    // the texture isn't present. Sits behind everything (depth -10).
+    if (this.textures.exists('bg_farm')) {
+      this.add
+        .image(640, 430, 'bg_farm')
+        .setDisplaySize(1280, 860)
+        .setDepth(-10);
+    }
+
     const isDevMode = import.meta.env.DEV;
     let growthTimeScale: 1 | 10 | 100 = 1;
     let isSyncing = false;
@@ -169,7 +178,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const hudText = this.add
-      .text(24, 100, '', {
+      .text(46, 100, '', {
         color: '#2f4f1f',
         backgroundColor: '#9fdd7a',
         fontSize: '16px',
@@ -179,7 +188,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const popularityText = this.add
-      .text(360, 100, '', {
+      .text(382, 100, '', {
         color: '#8a3b6a',
         fontSize: '15px',
         fontFamily: 'Arial',
@@ -236,12 +245,29 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const progressionText = this.add
-      .text(24, 122, '', {
+      .text(46, 122, '', {
         color: '#2f4f1f',
         fontSize: '14px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
+
+    // Leading stat icons for the HUD lines. Each is placed in the gap opened up
+    // by nudging its text line right; tolerant of missing art (skipped if the
+    // texture isn't loaded). 18px square, vertically centred on its text.
+    const addStatIcon = (iconKey: string, x: number, y: number): void => {
+      if (!this.textures.exists(iconKey)) {
+        return;
+      }
+      this.add
+        .image(x, y, iconKey)
+        .setOrigin(0.5)
+        .setDisplaySize(18, 18)
+        .setDepth(2);
+    };
+    addStatIcon('icon_coin', 33, 110);
+    addStatIcon('icon_xp', 33, 130);
+    addStatIcon('icon_popularity', 371, 110);
 
     const selectedSeedText = this.add
       .text(24, 144, '', {
@@ -386,11 +412,6 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     controlsHintText.setText(t('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing | Y sync. Click a locked plot to unlock it.'));
-
-    this.add
-      .rectangle(640, 640, 816, 420, 0x6c9a4b)
-      .setStrokeStyle(4, 0x4b6d33)
-      .setDepth(0);
 
     const resetButton = this.add
       .text(790, 14, t('Reset Save (R)'), {
@@ -579,6 +600,42 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
+    // Prefix a text button with a small icon drawn inside extra left padding,
+    // so the button grows to the right only. Tolerant of missing art: when the
+    // icon texture isn't loaded the button is left untouched. Returns the icon
+    // image (or null) so callers can keep its visibility in sync with a button
+    // that toggles on/off.
+    const addButtonIcon = (
+      button: Phaser.GameObjects.Text,
+      iconKey: string,
+    ): Phaser.GameObjects.Image | null => {
+      if (!this.textures.exists(iconKey)) {
+        return null;
+      }
+      const pad = button.padding;
+      const iconSize = Math.max(14, Math.min(20, button.height - 6));
+      const gap = iconSize + 6;
+      button.setPadding((pad.left ?? 0) + gap, pad.top ?? 0, pad.right ?? 0, pad.bottom ?? 0);
+      const icon = this.add
+        .image(button.x + 4 + iconSize / 2, button.y + button.height / 2, iconKey)
+        .setOrigin(0.5)
+        .setDisplaySize(iconSize, iconSize)
+        .setDepth(button.depth + 1);
+      return icon;
+    };
+
+    // Always-visible action buttons.
+    addButtonIcon(sellButton, 'icon_sell');
+    addButtonIcon(syncPanelButton, 'icon_sync');
+    addButtonIcon(languageButton, 'icon_globe');
+    addButtonIcon(collectGiftsButton, 'icon_gift');
+    addButtonIcon(collectProductsButton, 'icon_harvest');
+    addButtonIcon(sellAnimalsButton, 'icon_sell');
+    addButtonIcon(fertilizerModeButton, 'icon_seed');
+    // Buttons that toggle visibility: keep their icon in sync (see refreshHud).
+    const buyDogIcon = addButtonIcon(buyDogButton, 'icon_dog');
+    const claimDailyIcon = addButtonIcon(claimDailyButton, 'icon_calendar');
+
     const getCrop = (cropId: string | undefined): CropDefinition | undefined => {
       if (!cropId) {
         return undefined;
@@ -690,13 +747,14 @@ export class FarmScene extends Phaser.Scene {
       hudText.setText(t('Coins: {coins} | XP: {xp} | Level: {level}', { coins: this.economy.coins, xp: this.economy.xp, level: this.economy.level }));
       const missingXp = getXpToNextLevel(this.economy.xp, this.economy.level);
       progressionText.setText(t('Next level in {xp} XP', { xp: missingXp }));
-      popularityText.setText(t('\u2605 Popularity: {pop} | Gifts waiting: {gifts}', { pop: this.popularity, gifts: this.giftInbox.length }));
+      popularityText.setText(t('Popularity: {pop} | Gifts waiting: {gifts}', { pop: this.popularity, gifts: this.giftInbox.length }));
       dogText.setText(
         this.hasDog
           ? t('\u{1F415} Guard dog: ON (protecting your farm)')
           : t('\u{1F415} Guard dog: none'),
       );
       buyDogButton.setVisible(!this.hasDog);
+      buyDogIcon?.setVisible(!this.hasDog);
 
       const now = Date.now();
       const available = isRewardAvailable(this.daily, now);
@@ -707,6 +765,7 @@ export class FarmScene extends Phaser.Scene {
           : t('\u{1F381} Daily reward claimed. Streak: {streak}. Come back tomorrow.', { streak: this.daily.streak }),
       );
       claimDailyButton.setVisible(available);
+      claimDailyIcon?.setVisible(available);
     };
 
     const buyDog = (): void => {
@@ -1655,23 +1714,62 @@ export class FarmScene extends Phaser.Scene {
       applyImage(visual.ground, sprites.ground, this.tileSize.width, this.tileSize.height);
       applyImage(visual.content, sprites.content, this.tileSize.width - 16, this.tileSize.height - 16);
 
+      // When the soil/locked art is showing, make the fallback colored square
+      // fully transparent (but keep it VISIBLE) so the plots blend into the
+      // background as overlapping transparent beds. An invisible Shape is
+      // skipped by Phaser's input hit-test, so we must keep it visible and only
+      // drop the fill/stroke; it reappears solid only in pure-shape fallback
+      // mode (no art).
+      // When the soil/locked art is showing, the fallback rect must be fully
+      // transparent (no fill, no stroke) so the diamond sprites blend into the
+      // background as one contiguous field. An invisible Shape is skipped by
+      // Phaser's input hit-test, so we keep the rect VISIBLE and only drop the
+      // paint. setRectFill applies the given fallback colour only when there is
+      // no art (pure-shape mode); otherwise it stays see-through.
+      const showArt = visual.ground.visible;
+      const setRectFill = (color: number): void => {
+        if (showArt) {
+          visual.rect.setFillStyle(color, 0);
+          visual.rect.setStrokeStyle();
+        } else {
+          visual.rect.setFillStyle(color, 1);
+          visual.rect.setStrokeStyle(2, 0x4b6d33);
+        }
+      };
+
+      // Show the most urgent state as a small floating icon badge; hide it when
+      // the matching icon isn't loaded or there's nothing to flag.
+      const setBadge = (key: string | null): void => {
+        if (key && this.textures.exists(key)) {
+          // setTexture resets the image to the new frame's native size, so the
+          // display size must be re-applied every time the icon changes.
+          visual.badge.setTexture(key).setDisplaySize(34, 34).setVisible(true);
+        } else {
+          visual.badge.setVisible(false);
+        }
+      };
+
       // Phase P5b: a locked plot shows its unlock price instead of being usable.
       if (tile.locked) {
         const info = plotUnlockInfo(tile);
-        visual.rect.setFillStyle(0x3a3a3a);
-        visual.title.setText(t('\u{1F512} Locked'));
-        visual.subtitle.setText(info.level > 1 ? t('Lv {level} + {cost}c', { level: info.level, cost: info.cost }) : t('Unlock: {cost}c', { cost: info.cost }));
+        setRectFill(0x3a3a3a);
+        // The tile_locked art already depicts a padlock, so only add the lock
+        // badge as a fallback when that art isn't loaded.
+        setBadge(showArt ? null : 'icon_lock');
+        visual.title.setText('');
+        visual.subtitle.setText(info.level > 1 ? t('Lv {level} + {cost}c', { level: info.level, cost: info.cost }) : t('{cost}c', { cost: info.cost }));
         return;
       }
 
       if (tile.state === 'empty') {
         const decoration = getDecoration(tile.decorationId);
+        setBadge(null);
         if (decoration) {
-          visual.rect.setFillStyle(decoration.color);
+          setRectFill(decoration.color);
           visual.title.setText(t('Decor: {name}', { name: t(decoration.name) }));
           visual.subtitle.setText(t('Decorative tile'));
         } else {
-          visual.rect.setFillStyle(0xc4955f);
+          setRectFill(0xc4955f);
           visual.title.setText('');
           visual.subtitle.setText('');
         }
@@ -1679,7 +1777,8 @@ export class FarmScene extends Phaser.Scene {
       }
 
       if (tile.state === 'dead') {
-        visual.rect.setFillStyle(0x5a5a5a);
+        setRectFill(0x5a5a5a);
+        setBadge(null);
         visual.title.setText(t('Withered'));
         visual.subtitle.setText(t('Clear with hoe (click)'));
         return;
@@ -1687,7 +1786,8 @@ export class FarmScene extends Phaser.Scene {
 
       const growth = getGrowth(tile);
       if (!growth) {
-        visual.rect.setFillStyle(0x7a5230);
+        setRectFill(0x7a5230);
+        setBadge(null);
         visual.title.setText(t('Planted'));
         visual.subtitle.setText('');
         return;
@@ -1697,19 +1797,32 @@ export class FarmScene extends Phaser.Scene {
       const health = Math.round(tile.health ?? CARE.MAX_HEALTH);
 
       if (problems.length > 0) {
-        visual.rect.setFillStyle(0xb06a2e);
+        setRectFill(0xb06a2e);
       } else if (growth.ready) {
-        visual.rect.setFillStyle(0x4e8b3a);
+        setRectFill(0x4e8b3a);
       } else {
-        visual.rect.setFillStyle(0x7a5230);
+        setRectFill(0x7a5230);
+      }
+
+      // Badge priority: the most urgent care problem first, then "ready".
+      if (tile.hasPests) {
+        setBadge('icon_pesticide');
+      } else if (tile.hasWeeds) {
+        setBadge('icon_weed');
+      } else if (tile.isDry) {
+        setBadge('icon_water');
+      } else if (growth.ready) {
+        setBadge('icon_harvest');
+      } else {
+        setBadge(null);
       }
 
       visual.title.setText(t('{crop} \u2022 {stage}', { crop: t(growth.crop.name), stage: t(growth.stageLabel) }));
       const statusPart = growth.ready ? t('Ready') : `${Math.floor(growth.progress * 100)}%`;
-      const problemPart = problems.length > 0 ? ` | ${problems.map((p) => t(p)).join(',')}` : '';
       const totalSeasons = growth.crop.seasons ?? 1;
       const seasonPart = totalSeasons > 1 ? ` | S${tile.season ?? 1}/${totalSeasons}` : '';
-      visual.subtitle.setText(`${statusPart} | HP ${health}${seasonPart}${problemPart}`);
+      // Care problems are now shown by the icon badge, so the text stays brief.
+      visual.subtitle.setText(`${statusPart} | HP ${health}${seasonPart}`);
     };
 
     const attemptUnlock = (tile: FarmTile): void => {
@@ -1742,53 +1855,128 @@ export class FarmScene extends Phaser.Scene {
       statusText.setText(this.statusMessage);
     };
 
+    // Play a one-shot effect animation centred at (x, y), then destroy it.
+    // No-op when the effect's sprite-sheet/animation isn't loaded, so the game
+    // still works without the art.
+    const playEffect = (key: string, x: number, y: number): void => {
+      if (!this.anims.exists(key)) {
+        return;
+      }
+      const sprite = this.add
+        .sprite(x, y, key)
+        // Effect frames are portrait; keep their native aspect ratio (so the
+        // splash isn't squished) and scale relative to the tile width. Anchor
+        // near the splash base so it sits over the tile.
+        .setOrigin(0.5, 0.72)
+        .setDepth(4000);
+      const targetW = this.tileSize.width * 0.6;
+      const aspect = sprite.height / sprite.width || 1;
+      sprite.setDisplaySize(targetW, targetW * aspect);
+      // Ease the pop: gently grow and fade out so the distinct concept frames
+      // don't feel like they snap on/off.
+      sprite.setAlpha(0.92).setScale(sprite.scaleX * 0.85, sprite.scaleY * 0.85);
+      const finalScaleX = sprite.scaleX / 0.85;
+      const finalScaleY = sprite.scaleY / 0.85;
+      this.tweens.add({
+        targets: sprite,
+        scaleX: finalScaleX,
+        scaleY: finalScaleY,
+        ease: 'Sine.Out',
+        duration: 260,
+      });
+      this.tweens.add({
+        targets: sprite,
+        alpha: 0,
+        ease: 'Sine.In',
+        delay: 180,
+        duration: 180,
+      });
+      sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sprite.destroy());
+      sprite.play(key);
+    };
+
     const renderGrid = (): void => {
-      const originX = 256;
-      const originY = 444;
+      // Isometric layout: the soil sprite is a diamond (top-face center at
+      // source (204,130) in a 407x303 image), so tiles are placed on an iso
+      // grid where neighbouring diamonds share an edge and read as one
+      // contiguous field. Half-width and half-(top-face)-height are derived
+      // from the sprite so the beds interlock exactly.
+      const diamondW = this.tileSize.width * (394 / 407);
+      const topFaceH = this.tileSize.height * (248 / 303);
+      const halfW = diamondW / 2;
+      const halfH = topFaceH / 2;
+      const originX = 720;
+      const originY = 380;
 
       this.farmTiles.forEach((tile) => {
-        const posX = originX + tile.x * (this.tileSize.width + this.tileGap);
-        const posY = originY + tile.y * (this.tileSize.height + this.tileGap);
+        const cx = originX + (tile.x - tile.y) * halfW;
+        const cy = originY + (tile.x + tile.y) * halfH;
+        // Tiles further "forward" (higher x+y) sit lower on screen and must
+        // draw over the ones behind them so the raised-bed walls are hidden.
+        const order = tile.x + tile.y;
 
         const rect = this.add
-          .rectangle(posX, posY, this.tileSize.width, this.tileSize.height, 0xc4955f)
-          .setOrigin(0)
+          .rectangle(cx, cy, diamondW, topFaceH, 0xc4955f)
+          .setOrigin(0.5)
           .setStrokeStyle(2, 0x4b6d33)
-          .setInteractive({ useHandCursor: true });
+          .setDepth(order * 10 - 1);
+
+        // Restrict clicks to the visible diamond (losangle) rather than the
+        // sprite's bounding box, so the transparent corners don't steal clicks
+        // from neighbouring beds.
+        rect.setInteractive({
+          hitArea: new Phaser.Geom.Polygon([halfW, 0, diamondW, halfH, halfW, topFaceH, 0, halfH]),
+          hitAreaCallback: Phaser.Geom.Polygon.Contains,
+          useHandCursor: true,
+        });
 
         // Optional art layers, drawn over the fallback rectangle. They stay
         // hidden whenever the matching texture wasn't loaded, so the game still
         // works with no art (pure shapes) and gradually skins itself as PNGs
-        // are added to public/assets.
+        // are added to public/assets. Origin is the diamond's top-face centre.
         const ground = this.add
-          .image(posX, posY, '__DEFAULT')
-          .setOrigin(0)
-          .setDepth(0)
+          .image(cx, cy, '__DEFAULT')
+          .setOrigin(0.501, 0.429)
+          .setDepth(order * 10)
           .setVisible(false);
 
         const content = this.add
-          .image(posX + this.tileSize.width / 2, posY + this.tileSize.height / 2, '__DEFAULT')
-          .setOrigin(0.5)
-          .setDepth(1)
+          .image(cx, cy + 2, '__DEFAULT')
+          .setOrigin(0.5, 0.7)
+          .setDepth(order * 10 + 1)
           .setVisible(false);
 
         const title = this.add
-          .text(posX + 8, posY + 8, '', {
-            color: '#f6efe2',
-            fontSize: '12px',
-            fontFamily: 'Arial',
-          })
-          .setDepth(2);
-
-        const subtitle = this.add
-          .text(posX + 8, posY + 26, '', {
+          .text(cx, cy - 6, '', {
             color: '#f6efe2',
             fontSize: '11px',
             fontFamily: 'Arial',
+            align: 'center',
           })
-          .setDepth(2);
+          .setOrigin(0.5)
+          .setDepth(3000 + order);
 
-        tileVisuals.set(tile.id, { rect, ground, content, title, subtitle });
+        const subtitle = this.add
+          .text(cx, cy + 9, '', {
+            color: '#f6efe2',
+            fontSize: '10px',
+            fontFamily: 'Arial',
+            align: 'center',
+          })
+          .setOrigin(0.5)
+          .setDepth(3000 + order);
+
+        // Status badge: a small icon floating above the bed showing the most
+        // urgent care state (locked / pests / weeds / dry / ready). Hidden when
+        // there is nothing to flag. Sits above all tile art.
+        const badge = this.add
+          .image(cx + halfW * 0.5, cy - halfH * 0.5, '__DEFAULT')
+          .setOrigin(0.5)
+          .setDisplaySize(34, 34)
+          .setDepth(3500 + order)
+          .setVisible(false);
+
+        tileVisuals.set(tile.id, { rect, ground, content, title, subtitle, badge });
         refreshTileVisual(tile);
 
         rect.on('pointerdown', () => {
@@ -1942,6 +2130,7 @@ export class FarmScene extends Phaser.Scene {
 
             if (tile.isDry) {
               waterTile(tile, Date.now());
+              playEffect('fx_water_splash', cx, cy);
               this.economy.xp += 1;
               this.economy.level = getLevelFromXp(this.economy.xp);
               this.statusMessage = t('Watered crop. +1 XP.');

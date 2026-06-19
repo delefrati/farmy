@@ -30,8 +30,8 @@ export type FarmTile = {
   locked?: boolean;
 };
 
-export const GRID_COLUMNS = 6;
-export const GRID_ROWS = 4;
+export const GRID_COLUMNS = 4;
+export const GRID_ROWS = 6;
 
 export const createDefaultFarmTiles = (): FarmTile[] => {
   const tiles: FarmTile[] = [];
