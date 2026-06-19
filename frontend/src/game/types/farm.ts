@@ -7,6 +7,7 @@ export type FarmTile = {
   state: FarmTileState;
   cropId?: string;
   plantedAt?: number;
+  decorationId?: string;
 };
 
 export const GRID_COLUMNS = 6;
@@ -24,6 +25,7 @@ export const createDefaultFarmTiles = (): FarmTile[] => {
         state: 'empty',
         cropId: undefined,
         plantedAt: undefined,
+        decorationId: undefined,
       });
     }
   }

@@ -1,11 +1,12 @@
 import { createDefaultFarmTiles, GRID_COLUMNS, GRID_ROWS, type FarmTile } from '../types/farm';
 import { createDefaultEconomy, type PlayerEconomy } from '../types/economy';
 import { createDefaultInventory, type PlayerInventory } from '../types/inventory';
+import { createDefaultAnimals, type PlayerAnimals } from '../types/animals';
 import { defaultCropId } from '../data/crops';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 type LegacySaveGameV1 = {
   version: number;
@@ -13,6 +14,28 @@ type LegacySaveGameV1 = {
   economy: PlayerEconomy;
   selectedCropId: string;
   farmTiles: FarmTile[];
+};
+
+type LegacySaveGameV2 = {
+  version: number;
+  savedAt: string;
+  economy: PlayerEconomy;
+  inventory: PlayerInventory;
+  selectedCropId: string;
+  farmTiles: FarmTile[];
+};
+
+const isValidAnimals = (value: unknown): value is PlayerAnimals => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const animals = value as Partial<PlayerAnimals>;
+  return (
+    typeof animals.chickenCoops === 'number' &&
+    typeof animals.eggs === 'number' &&
+    typeof animals.lastEggTickAt === 'number'
+  );
 };
 
 const isValidInventory = (value: unknown): value is PlayerInventory => {
@@ -48,7 +71,8 @@ const isValidFarmTile = (value: unknown): value is FarmTile => {
     typeof tile.y === 'number' &&
     (tile.state === 'empty' || tile.state === 'planted') &&
     (tile.cropId === undefined || typeof tile.cropId === 'string') &&
-    (tile.plantedAt === undefined || typeof tile.plantedAt === 'number')
+    (tile.plantedAt === undefined || typeof tile.plantedAt === 'number') &&
+    (tile.decorationId === undefined || typeof tile.decorationId === 'string')
   );
 };
 
@@ -58,6 +82,25 @@ const isValidSaveGame = (value: unknown): value is SaveGame => {
   }
 
   const save = value as Partial<SaveGame>;
+  return (
+    typeof save.version === 'number' &&
+    typeof save.savedAt === 'string' &&
+    isValidEconomy(save.economy) &&
+    isValidInventory(save.inventory) &&
+    isValidAnimals(save.animals) &&
+    typeof save.selectedCropId === 'string' &&
+    Array.isArray(save.farmTiles) &&
+    save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
+    save.farmTiles.every(isValidFarmTile)
+  );
+};
+
+const isValidLegacySaveGameV2 = (value: unknown): value is LegacySaveGameV2 => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const save = value as Partial<LegacySaveGameV2>;
   return (
     typeof save.version === 'number' &&
     typeof save.savedAt === 'string' &&
@@ -94,6 +137,7 @@ export class SaveSystem {
       savedAt: new Date().toISOString(),
       economy: createDefaultEconomy(),
       inventory: createDefaultInventory(),
+      animals: createDefaultAnimals(),
       selectedCropId: defaultCropId,
       farmTiles: createDefaultFarmTiles(),
     };
@@ -102,6 +146,7 @@ export class SaveSystem {
   saveGame(saveInput: {
     economy: PlayerEconomy;
     inventory: PlayerInventory;
+    animals: PlayerAnimals;
     selectedCropId: string;
     farmTiles: FarmTile[];
   }): SaveGame {
@@ -110,6 +155,7 @@ export class SaveSystem {
       savedAt: new Date().toISOString(),
       economy: saveInput.economy,
       inventory: saveInput.inventory,
+      animals: saveInput.animals,
       selectedCropId: saveInput.selectedCropId,
       farmTiles: saveInput.farmTiles,
     };
@@ -146,6 +192,17 @@ export class SaveSystem {
           ...parsed,
           version: SAVE_VERSION,
           inventory: createDefaultInventory(),
+          animals: createDefaultAnimals(),
+        };
+        this.saveGame(migrated);
+        return migrated;
+      }
+
+      if (isValidLegacySaveGameV2(parsed) && parsed.version === 2) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          animals: createDefaultAnimals(),
         };
         this.saveGame(migrated);
         return migrated;

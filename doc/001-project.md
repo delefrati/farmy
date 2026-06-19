@@ -4,7 +4,11 @@
 
 Build a private browser-based 2D farming game inspired by old social farm games from the Orkut era (like Happy Farm).
 
-This is an **original game** that recreates the *emotional experience* of those games but with its own visual identity, mechanics, and design. The goal is to create something your wife will enjoy that captures what she loved about the original, not to duplicate it.
+This is an **original game** that recreates the *emotional experience* of those games with its own visual identity and assets.
+
+Mechanically, this project now targets a **high-fidelity recreation** of classic social-farm systems (especially Happy Farm / Colheita Feliz style loops) as documented in `doc/002-original.md`.
+
+The goal is to reproduce the gameplay behavior and progression feel as closely as practical, while keeping names, art, audio, branding, and UI assets original.
 
 The game should feel nostalgic, cozy, simple, colorful, and relaxing. The first version should focus on the core loop:
 
@@ -51,6 +55,210 @@ Create a playable web game that recreates the emotional experience of old browse
 * later: animals and private friend visits.
 
 The first deliverable must be a working single-player local version.
+
+### 2.1 Direction Update (2026-06-18)
+
+Gameplay direction is now explicitly driven by the original mechanics reference:
+
+* Canonical mechanics source: `doc/002-original.md`
+* Priority: replicate documented mechanics and interaction loops, including social tension loops (help/steal/protect), crop care states, warehouse flow, and event visibility.
+* Constraint: keep implementation and assets original (no copied proprietary art, names, logos, or UI layouts).
+
+### 2.2 Mechanics Parity Snapshot (2026-06-18)
+
+Already aligned with the historical loop:
+
+* real-time timestamp-based crop growth
+* planting, harvesting, storage inventory, and selling loop
+* XP/level progression with unlock gates
+* decorations baseline
+* animals baseline
+
+Still missing for closer original parity:
+
+* crop care states and consequences (dryness, weeds, pests, health decay, wither/death, hoe cleanup)
+* mature-window pressure and spoilage timing
+* multi-season crops and fertilizer acceleration
+* animal lifecycle depth (feeding, growing-to-sell animals, status bars, lifespan)
+* social loop (friend visits, help actions, stealing limits, optional sabotage)
+* flowers, gifts, and a separate popularity track
+* event/assistant log with clear action history
+* dog/security and anti-theft interactions
+* land expansion and unlockable plots
+* daily reward and daily action caps
+
+### 2.3 Strict Mechanics Parity Backlog (Execution Order)
+
+This backlog maps the documented mechanics in `doc/002-original.md` to implementation phases.
+
+Status legend:
+
+* DONE: already implemented
+* PARTIAL: implemented in simplified form
+* TODO: not implemented yet
+
+Phase P0 - Lock parity baseline
+
+* Goal: freeze current playable baseline and parity plan before new systems.
+* Mechanics target: none (planning checkpoint).
+* Current status: PARTIAL (docs updated, execution order now defined).
+* Exit criteria:
+  * this section remains the source of implementation order;
+  * every gameplay feature mapped to a parity phase below.
+
+Phase P1 - Crop care and failure states
+
+* Goal: match crop maintenance pressure from originals.
+* Mechanics target:
+  * dryness/drought;
+  * weeds;
+  * pests/bugs;
+  * crop health decay;
+  * harvest block or penalty when unhealthy.
+* Current status: TODO.
+* Exit criteria:
+  * planted tiles can independently become dry/weedy/pested by elapsed time rules;
+  * player can water/remove weeds/remove pests;
+  * health value is persisted and affects crop outcomes.
+
+Phase P2 - Mature window, wither, and hoe cleanup
+
+* Goal: add return-time urgency from the original loop.
+* Mechanics target:
+  * mature grace window;
+  * wither/dead transition if ignored;
+  * tile residue/dead cleanup with hoe action.
+* Current status: TODO.
+* Exit criteria:
+  * mature crops can expire into dead state;
+  * dead/residue tiles cannot be replanted until cleaned;
+  * state transitions are timestamp-based and persist across reload.
+
+Phase P3 - Multi-season and fertilizer parity
+
+* Goal: add deeper crop lifecycle and acceleration tools.
+* Mechanics target:
+  * multi-season crops (regrowth cycles);
+  * fertilizer types with different time reduction values;
+  * optional friend-usable fertilizer variant.
+* Current status: TODO.
+* Exit criteria:
+  * at least one crop supports more than one harvest season;
+  * fertilizer usage is inventory-based and persisted;
+  * growth reduction rules are deterministic and validated.
+
+Phase P3b - Animal lifecycle depth
+
+* Goal: bring animals from baseline egg generation to full original-style lifecycle.
+* Mechanics target:
+  * animal feeding with timed food duration;
+  * productive animals (egg/milk/wool/honey) gated by feed state;
+  * growing animals that mature and are sold;
+  * animal status bars (food, growth, productivity) and optional lifespan.
+* Current status: PARTIAL (chicken coop + timed eggs only).
+* Exit criteria:
+  * animals require feeding to produce or grow;
+  * at least one productive animal and one growing animal type exist;
+  * animal state is timestamp-based and persisted.
+
+Phase P4 - Social baseline: visit, help, steal, log
+
+* Goal: reproduce core social tension loop.
+* Mechanics target:
+  * friend farm visit;
+  * help actions (water, weed, pest removal);
+  * stealing from mature crops with per-crop/per-visit limits;
+  * assistant/event log for both owner and visitor.
+* Current status: TODO.
+* Exit criteria:
+  * approved users can visit friend farms;
+  * at least one help action and one steal action are available;
+  * every social action writes a visible event log entry with timestamp.
+
+Phase P4b - Flowers, gifts, and popularity
+
+* Goal: reproduce the social-prestige track that was separate from farming XP.
+* Mechanics target:
+  * flowers that grow like crops but are giftable;
+  * gift inbox (send/receive);
+  * popularity score that increases from received flowers/gifts;
+  * popularity shown distinctly from XP/level.
+* Current status: TODO.
+* Exit criteria:
+  * player can grow and gift a flower to a friend;
+  * receiving a gift raises a persisted popularity value;
+  * popularity is displayed separately from XP and level.
+
+Phase P5 - Sabotage and protection (dog/security)
+
+* Goal: complete the classic revenge/protection loop.
+* Mechanics target:
+  * optional sabotage (place weed/bug on friend farm);
+  * dog/guard system that can prevent or penalize theft/sabotage;
+  * protection state visibility.
+* Current status: TODO.
+* Exit criteria:
+  * sabotage can be enabled/disabled by product flag;
+  * protected farms can trigger anti-theft penalties;
+  * protection outcomes are logged in event history.
+
+Phase P5b - Land expansion and plot unlocks
+
+* Goal: match the progression of unlocking/expanding farm area over time.
+* Mechanics target:
+  * locked plots that can be unlocked with coins and/or level;
+  * farm area growth beyond the initial 6x4 grid;
+  * persistence of unlocked plot layout.
+* Current status: TODO.
+* Exit criteria:
+  * some plots start locked and can be unlocked;
+  * unlocked layout persists across reload and sync;
+  * planting respects locked vs unlocked plots.
+
+Phase P6 - Daily systems and anti-abuse limits
+
+* Goal: replicate retention rhythms and prevent exploit loops.
+* Mechanics target:
+  * daily reward;
+  * daily XP/action caps for repetitive social actions;
+  * server-side reset window for caps.
+* Current status: TODO.
+* Exit criteria:
+  * daily reward claim persists by date;
+  * help/steal XP gains stop or taper after cap;
+  * cap state is enforced by backend, not only UI.
+
+Phase P7 - Economy parity tuning pass
+
+* Goal: shift from MVP-fast pacing toward original-like pacing profiles.
+* Mechanics target:
+  * long crop timers profile set (with dev-speed override kept);
+  * care costs/rewards tuning;
+  * steal risk vs reward balancing.
+* Current status: PARTIAL (economy and progression tuned for MVP speed).
+* Exit criteria:
+  * at least two pacing profiles exist (dev-fast and nostalgia);
+  * documented target metrics for profit/hour and xp/hour per crop tier;
+  * one full balancing pass completed after social mechanics are live.
+
+Phase P8 - Final sync and conflict UX (last item)
+
+* Goal: finish cloud sync ergonomics after gameplay parity is stable.
+* Mechanics target:
+  * upload/download merge strategy options;
+  * force upload/download controls;
+  * explicit conflict resolution UI.
+* Current status: PARTIAL (basic timestamp conflict guard exists).
+* Exit criteria:
+  * player can choose conflict strategy intentionally;
+  * sync outcomes are auditable via status/history;
+  * no sync data loss in tested conflict scenarios.
+
+Implementation rule for parity work:
+
+1. Do not start a later phase before the previous phase exit criteria pass.
+2. Keep visual and naming originality while matching gameplay behavior.
+3. Keep sync UX as the final phase, unless a blocker requires minimal sync changes earlier.
 
 ---
 
@@ -135,6 +343,20 @@ This section reflects the current implementation state in the repository and loc
   * unlock messaging shows newly unlocked crops
   * seed lock/unlock checks use current player level
   * HUD now shows XP needed to reach next level
+* Phase 10.5 balance and HUD polish baseline is implemented:
+  * crop economy values were tuned for faster MVP pacing and clearer profit trade-offs
+  * progression now uses a configurable XP curve instead of fixed linear level jumps
+  * selected seed panel now shows sell value, profit, growth time, and XP reward
+  * controls hint line was added to improve in-game usability
+* Phase 12 decorations baseline is implemented:
+  * decoration mode allows placing decor on empty tiles with level/coin rules
+  * placed decorations are persisted in save data
+  * decoration selector UI allows switching active decor option
+* Phase 13 animals baseline is implemented:
+  * chicken coop purchase flow with level/coin requirements
+  * eggs are generated over time with per-coop capacity limits
+  * egg collection adds inventory items and grants XP
+  * animal progression state is saved and loaded with game data
 * Phase 11 backend save sync baseline is implemented:
   * new API endpoints `GET/PUT /api/v1/game-state/me` backed by Redis
   * frontend upload/download actions sync local save with authenticated user profile
@@ -156,7 +378,7 @@ This section reflects the current implementation state in the repository and loc
 
 * Backend is currently a scaffold for infrastructure and translation features; gameplay-specific endpoints are not implemented yet.
 * Local single-player gameplay MVP is now functional: plant, grow, harvest, store, select seeds, and sell.
-* Backend-connected persistence now uses real account auth; conflict resolution and UX polish are pending.
+* Backend-connected persistence now uses real account auth, but sync polishing is intentionally deprioritized.
 
 ### Recently Fixed
 
@@ -165,22 +387,23 @@ This section reflects the current implementation state in the repository and loc
 
 ### Not Started Yet (Gameplay)
 
-* Merge strategy beyond timestamp guard (manual merge/force options).
-* Economy balancing for seed costs, sell prices, growth times, and XP curve.
-* UI polish for shop and feedback panel.
-* Animal/decor/social phases.
+* Final economy balancing pass after longer playtest sessions.
+* Extended UI polish for shop and feedback panel visuals.
+* Social phase (friend visits and private interactions).
+* Final sync polish (manual merge/force actions and upload/download UX refinements).
 
 ### Recommended Next Steps
 
-1. Add explicit sync conflict actions (force upload/download) with confirmation UI.
-2. Tune progression and economy values (growth time, sell price, XP curve).
-3. Add basic UI polish pass for controls and status panel.
+1. Run a mechanics gap analysis against `doc/002-original.md` and convert missing core systems into an implementation backlog.
+2. Implement core crop-care loop parity: dryness, weeds, pests, and crop health/penalty flow.
+3. Implement social parity baseline: friend farm visit actions (help, steal, optional sabotage) plus event log.
+4. Keep sync UX as the last item: finalize upload/download conflict controls and merge strategy.
 
 ---
 
 ## 3. Important Legal and Creative Constraints
 
-Do not clone any existing game directly.
+Do not copy proprietary assets or branding from any existing game.
 
 The project must not:
 
@@ -193,12 +416,12 @@ The project must not:
 The project may:
 
 * use a general farming theme;
-* use common mechanics such as planting, watering, harvesting, selling, leveling, and decorating;
+* replicate common and documented historical mechanics such as planting, watering, pests, weeds, harvesting, storage/warehouse selling, leveling, social help/steal loops, and decorations;
 * create original pixel-art or cartoon-style assets;
 * use placeholder shapes during development;
 * later replace placeholders with original commissioned or AI-assisted assets, as long as they do not copy protected material.
 
-The goal is nostalgia, not duplication.
+The goal is **mechanics-faithful recreation with original presentation**.
 
 ---
 

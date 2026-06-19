@@ -3,9 +3,13 @@ import { SaveSystem } from '../systems/SaveSystem';
 import type { FarmTile } from '../types/farm';
 import type { PlayerEconomy } from '../types/economy';
 import type { PlayerInventory } from '../types/inventory';
+import type { PlayerAnimals } from '../types/animals';
 import { crops, defaultCropId } from '../data/crops';
 import type { CropDefinition } from '../types/crop';
 import { RemoteSaveService } from '../services/RemoteSaveService';
+import { getLevelFromXp, getXpToNextLevel } from '../data/progression';
+import { decorations, defaultDecorationId } from '../data/decorations';
+import type { DecorationDefinition } from '../types/decoration';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
@@ -14,6 +18,14 @@ type TileVisual = {
 };
 
 export class FarmScene extends Phaser.Scene {
+  private static readonly CHICKEN_COOP_PRICE = 120;
+
+  private static readonly CHICKEN_COOP_UNLOCK_LEVEL = 3;
+
+  private static readonly EGG_SECONDS = 120;
+
+  private static readonly EGG_CAP_PER_COOP = 4;
+
   private readonly saveSystem = new SaveSystem();
 
   private readonly remoteSaveService = new RemoteSaveService();
@@ -25,6 +37,8 @@ export class FarmScene extends Phaser.Scene {
   private selectedCropId = defaultCropId;
 
   private inventory: PlayerInventory = {};
+
+  private animals: PlayerAnimals = { chickenCoops: 0, eggs: 0, lastEggTickAt: Date.now() };
 
   private statusMessage = '';
 
@@ -42,11 +56,14 @@ export class FarmScene extends Phaser.Scene {
     let growthTimeScale: 1 | 10 | 100 = 1;
     let isSyncing = false;
     let lastSyncLabel = 'never';
+    let decorationMode = false;
+    let selectedDecorationId = defaultDecorationId;
 
     const loaded = this.saveSystem.loadGame();
     this.farmTiles = loaded.farmTiles;
     this.economy = loaded.economy;
     this.inventory = loaded.inventory;
+    this.animals = loaded.animals;
     this.selectedCropId = loaded.selectedCropId;
 
     const tileVisuals = new Map<string, TileVisual>();
@@ -83,8 +100,24 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
+    const selectedSeedMetaText = this.add
+      .text(24, 110, '', {
+        color: '#335a2a',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
+    const decorationModeText = this.add
+      .text(24, 240, '', {
+        color: '#5f3b8a',
+        fontSize: '12px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
     const statusText = this.add
-      .text(24, 114, 'Click empty tile to plant. Login before upload/download sync.', {
+      .text(24, 128, 'Click empty tile to plant. Click ready crop to harvest. Sell with S.', {
         color: '#3f5f2f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -92,7 +125,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const inventoryText = this.add
-      .text(24, 134, 'Inventory: empty', {
+      .text(24, 148, 'Inventory: empty', {
         color: '#2f4f1f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -100,7 +133,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const syncText = this.add
-      .text(24, 154, 'Sync: idle | Last sync: never', {
+      .text(24, 166, 'Sync: idle | Last sync: never', {
         color: '#1f5c99',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -108,7 +141,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const authText = this.add
-      .text(24, 172, '', {
+      .text(24, 184, '', {
         color: '#0f4f8c',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -116,12 +149,30 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const devSpeedText = this.add
-      .text(24, 190, '', {
+      .text(24, 202, '', {
         color: '#7a3b00',
         fontSize: '13px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
+
+    const animalsText = this.add
+      .text(24, 258, '', {
+        color: '#5b3c18',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
+    const controlsHintText = this.add
+      .text(24, 220, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor mode', {
+        color: '#36522a',
+        fontSize: '12px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
+    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor mode');
 
     this.add
       .rectangle(480, 290, 860, 420, 0x6c9a4b)
@@ -205,6 +256,39 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
+    const decorationModeButton = this.add
+      .text(890, 22, 'Decor Mode (G)', {
+        color: '#ffffff',
+        backgroundColor: '#5f3b8a',
+        fontSize: '14px',
+        fontFamily: 'Arial',
+        padding: { x: 10, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const buyCoopButton = this.add
+      .text(890, 56, 'Buy Coop (A)', {
+        color: '#ffffff',
+        backgroundColor: '#7b4f1d',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const collectEggsButton = this.add
+      .text(890, 84, 'Collect Eggs (E)', {
+        color: '#ffffff',
+        backgroundColor: '#7b4f1d',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
     const getCrop = (cropId: string | undefined): CropDefinition | undefined => {
       if (!cropId) {
         return undefined;
@@ -218,9 +302,31 @@ export class FarmScene extends Phaser.Scene {
       return selected ?? crops[0];
     };
 
+    const getDecoration = (decorationId: string | undefined): DecorationDefinition | undefined => {
+      if (!decorationId) {
+        return undefined;
+      }
+
+      return decorations.find((decoration) => decoration.id === decorationId);
+    };
+
+    const getSelectedDecoration = (): DecorationDefinition => {
+      const selected = getDecoration(selectedDecorationId);
+      return selected ?? decorations[0];
+    };
+
     const refreshSelectedSeedLabel = (): void => {
       const selected = getSelectedCrop();
       selectedSeedText.setText(`Selected seed: ${selected.name} (Cost: ${selected.seedPrice})`);
+      selectedSeedMetaText.setText(
+        `Sell: ${selected.sellPrice} | Profit: ${selected.sellPrice - selected.seedPrice} | Growth: ${selected.growSeconds}s | XP: +${selected.xp}`,
+      );
+
+      const selectedDecoration = getSelectedDecoration();
+      const modeLabel = decorationMode ? 'ON' : 'OFF';
+      decorationModeText.setText(
+        `Decor Mode: ${modeLabel} | Decor: ${selectedDecoration.name} (${selectedDecoration.price} coins) | Hotkey: G`,
+      );
     };
 
     const getGrowth = (
@@ -247,14 +353,9 @@ export class FarmScene extends Phaser.Scene {
       };
     };
 
-    const getNextLevelXpTarget = (level: number): number => {
-      return level * 50;
-    };
-
     const refreshHud = (): void => {
       hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
-      const targetXp = getNextLevelXpTarget(this.economy.level);
-      const missingXp = Math.max(targetXp - this.economy.xp, 0);
+      const missingXp = getXpToNextLevel(this.economy.xp, this.economy.level);
       progressionText.setText(`Next level in ${missingXp} XP`);
     };
 
@@ -262,6 +363,7 @@ export class FarmScene extends Phaser.Scene {
       this.saveSystem.saveGame({
         economy: this.economy,
         inventory: this.inventory,
+        animals: this.animals,
         selectedCropId: this.selectedCropId,
         farmTiles: this.farmTiles,
       });
@@ -271,6 +373,7 @@ export class FarmScene extends Phaser.Scene {
       return this.saveSystem.saveGame({
         economy: this.economy,
         inventory: this.inventory,
+        animals: this.animals,
         selectedCropId: this.selectedCropId,
         farmTiles: this.farmTiles,
       });
@@ -289,6 +392,88 @@ export class FarmScene extends Phaser.Scene {
 
       const text = entries.map(([cropId, amount]) => `${cropId} x${amount}`).join(' | ');
       return `Inventory: ${text}`;
+    };
+
+    const refreshAnimalsLabel = (): void => {
+      animalsText.setText(
+        `Animals: Chicken coops ${this.animals.chickenCoops} | Eggs ready ${this.animals.eggs}`,
+      );
+    };
+
+    const updateEggProduction = (): void => {
+      if (this.animals.chickenCoops <= 0) {
+        return;
+      }
+
+      const now = Date.now();
+      const elapsedSeconds = Math.max(0, (now - this.animals.lastEggTickAt) / 1000);
+      const producedCycles = Math.floor(elapsedSeconds / FarmScene.EGG_SECONDS);
+      if (producedCycles <= 0) {
+        return;
+      }
+
+      const maxEggs = this.animals.chickenCoops * FarmScene.EGG_CAP_PER_COOP;
+      const availableSpace = Math.max(maxEggs - this.animals.eggs, 0);
+      if (availableSpace <= 0) {
+        return;
+      }
+
+      const eggsToAdd = Math.min(producedCycles, availableSpace);
+      this.animals.eggs += eggsToAdd;
+      this.animals.lastEggTickAt += eggsToAdd * FarmScene.EGG_SECONDS * 1000;
+
+      refreshAnimalsLabel();
+      saveCurrent();
+    };
+
+    const buyChickenCoop = (): void => {
+      if (this.economy.level < FarmScene.CHICKEN_COOP_UNLOCK_LEVEL) {
+        this.statusMessage = `Chicken coop unlocks at level ${FarmScene.CHICKEN_COOP_UNLOCK_LEVEL}.`;
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      if (this.economy.coins < FarmScene.CHICKEN_COOP_PRICE) {
+        this.statusMessage = 'Not enough coins to buy a chicken coop.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      this.economy.coins -= FarmScene.CHICKEN_COOP_PRICE;
+      this.animals.chickenCoops += 1;
+      this.animals.lastEggTickAt = Date.now();
+      this.statusMessage = `Chicken coop purchased. -${FarmScene.CHICKEN_COOP_PRICE} coins.`;
+
+      refreshHud();
+      refreshAnimalsLabel();
+      saveCurrent();
+      statusText.setText(this.statusMessage);
+    };
+
+    const collectEggs = (): void => {
+      updateEggProduction();
+
+      if (this.animals.eggs <= 0) {
+        this.statusMessage = 'No eggs ready yet.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      const eggsCollected = this.animals.eggs;
+      this.inventory.egg = (this.inventory.egg ?? 0) + eggsCollected;
+      this.animals.eggs = 0;
+      this.animals.lastEggTickAt = Date.now();
+
+      this.economy.xp += eggsCollected * 2;
+      this.economy.level = getLevelFromXp(this.economy.xp);
+
+      this.statusMessage = `Collected ${eggsCollected} eggs. +${eggsCollected * 2} XP.`;
+
+      refreshHud();
+      refreshAnimalsLabel();
+      inventoryText.setText(getInventoryLabel());
+      saveCurrent();
+      statusText.setText(this.statusMessage);
     };
 
     const refreshDevSpeedLabel = (): void => {
@@ -434,6 +619,47 @@ export class FarmScene extends Phaser.Scene {
       });
     };
 
+    const renderDecorationSelector = (): void => {
+      this.add
+        .text(430, 94, 'Decorations:', {
+          color: '#4f2f77',
+          fontSize: '14px',
+          fontFamily: 'Arial',
+        })
+        .setDepth(2);
+
+      decorations.forEach((decoration, index) => {
+        const isSelected = decoration.id === selectedDecorationId;
+        const isUnlocked = this.economy.level >= decoration.unlockLevel;
+
+        const button = this.add
+          .text(520 + index * 150, 92, `${decoration.name}\nL${decoration.unlockLevel}`, {
+            color: '#ffffff',
+            backgroundColor: isSelected ? '#5f3b8a' : isUnlocked ? '#7751a1' : '#777777',
+            fontSize: '11px',
+            fontFamily: 'Arial',
+            padding: { x: 8, y: 5 },
+            align: 'center',
+          })
+          .setInteractive({ useHandCursor: true })
+          .setDepth(2);
+
+        button.on('pointerdown', () => {
+          if (!isUnlocked) {
+            this.statusMessage = `${decoration.name} unlocks at level ${decoration.unlockLevel}.`;
+            statusText.setText(this.statusMessage);
+            return;
+          }
+
+          selectedDecorationId = decoration.id;
+          refreshSelectedSeedLabel();
+          this.statusMessage = `${decoration.name} selected.`;
+          statusText.setText(this.statusMessage);
+          this.scene.restart();
+        });
+      });
+    };
+
     const getUnlockedCropNames = (fromExclusiveLevel: number, toInclusiveLevel: number): string[] => {
       return crops
         .filter((crop) => crop.unlockLevel > fromExclusiveLevel && crop.unlockLevel <= toInclusiveLevel)
@@ -556,9 +782,16 @@ export class FarmScene extends Phaser.Scene {
       }
 
       if (tile.state === 'empty') {
-        visual.rect.setFillStyle(0xc4955f);
-        visual.title.setText('');
-        visual.subtitle.setText('');
+        const decoration = getDecoration(tile.decorationId);
+        if (decoration) {
+          visual.rect.setFillStyle(decoration.color);
+          visual.title.setText(`Decor: ${decoration.name}`);
+          visual.subtitle.setText('Decorative tile');
+        } else {
+          visual.rect.setFillStyle(0xc4955f);
+          visual.title.setText('');
+          visual.subtitle.setText('');
+        }
         return;
       }
 
@@ -614,6 +847,44 @@ export class FarmScene extends Phaser.Scene {
         refreshTileVisual(tile);
 
         rect.on('pointerdown', () => {
+          if (decorationMode) {
+            const selectedDecoration = getSelectedDecoration();
+
+            if (this.economy.level < selectedDecoration.unlockLevel) {
+              this.statusMessage = `${selectedDecoration.name} unlocks at level ${selectedDecoration.unlockLevel}.`;
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            if (tile.state !== 'empty') {
+              this.statusMessage = 'Decor can only be placed on empty tiles.';
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            if (tile.decorationId) {
+              this.statusMessage = 'Tile already has decoration.';
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            if (this.economy.coins < selectedDecoration.price) {
+              this.statusMessage = `Not enough coins to place ${selectedDecoration.name}.`;
+              statusText.setText(this.statusMessage);
+              return;
+            }
+
+            tile.decorationId = selectedDecoration.id;
+            this.economy.coins -= selectedDecoration.price;
+            this.statusMessage = `${selectedDecoration.name} placed. -${selectedDecoration.price} coins.`;
+
+            saveCurrent();
+            refreshTileVisual(tile);
+            refreshHud();
+            statusText.setText(this.statusMessage);
+            return;
+          }
+
           const selectedCrop = getSelectedCrop();
 
           if (tile.state === 'planted') {
@@ -628,7 +899,7 @@ export class FarmScene extends Phaser.Scene {
             this.inventory[cropId] = (this.inventory[cropId] ?? 0) + 1;
             const previousLevel = this.economy.level;
             this.economy.xp += growth.crop.xp;
-            this.economy.level = Math.floor(this.economy.xp / 50) + 1;
+            this.economy.level = getLevelFromXp(this.economy.xp);
 
             tile.state = 'empty';
             tile.cropId = undefined;
@@ -668,6 +939,7 @@ export class FarmScene extends Phaser.Scene {
           tile.state = 'planted';
           tile.cropId = selectedCrop.id;
           tile.plantedAt = Date.now();
+          tile.decorationId = undefined;
           this.economy.coins -= selectedCrop.seedPrice;
           this.statusMessage = `${selectedCrop.name} planted. -${selectedCrop.seedPrice} coins.`;
 
@@ -686,6 +958,7 @@ export class FarmScene extends Phaser.Scene {
       this.farmTiles = reset.farmTiles;
       this.economy = reset.economy;
       this.inventory = reset.inventory;
+      this.animals = reset.animals;
       this.selectedCropId = reset.selectedCropId;
       this.statusMessage = 'Save reset to default state.';
       this.scene.restart();
@@ -700,6 +973,14 @@ export class FarmScene extends Phaser.Scene {
       void login();
     });
     logoutButton.on('pointerdown', logout);
+    decorationModeButton.on('pointerdown', () => {
+      decorationMode = !decorationMode;
+      this.statusMessage = decorationMode ? 'Decoration mode enabled.' : 'Decoration mode disabled.';
+      refreshSelectedSeedLabel();
+      statusText.setText(this.statusMessage);
+    });
+    buyCoopButton.on('pointerdown', buyChickenCoop);
+    collectEggsButton.on('pointerdown', collectEggs);
     uploadButton.on('pointerdown', () => {
       void uploadRemoteSave();
     });
@@ -755,6 +1036,32 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-L', () => {
       void login();
     });
+    this.input.keyboard?.on('keydown-A', buyChickenCoop);
+    this.input.keyboard?.on('keydown-E', collectEggs);
+    this.input.keyboard?.on('keydown-G', () => {
+      decorationMode = !decorationMode;
+      this.statusMessage = decorationMode ? 'Decoration mode enabled.' : 'Decoration mode disabled.';
+      refreshSelectedSeedLabel();
+      statusText.setText(this.statusMessage);
+    });
+    this.input.keyboard?.on('keydown-OPEN_BRACKET', () => {
+      const currentIndex = decorations.findIndex((item) => item.id === selectedDecorationId);
+      const nextIndex = currentIndex <= 0 ? decorations.length - 1 : currentIndex - 1;
+      selectedDecorationId = decorations[nextIndex].id;
+      refreshSelectedSeedLabel();
+      this.statusMessage = `${decorations[nextIndex].name} selected.`;
+      statusText.setText(this.statusMessage);
+      this.scene.restart();
+    });
+    this.input.keyboard?.on('keydown-CLOSE_BRACKET', () => {
+      const currentIndex = decorations.findIndex((item) => item.id === selectedDecorationId);
+      const nextIndex = currentIndex >= decorations.length - 1 ? 0 : currentIndex + 1;
+      selectedDecorationId = decorations[nextIndex].id;
+      refreshSelectedSeedLabel();
+      this.statusMessage = `${decorations[nextIndex].name} selected.`;
+      statusText.setText(this.statusMessage);
+      this.scene.restart();
+    });
     this.input.keyboard?.on('keydown-U', () => {
       void uploadRemoteSave();
     });
@@ -768,11 +1075,13 @@ export class FarmScene extends Phaser.Scene {
 
     refreshHud();
     inventoryText.setText(getInventoryLabel());
+    refreshAnimalsLabel();
     refreshAuthLabel();
     setSyncLabel('idle');
     refreshDevSpeedLabel();
     refreshSelectedSeedLabel();
     renderSeedSelector();
+    renderDecorationSelector();
 
     renderGrid();
 
@@ -780,6 +1089,7 @@ export class FarmScene extends Phaser.Scene {
       delay: 1000,
       loop: true,
       callback: () => {
+        updateEggProduction();
         this.farmTiles.forEach((tile) => {
           if (tile.state === 'planted') {
             refreshTileVisual(tile);
