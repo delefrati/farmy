@@ -59,6 +59,7 @@ import {
   simulateTileCare,
   waterTile,
 } from '../systems/CareSystem';
+import { cycleLocale, getLocaleLabel, onLocaleChange, t } from '../i18n';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
@@ -158,7 +159,7 @@ export class FarmScene extends Phaser.Scene {
     const tileVisuals = new Map<string, TileVisual>();
 
     this.add
-      .text(24, 836, 'Farmy — mechanics prototype', {
+      .text(24, 836, t('Farmy — mechanics prototype'), {
         color: '#3f5f2f',
         fontSize: '12px',
         fontFamily: 'Arial',
@@ -184,7 +185,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const collectGiftsButton = this.add
-      .text(360, 122, 'Collect Gifts (C)', {
+      .text(360, 122, t('Collect Gifts (C)'), {
         color: '#ffffff',
         backgroundColor: '#8a3b6a',
         fontSize: '13px',
@@ -203,7 +204,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const buyDogButton = this.add
-      .text(360, 170, `Buy Guard Dog (K) - ${SOCIAL.DOG_PRICE}c`, {
+      .text(360, 170, t('Buy Guard Dog (K) - {price}c', { price: SOCIAL.DOG_PRICE }), {
         color: '#ffffff',
         backgroundColor: '#6a4a2a',
         fontSize: '13px',
@@ -222,7 +223,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const claimDailyButton = this.add
-      .text(360, 218, 'Claim Daily Reward (J)', {
+      .text(360, 218, t('Claim Daily Reward (J)'), {
         color: '#ffffff',
         backgroundColor: '#2f7f4f',
         fontSize: '13px',
@@ -265,7 +266,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const statusText = this.add
-      .text(24, 188, 'Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.', {
+      .text(24, 188, t('Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.'), {
         color: '#3f5f2f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -273,7 +274,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const inventoryText = this.add
-      .text(24, 210, 'Inventory: empty', {
+      .text(24, 210, t('Inventory: empty'), {
         color: '#2f4f1f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -325,7 +326,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     this.add
-      .text(820, 124, 'Barn', {
+      .text(820, 124, t('Barn'), {
         color: '#5b3c18',
         fontSize: '15px',
         fontFamily: 'Arial',
@@ -334,7 +335,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     this.add
-      .text(1058, 116, 'Neighbors', {
+      .text(1058, 116, t('Neighbors'), {
         color: '#2f4f1f',
         fontSize: '15px',
         fontFamily: 'Arial',
@@ -344,7 +345,7 @@ export class FarmScene extends Phaser.Scene {
 
     const visitButtons: Phaser.GameObjects.Text[] = this.neighbors.map((neighbor, index) =>
       this.add
-        .text(1058, 142 + index * 34, `Visit ${neighbor.name}`, {
+        .text(1058, 142 + index * 34, t('Visit {name}', { name: neighbor.name }), {
           color: '#ffffff',
           backgroundColor: '#345c7a',
           fontSize: '13px',
@@ -356,7 +357,7 @@ export class FarmScene extends Phaser.Scene {
     );
 
     this.add
-      .text(1058, 142 + this.neighbors.length * 34 + 6, 'Activity log', {
+      .text(1058, 142 + this.neighbors.length * 34 + 6, t('Activity log'), {
         color: '#2f4f1f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -375,14 +376,14 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 326, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog. Click a locked plot to unlock it.', {
+      .text(24, 326, '', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
-    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing | Y sync. Click a locked plot to unlock it.');
+    controlsHintText.setText(t('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing | Y sync. Click a locked plot to unlock it.'));
 
     this.add
       .rectangle(640, 640, 816, 420, 0x6c9a4b)
@@ -390,7 +391,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(0);
 
     const resetButton = this.add
-      .text(790, 14, 'Reset Save (R)', {
+      .text(790, 14, t('Reset Save (R)'), {
         color: '#ffffff',
         backgroundColor: '#955728',
         fontSize: '16px',
@@ -401,7 +402,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const sellButton = this.add
-      .text(630, 14, 'Sell Inventory (S)', {
+      .text(630, 14, t('Sell Inventory (S)'), {
         color: '#ffffff',
         backgroundColor: '#2f7a41',
         fontSize: '16px',
@@ -412,7 +413,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const uploadButton = this.add
-      .text(470, 14, 'Upload Save (U)', {
+      .text(470, 14, t('Upload Save (U)'), {
         color: '#ffffff',
         backgroundColor: '#1f5c99',
         fontSize: '16px',
@@ -423,7 +424,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const downloadButton = this.add
-      .text(300, 14, 'Download Save (D)', {
+      .text(300, 14, t('Download Save (D)'), {
         color: '#ffffff',
         backgroundColor: '#1f5c99',
         fontSize: '16px',
@@ -434,7 +435,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const syncPanelButton = this.add
-      .text(960, 14, 'Sync \u2699 (Y)', {
+      .text(960, 14, t('Sync \u2699 (Y)'), {
         color: '#ffffff',
         backgroundColor: '#345c7a',
         fontSize: '14px',
@@ -444,8 +445,19 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
+    const languageButton = this.add
+      .text(1078, 14, t('Language: {lang}', { lang: getLocaleLabel() }), {
+        color: '#ffffff',
+        backgroundColor: '#6a4f99',
+        fontSize: '14px',
+        fontFamily: 'Arial',
+        padding: { x: 10, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
     const registerButton = this.add
-      .text(24, 14, 'Register', {
+      .text(24, 14, t('Register'), {
         color: '#ffffff',
         backgroundColor: '#345c7a',
         fontSize: '14px',
@@ -456,7 +468,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const loginButton = this.add
-      .text(120, 14, 'Login (L)', {
+      .text(120, 14, t('Login (L)'), {
         color: '#ffffff',
         backgroundColor: '#345c7a',
         fontSize: '14px',
@@ -467,7 +479,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const logoutButton = this.add
-      .text(210, 14, 'Logout', {
+      .text(210, 14, t('Logout'), {
         color: '#ffffff',
         backgroundColor: '#6f3c3c',
         fontSize: '14px',
@@ -478,7 +490,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const decorationModeButton = this.add
-      .text(24, 54, 'Decor Mode (G)', {
+      .text(24, 54, t('Decor Mode (G)'), {
         color: '#ffffff',
         backgroundColor: '#5f3b8a',
         fontSize: '14px',
@@ -489,7 +501,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const buyChickenButton = this.add
-      .text(820, 54, 'Buy Chicken', {
+      .text(820, 54, t('Buy Chicken'), {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
         fontSize: '13px',
@@ -500,7 +512,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const buyCalfButton = this.add
-      .text(940, 54, 'Buy Calf', {
+      .text(940, 54, t('Buy Calf'), {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
         fontSize: '13px',
@@ -511,7 +523,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const feedAnimalsButton = this.add
-      .text(1040, 54, 'Feed All (A)', {
+      .text(1040, 54, t('Feed All (A)'), {
         color: '#ffffff',
         backgroundColor: '#5f7b1d',
         fontSize: '13px',
@@ -522,7 +534,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const collectProductsButton = this.add
-      .text(820, 88, 'Collect Products (E)', {
+      .text(820, 88, t('Collect Products (E)'), {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
         fontSize: '13px',
@@ -533,7 +545,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const sellAnimalsButton = this.add
-      .text(1010, 88, 'Sell Mature (M)', {
+      .text(1010, 88, t('Sell Mature (M)'), {
         color: '#ffffff',
         backgroundColor: '#2f7a41',
         fontSize: '13px',
@@ -544,7 +556,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const fertilizerModeButton = this.add
-      .text(175, 54, 'Fertilizer (F)', {
+      .text(175, 54, t('Fertilizer (F)'), {
         color: '#ffffff',
         backgroundColor: '#2f6f3b',
         fontSize: '13px',
@@ -555,7 +567,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const buyFertilizerButton = this.add
-      .text(305, 54, 'Buy Fertilizer (B)', {
+      .text(305, 54, t('Buy Fertilizer (B)'), {
         color: '#ffffff',
         backgroundColor: '#2f6f3b',
         fontSize: '12px',
@@ -623,20 +635,27 @@ export class FarmScene extends Phaser.Scene {
 
     const refreshSelectedSeedLabel = (): void => {
       const selected = getSelectedCrop();
-      selectedSeedText.setText(`Selected seed: ${selected.name} (Cost: ${selected.seedPrice})`);
+      selectedSeedText.setText(t('Selected seed: {name} (Cost: {cost})', { name: t(selected.name), cost: selected.seedPrice }));
       selectedSeedMetaText.setText(
-        `Sell: ${selected.sellPrice} | Profit: ${selected.sellPrice - selected.seedPrice} | Growth: ${selected.growSeconds}s | XP: +${selected.xp}`,
+        t('Sell: {sell} | Profit: {profit} | Growth: {grow}s | XP: +{xp}', { sell: selected.sellPrice, profit: selected.sellPrice - selected.seedPrice, grow: selected.growSeconds, xp: selected.xp }),
       );
 
       const selectedDecoration = getSelectedDecoration();
-      const modeLabel = decorationMode ? 'ON' : 'OFF';
+      const modeLabel = decorationMode ? t('ON') : t('OFF');
       const selectedFertilizer = getSelectedFertilizer();
-      const fertLabel = fertilizerMode ? 'ON' : 'OFF';
+      const fertLabel = fertilizerMode ? t('ON') : t('OFF');
       const fertOwned = this.fertilizers[selectedFertilizer.id] ?? 0;
       decorationModeText.setText(
-        `Decor: ${modeLabel} ${selectedDecoration.name} (${selectedDecoration.price}c) [G] | ` +
-          `Fert: ${fertLabel} ${selectedFertilizer.name} -${selectedFertilizer.reduceSeconds}s ` +
-          `(${selectedFertilizer.price}c, own ${fertOwned}) [F toggle, B buy, ,/. switch]`,
+        t('Decor: {decorMode} {decorName} ({decorPrice}c) [G] | Fert: {fertMode} {fertName} -{fertSec}s ({fertPrice}c, own {fertOwned}) [F toggle, B buy, ,/. switch]', {
+          decorMode: modeLabel,
+          decorName: t(selectedDecoration.name),
+          decorPrice: selectedDecoration.price,
+          fertMode: fertLabel,
+          fertName: t(selectedFertilizer.name),
+          fertSec: selectedFertilizer.reduceSeconds,
+          fertPrice: selectedFertilizer.price,
+          fertOwned,
+        }),
       );
     };
 
@@ -666,14 +685,14 @@ export class FarmScene extends Phaser.Scene {
     };
 
     const refreshHud = (): void => {
-      hudText.setText(`Coins: ${this.economy.coins} | XP: ${this.economy.xp} | Level: ${this.economy.level}`);
+      hudText.setText(t('Coins: {coins} | XP: {xp} | Level: {level}', { coins: this.economy.coins, xp: this.economy.xp, level: this.economy.level }));
       const missingXp = getXpToNextLevel(this.economy.xp, this.economy.level);
-      progressionText.setText(`Next level in ${missingXp} XP`);
-      popularityText.setText(`\u2605 Popularity: ${this.popularity} | Gifts waiting: ${this.giftInbox.length}`);
+      progressionText.setText(t('Next level in {xp} XP', { xp: missingXp }));
+      popularityText.setText(t('\u2605 Popularity: {pop} | Gifts waiting: {gifts}', { pop: this.popularity, gifts: this.giftInbox.length }));
       dogText.setText(
         this.hasDog
-          ? '\u{1F415} Guard dog: ON (protecting your farm)'
-          : '\u{1F415} Guard dog: none',
+          ? t('\u{1F415} Guard dog: ON (protecting your farm)')
+          : t('\u{1F415} Guard dog: none'),
       );
       buyDogButton.setVisible(!this.hasDog);
 
@@ -682,20 +701,20 @@ export class FarmScene extends Phaser.Scene {
       const nextReward = rewardForStreak(available ? this.daily.streak + 1 : this.daily.streak);
       dailyText.setText(
         available
-          ? `\u{1F381} Daily reward ready: ${nextReward.label} (streak ${this.daily.streak + 1})`
-          : `\u{1F381} Daily reward claimed. Streak: ${this.daily.streak}. Come back tomorrow.`,
+          ? t('\u{1F381} Daily reward ready: {label} (streak {streak})', { label: t(nextReward.label), streak: this.daily.streak + 1 })
+          : t('\u{1F381} Daily reward claimed. Streak: {streak}. Come back tomorrow.', { streak: this.daily.streak }),
       );
       claimDailyButton.setVisible(available);
     };
 
     const buyDog = (): void => {
       if (this.hasDog) {
-        this.statusMessage = 'You already have a guard dog.';
+        this.statusMessage = t('You already have a guard dog.');
         statusText.setText(this.statusMessage);
         return;
       }
       if (this.economy.coins < SOCIAL.DOG_PRICE) {
-        this.statusMessage = `Not enough coins for a guard dog (need ${SOCIAL.DOG_PRICE}).`;
+        this.statusMessage = t('Not enough coins for a guard dog (need {price}).', { price: SOCIAL.DOG_PRICE });
         statusText.setText(this.statusMessage);
         return;
       }
@@ -705,10 +724,10 @@ export class FarmScene extends Phaser.Scene {
       this.farmEvents = pushEvent(
         this.farmEvents,
         'system',
-        `You bought a guard dog for ${SOCIAL.DOG_PRICE} coins. Your farm is now protected.`,
+        t('You bought a guard dog for {price} coins. Your farm is now protected.', { price: SOCIAL.DOG_PRICE }),
         Date.now(),
       );
-      this.statusMessage = 'Guard dog hired. Your farm is now protected.';
+      this.statusMessage = t('Guard dog hired. Your farm is now protected.');
 
       refreshHud();
       refreshEventLog();
@@ -720,7 +739,7 @@ export class FarmScene extends Phaser.Scene {
       const now = Date.now();
       this.daily = rolloverDaily(this.daily, now);
       if (!isRewardAvailable(this.daily, now)) {
-        this.statusMessage = 'Daily reward already claimed today. Come back tomorrow.';
+        this.statusMessage = t('Daily reward already claimed today. Come back tomorrow.');
         statusText.setText(this.statusMessage);
         return;
       }
@@ -732,10 +751,10 @@ export class FarmScene extends Phaser.Scene {
       this.farmEvents = pushEvent(
         this.farmEvents,
         'system',
-        `Daily reward (day ${result.streak}): ${result.reward.label}.`,
+        t('Daily reward (day {streak}): {label}.', { streak: result.streak, label: t(result.reward.label) }),
         now,
       );
-      this.statusMessage = `Daily reward claimed: ${result.reward.label} (streak ${result.streak}).`;
+      this.statusMessage = t('Daily reward claimed: {label} (streak {streak}).', { label: t(result.reward.label), streak: result.streak });
 
       refreshHud();
       refreshEventLog();
@@ -745,7 +764,7 @@ export class FarmScene extends Phaser.Scene {
 
     const collectGifts = (): void => {
       if (this.giftInbox.length === 0) {
-        this.statusMessage = 'No gifts waiting. Gift a flower to a neighbor to get one back.';
+        this.statusMessage = t('No gifts waiting. Gift a flower to a neighbor to get one back.');
         statusText.setText(this.statusMessage);
         return;
       }
@@ -757,10 +776,10 @@ export class FarmScene extends Phaser.Scene {
       this.farmEvents = pushEvent(
         this.farmEvents,
         'system',
-        `You collected ${count} flower gift(s). +${gained} popularity.`,
+        t('You collected {count} flower gift(s). +{gained} popularity.', { count, gained }),
         Date.now(),
       );
-      this.statusMessage = `Collected ${count} gift(s). +${gained} popularity.`;
+      this.statusMessage = t('Collected {count} gift(s). +{gained} popularity.', { count, gained });
 
       refreshHud();
       refreshEventLog();
@@ -770,7 +789,7 @@ export class FarmScene extends Phaser.Scene {
 
     const refreshEventLog = (): void => {
       if (this.farmEvents.length === 0) {
-        eventLogText.setText('No activity yet. Visit a neighbor!');
+        eventLogText.setText(t('No activity yet. Visit a neighbor!'));
         return;
       }
 
@@ -830,11 +849,11 @@ export class FarmScene extends Phaser.Scene {
     const getInventoryLabel = (): string => {
       const entries = Object.entries(this.inventory).filter(([, amount]) => amount > 0);
       if (entries.length === 0) {
-        return 'Inventory: empty';
+        return t('Inventory: empty');
       }
 
-      const text = entries.map(([cropId, amount]) => `${cropId} x${amount}`).join(' | ');
-      return `Inventory: ${text}`;
+      const text = entries.map(([cropId, amount]) => `${t(getCrop(cropId)?.name ?? cropId)} x${amount}`).join(' | ');
+      return t('Inventory: {text}', { text });
     };
 
     const simulateAllAnimals = (): void => {
@@ -849,7 +868,7 @@ export class FarmScene extends Phaser.Scene {
 
     const refreshAnimalsLabel = (): void => {
       if (this.animals.animals.length === 0) {
-        animalsText.setText('Animals: none yet.\nBuy a Chicken (eggs) or a Calf (raise & sell).');
+        animalsText.setText(t('Animals: none yet.\nBuy a Chicken (eggs) or a Calf (raise & sell).'));
         return;
       }
 
@@ -857,23 +876,23 @@ export class FarmScene extends Phaser.Scene {
       const lines = this.animals.animals.map((animal) => {
         const def = getAnimalDefinition(animal.defId);
         if (!def) {
-          return '? unknown animal';
+          return t('? unknown animal');
         }
 
         const fed = isFed(animal, now);
-        const foodPart = fed ? `fed ${Math.ceil(foodRemainingSeconds(animal, now))}s` : 'HUNGRY';
+        const foodPart = fed ? t('fed {sec}s', { sec: Math.ceil(foodRemainingSeconds(animal, now)) }) : t('HUNGRY');
 
         if (def.kind === 'productive') {
           const cap = def.produceCap ?? 0;
-          return `${def.name}: ${animal.storedProduct}/${cap} ${def.productLabel ?? 'product'} | ${foodPart}`;
+          return `${t(def.name)}: ${animal.storedProduct}/${cap} ${t(def.productLabel ?? 'product')} | ${foodPart}`;
         }
 
         const stage = getGrowthStageLabel(animal, def);
-        const state = animal.matured ? 'READY to sell' : stage;
-        return `${def.name}: ${state} | ${foodPart}`;
+        const state = animal.matured ? t('READY to sell') : t(stage);
+        return `${t(def.name)}: ${state} | ${foodPart}`;
       });
 
-      animalsText.setText(`Animals (${this.animals.animals.length}):\n${lines.join('\n')}`);
+      animalsText.setText(t('Animals ({count}):\n{lines}', { count: this.animals.animals.length, lines: lines.join('\n') }));
     };
 
     const buyAnimal = (defId: string): void => {
@@ -883,20 +902,20 @@ export class FarmScene extends Phaser.Scene {
       }
 
       if (this.economy.level < def.unlockLevel) {
-        this.statusMessage = `${def.name} unlocks at level ${def.unlockLevel}.`;
+        this.statusMessage = t('{name} unlocks at level {level}.', { name: t(def.name), level: def.unlockLevel });
         statusText.setText(this.statusMessage);
         return;
       }
 
       if (this.economy.coins < def.price) {
-        this.statusMessage = `Not enough coins to buy a ${def.name}.`;
+        this.statusMessage = t('Not enough coins to buy a {name}.', { name: t(def.name) });
         statusText.setText(this.statusMessage);
         return;
       }
 
       this.economy.coins -= def.price;
       this.animals.animals.push(createAnimalInstance(def.id, Date.now()));
-      this.statusMessage = `${def.name} purchased. -${def.price} coins. Feed it to start.`;
+      this.statusMessage = t('{name} purchased. -{price} coins. Feed it to start.', { name: t(def.name), price: def.price });
 
       refreshHud();
       refreshAnimalsLabel();
@@ -908,7 +927,7 @@ export class FarmScene extends Phaser.Scene {
       simulateAllAnimals();
 
       if (this.animals.animals.length === 0) {
-        this.statusMessage = 'No animals to feed.';
+        this.statusMessage = t('No animals to feed.');
         statusText.setText(this.statusMessage);
         return;
       }
@@ -932,14 +951,14 @@ export class FarmScene extends Phaser.Scene {
       });
 
       if (fedCount === 0) {
-        this.statusMessage = 'Not enough coins to feed any animal.';
+        this.statusMessage = t('Not enough coins to feed any animal.');
         statusText.setText(this.statusMessage);
         return;
       }
 
       this.economy.xp += fedCount * ANIMAL.FEED_XP;
       this.economy.level = getLevelFromXp(this.economy.xp);
-      this.statusMessage = `Fed ${fedCount} animal(s). -${spent} coins. +${fedCount * ANIMAL.FEED_XP} XP.`;
+      this.statusMessage = t('Fed {count} animal(s). -{spent} coins. +{xp} XP.', { count: fedCount, spent, xp: fedCount * ANIMAL.FEED_XP });
 
       refreshHud();
       refreshAnimalsLabel();
@@ -964,7 +983,7 @@ export class FarmScene extends Phaser.Scene {
       });
 
       if (collected <= 0) {
-        this.statusMessage = 'No animal products ready yet.';
+        this.statusMessage = t('No animal products ready yet.');
         statusText.setText(this.statusMessage);
         return;
       }
@@ -972,7 +991,7 @@ export class FarmScene extends Phaser.Scene {
       const xpGain = collected * ANIMAL.COLLECT_XP_PER_PRODUCT;
       this.economy.xp += xpGain;
       this.economy.level = getLevelFromXp(this.economy.xp);
-      this.statusMessage = `Collected ${collected} product(s). +${xpGain} XP.`;
+      this.statusMessage = t('Collected {count} product(s). +{xp} XP.', { count: collected, xp: xpGain });
 
       refreshHud();
       refreshAnimalsLabel();
@@ -997,7 +1016,7 @@ export class FarmScene extends Phaser.Scene {
       });
 
       if (soldCount <= 0) {
-        this.statusMessage = 'No mature animals ready to sell.';
+        this.statusMessage = t('No mature animals ready to sell.');
         statusText.setText(this.statusMessage);
         return;
       }
@@ -1006,7 +1025,7 @@ export class FarmScene extends Phaser.Scene {
       const xpGain = Math.max(1, Math.round(totalCoins / ANIMAL.SELL_XP_DIVISOR));
       this.economy.xp += xpGain;
       this.economy.level = getLevelFromXp(this.economy.xp);
-      this.statusMessage = `Sold ${soldCount} mature animal(s) for +${totalCoins} coins. +${xpGain} XP.`;
+      this.statusMessage = t('Sold {count} mature animal(s) for +{coins} coins. +{xp} XP.', { count: soldCount, coins: totalCoins, xp: xpGain });
 
       refreshHud();
       refreshAnimalsLabel();
@@ -1020,7 +1039,7 @@ export class FarmScene extends Phaser.Scene {
         return;
       }
 
-      devSpeedText.setText(`DEV Growth Speed: ${growthTimeScale}x`);
+      devSpeedText.setText(t('DEV Growth Speed: {scale}x', { scale: growthTimeScale }));
     };
 
     const applyDevSpeed = (nextScale: 1 | 10 | 100): void => {
@@ -1031,13 +1050,13 @@ export class FarmScene extends Phaser.Scene {
           refreshTileVisual(tile);
         }
       });
-      this.statusMessage = `DEV speed set to ${growthTimeScale}x.`;
+      this.statusMessage = t('DEV speed set to {scale}x.', { scale: growthTimeScale });
       statusText.setText(this.statusMessage);
     };
 
     const refreshPacingLabel = (): void => {
       const profile = getPacingProfile(this.pacingProfileId);
-      pacingButton.setText(`Pacing: ${profile.name} (P)`);
+      pacingButton.setText(t('Pacing: {name} (P)', { name: t(profile.name) }));
     };
 
     const cyclePacing = (): void => {
@@ -1050,39 +1069,39 @@ export class FarmScene extends Phaser.Scene {
           refreshTileVisual(tile);
         }
       });
-      this.statusMessage = `Pacing profile: ${next.name}. ${next.description}`;
+      this.statusMessage = t('Pacing profile: {name}. {desc}', { name: t(next.name), desc: t(next.description) });
       statusText.setText(this.statusMessage);
       saveCurrent();
     };
 
     const refreshAuthLabel = (): void => {
       const authSummary = this.remoteSaveService.getAuthSummary();
-      authText.setText(`Auth: ${authSummary}`);
+      authText.setText(t('Auth: {summary}', { summary: authSummary }));
     };
 
     const setSyncLabel = (state: 'idle' | 'syncing' | 'success' | 'error', message?: string): void => {
       const authSummary = this.remoteSaveService.getAuthSummary();
 
       if (state === 'syncing') {
-        syncText.setText(`Sync: in progress... | User: ${authSummary}`);
+        syncText.setText(t('Sync: in progress... | User: {user}', { user: authSummary }));
         return;
       }
 
       if (message) {
-        syncText.setText(`Sync: ${message} | Last sync: ${lastSyncLabel} | User: ${authSummary}`);
+        syncText.setText(t('Sync: {message} | Last sync: {last} | User: {user}', { message: t(message), last: t(lastSyncLabel), user: authSummary }));
         return;
       }
 
-      syncText.setText(`Sync: ${state} | Last sync: ${lastSyncLabel} | User: ${authSummary}`);
+      syncText.setText(t('Sync: {state} | Last sync: {last} | User: {user}', { state: t(state), last: t(lastSyncLabel), user: authSummary }));
     };
 
     const promptCredentials = (): { email: string; password: string } | null => {
-      const email = window.prompt('Email')?.trim() ?? '';
+      const email = window.prompt(t('Email'))?.trim() ?? '';
       if (!email) {
         return null;
       }
 
-      const password = window.prompt('Password (min 6 chars)') ?? '';
+      const password = window.prompt(t('Password (min 6 chars)')) ?? '';
       if (!password) {
         return null;
       }
@@ -1098,11 +1117,11 @@ export class FarmScene extends Phaser.Scene {
 
       try {
         await this.remoteSaveService.register(credentials.email, credentials.password);
-        this.statusMessage = 'Registration successful and logged in.';
+        this.statusMessage = t('Registration successful and logged in.');
         refreshAuthLabel();
         setSyncLabel('idle', 'ready');
       } catch (error) {
-        this.statusMessage = `Register failed: ${String(error)}`;
+        this.statusMessage = t('Register failed: {error}', { error: String(error) });
       }
 
       statusText.setText(this.statusMessage);
@@ -1116,11 +1135,11 @@ export class FarmScene extends Phaser.Scene {
 
       try {
         await this.remoteSaveService.login(credentials.email, credentials.password);
-        this.statusMessage = 'Login successful.';
+        this.statusMessage = t('Login successful.');
         refreshAuthLabel();
         setSyncLabel('idle', 'ready');
       } catch (error) {
-        this.statusMessage = `Login failed: ${String(error)}`;
+        this.statusMessage = t('Login failed: {error}', { error: String(error) });
       }
 
       statusText.setText(this.statusMessage);
@@ -1128,7 +1147,7 @@ export class FarmScene extends Phaser.Scene {
 
     const logout = (): void => {
       this.remoteSaveService.logout();
-      this.statusMessage = 'Logged out.';
+      this.statusMessage = t('Logged out.');
       refreshAuthLabel();
       setSyncLabel('idle', 'auth required');
       statusText.setText(this.statusMessage);
@@ -1136,7 +1155,7 @@ export class FarmScene extends Phaser.Scene {
 
     const renderSeedSelector = (): void => {
       this.add
-        .text(24, 340, 'Seed Shop:', {
+        .text(24, 340, t('Seed Shop:'), {
           color: '#1f3f10',
           fontSize: '16px',
           fontFamily: 'Arial',
@@ -1148,7 +1167,7 @@ export class FarmScene extends Phaser.Scene {
         const isUnlocked = this.economy.level >= crop.unlockLevel;
 
         const button = this.add
-          .text(130 + index * 140, 334, `${crop.name}\nL${crop.unlockLevel}`, {
+          .text(130 + index * 140, 334, `${t(crop.name)}\nL${crop.unlockLevel}`, {
             color: '#ffffff',
             backgroundColor: isSelected ? '#357a38' : isUnlocked ? '#4b6d33' : '#777777',
             fontSize: '12px',
@@ -1161,7 +1180,7 @@ export class FarmScene extends Phaser.Scene {
 
         button.on('pointerdown', () => {
           if (this.economy.level < crop.unlockLevel) {
-            this.statusMessage = `${crop.name} unlocks at level ${crop.unlockLevel}.`;
+            this.statusMessage = t('{name} unlocks at level {level}.', { name: t(crop.name), level: crop.unlockLevel });
             statusText.setText(this.statusMessage);
             return;
           }
@@ -1170,7 +1189,7 @@ export class FarmScene extends Phaser.Scene {
           saveCurrent();
           refreshSelectedSeedLabel();
 
-          this.statusMessage = `${crop.name} seed selected.`;
+          this.statusMessage = t('{name} seed selected.', { name: t(crop.name) });
           statusText.setText(this.statusMessage);
           this.scene.restart();
         });
@@ -1179,7 +1198,7 @@ export class FarmScene extends Phaser.Scene {
 
     const renderDecorationSelector = (): void => {
       this.add
-        .text(24, 390, 'Decorations:', {
+        .text(24, 390, t('Decorations:'), {
           color: '#4f2f77',
           fontSize: '14px',
           fontFamily: 'Arial',
@@ -1191,7 +1210,7 @@ export class FarmScene extends Phaser.Scene {
         const isUnlocked = this.economy.level >= decoration.unlockLevel;
 
         const button = this.add
-          .text(130 + index * 150, 384, `${decoration.name}\nL${decoration.unlockLevel}`, {
+          .text(130 + index * 150, 384, `${t(decoration.name)}\nL${decoration.unlockLevel}`, {
             color: '#ffffff',
             backgroundColor: isSelected ? '#5f3b8a' : isUnlocked ? '#7751a1' : '#777777',
             fontSize: '11px',
@@ -1204,14 +1223,14 @@ export class FarmScene extends Phaser.Scene {
 
         button.on('pointerdown', () => {
           if (!isUnlocked) {
-            this.statusMessage = `${decoration.name} unlocks at level ${decoration.unlockLevel}.`;
+            this.statusMessage = t('{name} unlocks at level {level}.', { name: t(decoration.name), level: decoration.unlockLevel });
             statusText.setText(this.statusMessage);
             return;
           }
 
           selectedDecorationId = decoration.id;
           refreshSelectedSeedLabel();
-          this.statusMessage = `${decoration.name} selected.`;
+          this.statusMessage = t('{name} selected.', { name: t(decoration.name) });
           statusText.setText(this.statusMessage);
           this.scene.restart();
         });
@@ -1227,7 +1246,7 @@ export class FarmScene extends Phaser.Scene {
     const sellInventory = (): void => {
       const entries = Object.entries(this.inventory).filter(([, amount]) => amount > 0);
       if (entries.length === 0) {
-        this.statusMessage = 'Nothing to sell.';
+        this.statusMessage = t('Nothing to sell.');
         statusText.setText(this.statusMessage);
         return;
       }
@@ -1246,7 +1265,7 @@ export class FarmScene extends Phaser.Scene {
       });
 
       if (totalCoins <= 0) {
-        this.statusMessage = 'No sellable items found in inventory.';
+        this.statusMessage = t('No sellable items found in inventory.');
         statusText.setText(this.statusMessage);
         return;
       }
@@ -1258,7 +1277,7 @@ export class FarmScene extends Phaser.Scene {
       refreshHud();
       inventoryText.setText(getInventoryLabel());
 
-      this.statusMessage = `Sold inventory for +${totalCoins} coins.`;
+      this.statusMessage = t('Sold inventory for +{coins} coins.', { coins: totalCoins });
       statusText.setText(this.statusMessage);
     };
 
@@ -1266,20 +1285,20 @@ export class FarmScene extends Phaser.Scene {
       const fertilizer = getSelectedFertilizer();
 
       if (this.economy.level < fertilizer.unlockLevel) {
-        this.statusMessage = `${fertilizer.name} unlocks at level ${fertilizer.unlockLevel}.`;
+        this.statusMessage = t('{name} unlocks at level {level}.', { name: t(fertilizer.name), level: fertilizer.unlockLevel });
         statusText.setText(this.statusMessage);
         return;
       }
 
       if (this.economy.coins < fertilizer.price) {
-        this.statusMessage = `Not enough coins to buy ${fertilizer.name}.`;
+        this.statusMessage = t('Not enough coins to buy {name}.', { name: t(fertilizer.name) });
         statusText.setText(this.statusMessage);
         return;
       }
 
       this.economy.coins -= fertilizer.price;
       this.fertilizers[fertilizer.id] = (this.fertilizers[fertilizer.id] ?? 0) + 1;
-      this.statusMessage = `Bought ${fertilizer.name}. -${fertilizer.price} coins.`;
+      this.statusMessage = t('Bought {name}. -{price} coins.', { name: t(fertilizer.name), price: fertilizer.price });
 
       saveCurrent();
       refreshHud();
@@ -1293,7 +1312,7 @@ export class FarmScene extends Phaser.Scene {
       const nextIndex = (base + direction + fertilizers.length) % fertilizers.length;
       selectedFertilizerId = fertilizers[nextIndex].id;
       refreshSelectedSeedLabel();
-      this.statusMessage = `${fertilizers[nextIndex].name} selected.`;
+      this.statusMessage = t('{name} selected.', { name: t(fertilizers[nextIndex].name) });
       statusText.setText(this.statusMessage);
     };
 
@@ -1306,7 +1325,7 @@ export class FarmScene extends Phaser.Scene {
 
     const formatTimestamp = (iso: string): string => {
       const ms = toTimestamp(iso);
-      return ms > 0 ? new Date(ms).toLocaleString() : 'unknown';
+      return ms > 0 ? new Date(ms).toLocaleString() : t('unknown');
     };
 
     const syncPanelBg = this.add
@@ -1316,7 +1335,7 @@ export class FarmScene extends Phaser.Scene {
       .setVisible(false);
 
     const syncPanelTitle = this.add
-      .text(366, 234, 'Cloud Sync', {
+      .text(366, 234, t('Cloud Sync'), {
         color: '#ffffff',
         fontSize: '18px',
         fontFamily: 'Arial',
@@ -1360,10 +1379,10 @@ export class FarmScene extends Phaser.Scene {
         .setDepth(51)
         .setVisible(false);
 
-    const forceUploadButton = makePanelButton(366, 'Keep Mine \u2191 (upload)', '#1f5c99');
-    const forceDownloadButton = makePanelButton(516, 'Use Remote \u2193 (download)', '#7a3b00');
-    const restoreBackupButton = makePanelButton(706, 'Restore Backup', '#4f6f3c');
-    const closeSyncButton = makePanelButton(836, 'Close', '#6f3c3c');
+    const forceUploadButton = makePanelButton(366, t('Keep Mine \u2191 (upload)'), '#1f5c99');
+    const forceDownloadButton = makePanelButton(516, t('Use Remote \u2193 (download)'), '#7a3b00');
+    const restoreBackupButton = makePanelButton(706, t('Restore Backup'), '#4f6f3c');
+    const closeSyncButton = makePanelButton(836, t('Close'), '#6f3c3c');
 
     const syncPanelObjects: Array<Phaser.GameObjects.Text | Phaser.GameObjects.Rectangle> = [
       syncPanelBg,
@@ -1378,15 +1397,15 @@ export class FarmScene extends Phaser.Scene {
 
     const refreshSyncPanel = (): void => {
       const localSave = this.saveSystem.loadGame();
-      const lines = [`Local save: ${formatTimestamp(localSave.savedAt)}`];
+      const lines = [t('Local save: {time}', { time: formatTimestamp(localSave.savedAt) })];
 
       if (conflictRemote) {
-        lines.push(`Remote save: ${formatTimestamp(conflictRemote.savedAt)}`);
-        lines.push('\u26a0 Conflict detected. Choose which save to keep. The');
-        lines.push('   other side is backed up and can be restored.');
+        lines.push(t('Remote save: {time}', { time: formatTimestamp(conflictRemote.savedAt) }));
+        lines.push(t('\u26a0 Conflict detected. Choose which save to keep. The'));
+        lines.push(t('   other side is backed up and can be restored.'));
       } else {
-        lines.push('Remote save: (use a sync action to compare)');
-        lines.push('Choose a forced action to override the timestamp guard.');
+        lines.push(t('Remote save: (use a sync action to compare)'));
+        lines.push(t('Choose a forced action to override the timestamp guard.'));
       }
 
       syncPanelInfo.setText(lines.join('\n'));
@@ -1443,13 +1462,13 @@ export class FarmScene extends Phaser.Scene {
       try {
         const currentSave = buildCurrentSave();
         await this.remoteSaveService.uploadSave(currentSave);
-        this.statusMessage = 'Forced upload: local save now wins on the server.';
+        this.statusMessage = t('Forced upload: local save now wins on the server.');
         lastSyncLabel = new Date().toLocaleTimeString();
         setSyncLabel('success', 'forced upload');
         pushSyncHistory('upload', 'forced-upload', 'local overwrote remote');
         closeSyncPanel();
       } catch (error) {
-        this.statusMessage = `Forced upload failed: ${String(error)}`;
+        this.statusMessage = t('Forced upload failed: {error}', { error: String(error) });
         setSyncLabel('error', 'forced upload failed');
         pushSyncHistory('upload', 'failed', String(error));
       } finally {
@@ -1468,7 +1487,7 @@ export class FarmScene extends Phaser.Scene {
       try {
         const remoteSave = conflictRemote ?? (await this.remoteSaveService.downloadSave());
         if (!remoteSave) {
-          this.statusMessage = 'No remote save to download.';
+          this.statusMessage = t('No remote save to download.');
           setSyncLabel('idle', 'no remote save');
           pushSyncHistory('download', 'no-remote', 'remote empty');
           statusText.setText(this.statusMessage);
@@ -1478,14 +1497,14 @@ export class FarmScene extends Phaser.Scene {
         // Back up local progress before it is overwritten so nothing is lost.
         this.saveSystem.backupCurrentSave();
         applyDownloadedSave(remoteSave);
-        this.statusMessage = 'Forced download: remote save applied. Local backed up.';
+        this.statusMessage = t('Forced download: remote save applied. Local backed up.');
         lastSyncLabel = new Date().toLocaleTimeString();
         setSyncLabel('success', 'forced download');
         pushSyncHistory('download', 'forced-download', 'remote overwrote local (backup kept)');
         closeSyncPanel();
         this.scene.restart();
       } catch (error) {
-        this.statusMessage = `Forced download failed: ${String(error)}`;
+        this.statusMessage = t('Forced download failed: {error}', { error: String(error) });
         setSyncLabel('error', 'forced download failed');
         pushSyncHistory('download', 'failed', String(error));
         statusText.setText(this.statusMessage);
@@ -1497,12 +1516,12 @@ export class FarmScene extends Phaser.Scene {
     const restoreBackupSave = (): void => {
       const restored = this.saveSystem.restoreBackup();
       if (!restored) {
-        this.statusMessage = 'No backup available to restore.';
+        this.statusMessage = t('No backup available to restore.');
         statusText.setText(this.statusMessage);
         return;
       }
 
-      this.statusMessage = 'Backup restored as the active save.';
+      this.statusMessage = t('Backup restored as the active save.');
       pushSyncHistory('download', 'forced-download', 'restored local backup');
       closeSyncPanel();
       this.scene.restart();
@@ -1520,7 +1539,7 @@ export class FarmScene extends Phaser.Scene {
 
         const remoteSave = await this.remoteSaveService.downloadSave();
         if (remoteSave && toTimestamp(remoteSave.savedAt) > toTimestamp(currentSave.savedAt)) {
-          this.statusMessage = 'Upload conflict: remote save is newer. Resolve in the Sync panel.';
+          this.statusMessage = t('Upload conflict: remote save is newer. Resolve in the Sync panel.');
           setSyncLabel('error', 'upload conflict');
           pushSyncHistory('upload', 'conflict', 'remote newer than local');
           openSyncPanel(remoteSave);
@@ -1529,12 +1548,12 @@ export class FarmScene extends Phaser.Scene {
         }
 
         await this.remoteSaveService.uploadSave(currentSave);
-        this.statusMessage = 'Save uploaded to backend.';
+        this.statusMessage = t('Save uploaded to backend.');
         lastSyncLabel = new Date().toLocaleTimeString();
         setSyncLabel('success', 'uploaded');
         pushSyncHistory('upload', 'uploaded', 'local newer or equal');
       } catch (error) {
-        this.statusMessage = `Upload failed: ${String(error)}`;
+        this.statusMessage = t('Upload failed: {error}', { error: String(error) });
         setSyncLabel('error', 'upload failed');
         pushSyncHistory('upload', 'failed', String(error));
       } finally {
@@ -1554,7 +1573,7 @@ export class FarmScene extends Phaser.Scene {
         const localSave = this.saveSystem.loadGame();
         const remoteSave = await this.remoteSaveService.downloadSave();
         if (!remoteSave) {
-          this.statusMessage = 'No remote save found yet.';
+          this.statusMessage = t('No remote save found yet.');
           setSyncLabel('idle', 'no remote save');
           pushSyncHistory('download', 'no-remote', 'remote empty');
           statusText.setText(this.statusMessage);
@@ -1562,7 +1581,7 @@ export class FarmScene extends Phaser.Scene {
         }
 
         if (toTimestamp(remoteSave.savedAt) < toTimestamp(localSave.savedAt)) {
-          this.statusMessage = 'Download conflict: local save is newer. Resolve in the Sync panel.';
+          this.statusMessage = t('Download conflict: local save is newer. Resolve in the Sync panel.');
           setSyncLabel('error', 'download conflict');
           pushSyncHistory('download', 'conflict', 'local newer than remote');
           openSyncPanel(remoteSave);
@@ -1572,13 +1591,13 @@ export class FarmScene extends Phaser.Scene {
 
         this.saveSystem.backupCurrentSave();
         applyDownloadedSave(remoteSave);
-        this.statusMessage = 'Remote save downloaded.';
+        this.statusMessage = t('Remote save downloaded.');
         lastSyncLabel = new Date().toLocaleTimeString();
         setSyncLabel('success', 'downloaded');
         pushSyncHistory('download', 'downloaded', 'remote newer or equal');
         this.scene.restart();
       } catch (error) {
-        this.statusMessage = `Download failed: ${String(error)}`;
+        this.statusMessage = t('Download failed: {error}', { error: String(error) });
         setSyncLabel('error', 'download failed');
         pushSyncHistory('download', 'failed', String(error));
         statusText.setText(this.statusMessage);
@@ -1597,8 +1616,8 @@ export class FarmScene extends Phaser.Scene {
       if (tile.locked) {
         const info = plotUnlockInfo(tile);
         visual.rect.setFillStyle(0x3a3a3a);
-        visual.title.setText('\u{1F512} Locked');
-        visual.subtitle.setText(info.level > 1 ? `Lv ${info.level} + ${info.cost}c` : `Unlock: ${info.cost}c`);
+        visual.title.setText(t('\u{1F512} Locked'));
+        visual.subtitle.setText(info.level > 1 ? t('Lv {level} + {cost}c', { level: info.level, cost: info.cost }) : t('Unlock: {cost}c', { cost: info.cost }));
         return;
       }
 
@@ -1606,8 +1625,8 @@ export class FarmScene extends Phaser.Scene {
         const decoration = getDecoration(tile.decorationId);
         if (decoration) {
           visual.rect.setFillStyle(decoration.color);
-          visual.title.setText(`Decor: ${decoration.name}`);
-          visual.subtitle.setText('Decorative tile');
+          visual.title.setText(t('Decor: {name}', { name: t(decoration.name) }));
+          visual.subtitle.setText(t('Decorative tile'));
         } else {
           visual.rect.setFillStyle(0xc4955f);
           visual.title.setText('');
@@ -1618,15 +1637,15 @@ export class FarmScene extends Phaser.Scene {
 
       if (tile.state === 'dead') {
         visual.rect.setFillStyle(0x5a5a5a);
-        visual.title.setText('Withered');
-        visual.subtitle.setText('Clear with hoe (click)');
+        visual.title.setText(t('Withered'));
+        visual.subtitle.setText(t('Clear with hoe (click)'));
         return;
       }
 
       const growth = getGrowth(tile);
       if (!growth) {
         visual.rect.setFillStyle(0x7a5230);
-        visual.title.setText('Planted');
+        visual.title.setText(t('Planted'));
         visual.subtitle.setText('');
         return;
       }
@@ -1642,9 +1661,9 @@ export class FarmScene extends Phaser.Scene {
         visual.rect.setFillStyle(0x7a5230);
       }
 
-      visual.title.setText(`${growth.crop.name} • ${growth.stageLabel}`);
-      const statusPart = growth.ready ? 'Ready' : `${Math.floor(growth.progress * 100)}%`;
-      const problemPart = problems.length > 0 ? ` | ${problems.join(',')}` : '';
+      visual.title.setText(t('{crop} \u2022 {stage}', { crop: t(growth.crop.name), stage: t(growth.stageLabel) }));
+      const statusPart = growth.ready ? t('Ready') : `${Math.floor(growth.progress * 100)}%`;
+      const problemPart = problems.length > 0 ? ` | ${problems.map((p) => t(p)).join(',')}` : '';
       const totalSeasons = growth.crop.seasons ?? 1;
       const seasonPart = totalSeasons > 1 ? ` | S${tile.season ?? 1}/${totalSeasons}` : '';
       visual.subtitle.setText(`${statusPart} | HP ${health}${seasonPart}${problemPart}`);
@@ -1653,12 +1672,12 @@ export class FarmScene extends Phaser.Scene {
     const attemptUnlock = (tile: FarmTile): void => {
       const info = plotUnlockInfo(tile);
       if (this.economy.level < info.level) {
-        this.statusMessage = `Reach level ${info.level} to unlock this plot.`;
+        this.statusMessage = t('Reach level {level} to unlock this plot.', { level: info.level });
         statusText.setText(this.statusMessage);
         return;
       }
       if (this.economy.coins < info.cost) {
-        this.statusMessage = `Need ${info.cost} coins to unlock this plot.`;
+        this.statusMessage = t('Need {cost} coins to unlock this plot.', { cost: info.cost });
         statusText.setText(this.statusMessage);
         return;
       }
@@ -1668,10 +1687,10 @@ export class FarmScene extends Phaser.Scene {
       this.farmEvents = pushEvent(
         this.farmEvents,
         'system',
-        `You unlocked a new plot for ${info.cost} coins.`,
+        t('You unlocked a new plot for {cost} coins.', { cost: info.cost }),
         Date.now(),
       );
-      this.statusMessage = `Plot unlocked! -${info.cost} coins. Plant something new here.`;
+      this.statusMessage = t('Plot unlocked! -{cost} coins. Plant something new here.', { cost: info.cost });
 
       saveCurrent();
       refreshTileVisual(tile);
@@ -1724,32 +1743,32 @@ export class FarmScene extends Phaser.Scene {
             const selectedDecoration = getSelectedDecoration();
 
             if (this.economy.level < selectedDecoration.unlockLevel) {
-              this.statusMessage = `${selectedDecoration.name} unlocks at level ${selectedDecoration.unlockLevel}.`;
+              this.statusMessage = t('{name} unlocks at level {level}.', { name: t(selectedDecoration.name), level: selectedDecoration.unlockLevel });
               statusText.setText(this.statusMessage);
               return;
             }
 
             if (tile.state !== 'empty') {
-              this.statusMessage = 'Decor can only be placed on empty tiles.';
+              this.statusMessage = t('Decor can only be placed on empty tiles.');
               statusText.setText(this.statusMessage);
               return;
             }
 
             if (tile.decorationId) {
-              this.statusMessage = 'Tile already has decoration.';
+              this.statusMessage = t('Tile already has decoration.');
               statusText.setText(this.statusMessage);
               return;
             }
 
             if (this.economy.coins < selectedDecoration.price) {
-              this.statusMessage = `Not enough coins to place ${selectedDecoration.name}.`;
+              this.statusMessage = t('Not enough coins to place {name}.', { name: t(selectedDecoration.name) });
               statusText.setText(this.statusMessage);
               return;
             }
 
             tile.decorationId = selectedDecoration.id;
             this.economy.coins -= selectedDecoration.price;
-            this.statusMessage = `${selectedDecoration.name} placed. -${selectedDecoration.price} coins.`;
+            this.statusMessage = t('{name} placed. -{price} coins.', { name: t(selectedDecoration.name), price: selectedDecoration.price });
 
             saveCurrent();
             refreshTileVisual(tile);
@@ -1762,32 +1781,32 @@ export class FarmScene extends Phaser.Scene {
             const fertilizer = getSelectedFertilizer();
 
             if (tile.state !== 'planted') {
-              this.statusMessage = 'Fertilizer can only be used on a growing crop.';
+              this.statusMessage = t('Fertilizer can only be used on a growing crop.');
               statusText.setText(this.statusMessage);
               return;
             }
 
             const growth = getGrowth(tile);
             if (!growth) {
-              this.statusMessage = 'Fertilizer can only be used on a growing crop.';
+              this.statusMessage = t('Fertilizer can only be used on a growing crop.');
               statusText.setText(this.statusMessage);
               return;
             }
 
             if (growth.ready) {
-              this.statusMessage = 'Crop is already ready to harvest.';
+              this.statusMessage = t('Crop is already ready to harvest.');
               statusText.setText(this.statusMessage);
               return;
             }
 
             if (this.economy.level < fertilizer.unlockLevel) {
-              this.statusMessage = `${fertilizer.name} unlocks at level ${fertilizer.unlockLevel}.`;
+              this.statusMessage = t('{name} unlocks at level {level}.', { name: t(fertilizer.name), level: fertilizer.unlockLevel });
               statusText.setText(this.statusMessage);
               return;
             }
 
             if ((this.fertilizers[fertilizer.id] ?? 0) <= 0) {
-              this.statusMessage = `No ${fertilizer.name} owned. Buy one with B.`;
+              this.statusMessage = t('No {name} owned. Buy one with B.', { name: t(fertilizer.name) });
               statusText.setText(this.statusMessage);
               return;
             }
@@ -1795,7 +1814,7 @@ export class FarmScene extends Phaser.Scene {
             // Parity rule: fertilizer can only be applied once per growth stage.
             const lastFertilizedStage = tile.fertilizedStage ?? -1;
             if (growth.stageIndex <= lastFertilizedStage) {
-              this.statusMessage = 'Already fertilized this growth stage. Wait for the next stage.';
+              this.statusMessage = t('Already fertilized this growth stage. Wait for the next stage.');
               statusText.setText(this.statusMessage);
               return;
             }
@@ -1810,7 +1829,7 @@ export class FarmScene extends Phaser.Scene {
             const afterGrowth = getGrowth(tile);
             tile.fertilizedStage = afterGrowth ? afterGrowth.stageIndex : growth.stageIndex;
 
-            this.statusMessage = `${fertilizer.name} applied. -${fertilizer.reduceSeconds}s growth.`;
+            this.statusMessage = t('{name} applied. -{sec}s growth.', { name: t(fertilizer.name), sec: fertilizer.reduceSeconds });
 
             saveCurrent();
             refreshTileVisual(tile);
@@ -1829,7 +1848,7 @@ export class FarmScene extends Phaser.Scene {
             tile.season = undefined;
             tile.fertilizedStage = undefined;
             clearTileCare(tile);
-            this.statusMessage = 'Cleared withered crop with the hoe.';
+            this.statusMessage = t('Cleared withered crop with the hoe.');
             saveCurrent();
             refreshTileVisual(tile);
             statusText.setText(this.statusMessage);
@@ -1842,7 +1861,7 @@ export class FarmScene extends Phaser.Scene {
               removePests(tile);
               this.economy.xp += 1;
               this.economy.level = getLevelFromXp(this.economy.xp);
-              this.statusMessage = 'Removed pests. +1 XP.';
+              this.statusMessage = t('Removed pests. +1 XP.');
               saveCurrent();
               refreshTileVisual(tile);
               refreshHud();
@@ -1854,7 +1873,7 @@ export class FarmScene extends Phaser.Scene {
               removeWeeds(tile);
               this.economy.xp += 1;
               this.economy.level = getLevelFromXp(this.economy.xp);
-              this.statusMessage = 'Removed weeds. +1 XP.';
+              this.statusMessage = t('Removed weeds. +1 XP.');
               saveCurrent();
               refreshTileVisual(tile);
               refreshHud();
@@ -1866,7 +1885,7 @@ export class FarmScene extends Phaser.Scene {
               waterTile(tile, Date.now());
               this.economy.xp += 1;
               this.economy.level = getLevelFromXp(this.economy.xp);
-              this.statusMessage = 'Watered crop. +1 XP.';
+              this.statusMessage = t('Watered crop. +1 XP.');
               saveCurrent();
               refreshTileVisual(tile);
               refreshHud();
@@ -1876,7 +1895,7 @@ export class FarmScene extends Phaser.Scene {
 
             const growth = getGrowth(tile);
             if (!growth?.ready) {
-              this.statusMessage = 'Crop is still growing. Wait until it is ready.';
+              this.statusMessage = t('Crop is still growing. Wait until it is ready.');
               statusText.setText(this.statusMessage);
               return;
             }
@@ -1899,7 +1918,7 @@ export class FarmScene extends Phaser.Scene {
               tile.season = currentSeason + 1;
               tile.fertilizedStage = undefined;
               initTileCare(tile, Date.now());
-              seasonSuffix = ` Regrowing season ${tile.season}/${totalSeasons}.`;
+              seasonSuffix = t(' Regrowing season {n}/{total}.', { n: tile.season, total: totalSeasons });
             } else {
               tile.state = 'empty';
               tile.cropId = undefined;
@@ -1911,14 +1930,14 @@ export class FarmScene extends Phaser.Scene {
 
             if (this.economy.level > previousLevel) {
               const unlockedNames = getUnlockedCropNames(previousLevel, this.economy.level);
-              const unlockSuffix = unlockedNames.length > 0 ? ` Unlocked: ${unlockedNames.join(', ')}.` : '';
-              this.statusMessage = `Level up! You reached level ${this.economy.level}.${unlockSuffix}`;
+              const unlockSuffix = unlockedNames.length > 0 ? t(' Unlocked: {names}.', { names: unlockedNames.map((n) => t(n)).join(', ') }) : '';
+              this.statusMessage = t('Level up! You reached level {level}.{suffix}', { level: this.economy.level, suffix: unlockSuffix });
               saveCurrent();
               this.scene.restart();
               return;
             }
 
-            this.statusMessage = `${growth.crop.name} harvested. +1 in inventory. +${xpGain} XP.${seasonSuffix}`;
+            this.statusMessage = t('{crop} harvested. +1 in inventory. +{xp} XP.{season}', { crop: t(growth.crop.name), xp: xpGain, season: seasonSuffix });
 
             saveCurrent();
             refreshTileVisual(tile);
@@ -1929,13 +1948,13 @@ export class FarmScene extends Phaser.Scene {
           }
 
           if (this.economy.level < selectedCrop.unlockLevel) {
-            this.statusMessage = `${selectedCrop.name} unlocks at level ${selectedCrop.unlockLevel}.`;
+            this.statusMessage = t('{name} unlocks at level {level}.', { name: t(selectedCrop.name), level: selectedCrop.unlockLevel });
             statusText.setText(this.statusMessage);
             return;
           }
 
           if (this.economy.coins < selectedCrop.seedPrice) {
-            this.statusMessage = `Not enough coins to plant ${selectedCrop.name}.`;
+            this.statusMessage = t('Not enough coins to plant {name}.', { name: t(selectedCrop.name) });
             statusText.setText(this.statusMessage);
             return;
           }
@@ -1948,7 +1967,7 @@ export class FarmScene extends Phaser.Scene {
           tile.fertilizedStage = undefined;
           initTileCare(tile, Date.now());
           this.economy.coins -= selectedCrop.seedPrice;
-          this.statusMessage = `${selectedCrop.name} planted. -${selectedCrop.seedPrice} coins.`;
+          this.statusMessage = t('{name} planted. -{price} coins.', { name: t(selectedCrop.name), price: selectedCrop.seedPrice });
 
           saveCurrent();
           refreshTileVisual(tile);
@@ -1975,7 +1994,7 @@ export class FarmScene extends Phaser.Scene {
       this.daily = reset.daily;
       this.pacingProfileId = reset.pacingProfileId;
       this.selectedCropId = reset.selectedCropId;
-      this.statusMessage = 'Save reset to default state.';
+      this.statusMessage = t('Save reset to default state.');
       this.scene.restart();
     };
 
@@ -1990,7 +2009,7 @@ export class FarmScene extends Phaser.Scene {
     logoutButton.on('pointerdown', logout);
     decorationModeButton.on('pointerdown', () => {
       decorationMode = !decorationMode;
-      this.statusMessage = decorationMode ? 'Decoration mode enabled.' : 'Decoration mode disabled.';
+      this.statusMessage = decorationMode ? t('Decoration mode enabled.') : t('Decoration mode disabled.');
       refreshSelectedSeedLabel();
       statusText.setText(this.statusMessage);
     });
@@ -2011,7 +2030,7 @@ export class FarmScene extends Phaser.Scene {
     pacingButton.on('pointerdown', cyclePacing);
     fertilizerModeButton.on('pointerdown', () => {
       fertilizerMode = !fertilizerMode;
-      this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
+      this.statusMessage = fertilizerMode ? t('Fertilizer mode enabled.') : t('Fertilizer mode disabled.');
       refreshSelectedSeedLabel();
       statusText.setText(this.statusMessage);
     });
@@ -2031,6 +2050,16 @@ export class FarmScene extends Phaser.Scene {
     });
     restoreBackupButton.on('pointerdown', restoreBackupSave);
     closeSyncButton.on('pointerdown', closeSyncPanel);
+
+    languageButton.on('pointerdown', () => {
+      saveCurrent();
+      cycleLocale();
+    });
+    const offLocaleChange = onLocaleChange(() => {
+      saveCurrent();
+      this.scene.restart();
+    });
+    this.events.once('shutdown', offLocaleChange);
 
     if (isDevMode) {
       const speedOne = this.add
@@ -2089,7 +2118,7 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-P', cyclePacing);
     this.input.keyboard?.on('keydown-F', () => {
       fertilizerMode = !fertilizerMode;
-      this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
+      this.statusMessage = fertilizerMode ? t('Fertilizer mode enabled.') : t('Fertilizer mode disabled.');
       refreshSelectedSeedLabel();
       statusText.setText(this.statusMessage);
     });
@@ -2098,7 +2127,7 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-PERIOD', () => cycleFertilizer(1));
     this.input.keyboard?.on('keydown-G', () => {
       decorationMode = !decorationMode;
-      this.statusMessage = decorationMode ? 'Decoration mode enabled.' : 'Decoration mode disabled.';
+      this.statusMessage = decorationMode ? t('Decoration mode enabled.') : t('Decoration mode disabled.');
       refreshSelectedSeedLabel();
       statusText.setText(this.statusMessage);
     });
@@ -2107,7 +2136,7 @@ export class FarmScene extends Phaser.Scene {
       const nextIndex = currentIndex <= 0 ? decorations.length - 1 : currentIndex - 1;
       selectedDecorationId = decorations[nextIndex].id;
       refreshSelectedSeedLabel();
-      this.statusMessage = `${decorations[nextIndex].name} selected.`;
+      this.statusMessage = t('{name} selected.', { name: t(decorations[nextIndex].name) });
       statusText.setText(this.statusMessage);
       this.scene.restart();
     });
@@ -2116,7 +2145,7 @@ export class FarmScene extends Phaser.Scene {
       const nextIndex = currentIndex >= decorations.length - 1 ? 0 : currentIndex + 1;
       selectedDecorationId = decorations[nextIndex].id;
       refreshSelectedSeedLabel();
-      this.statusMessage = `${decorations[nextIndex].name} selected.`;
+      this.statusMessage = t('{name} selected.', { name: t(decorations[nextIndex].name) });
       statusText.setText(this.statusMessage);
       this.scene.restart();
     });

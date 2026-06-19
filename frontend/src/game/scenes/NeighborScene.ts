@@ -12,6 +12,7 @@ import { getLevelFromXp } from '../data/progression';
 import { removePests, removeWeeds, waterTile } from '../systems/CareSystem';
 import { flowerCrops, makeGift, pushEvent, rollDogCatch, SABOTAGE_ENABLED, SOCIAL } from '../systems/SocialSystem';
 import { capRemaining, recordCapXp, rolloverDaily, type DailyState } from '../systems/DailySystem';
+import { cycleLocale, getLocaleLabel, onLocaleChange, t } from '../i18n';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
@@ -60,7 +61,7 @@ export class NeighborScene extends Phaser.Scene {
     // Love fertilizer is also per-visit: a friendly speed-up for growing crops.
     let loveBudget = SOCIAL.LOVE_LIMIT_PER_VISIT;
     let sabotageMode = false;
-    let statusMessage = 'Click a plot: clear a problem to help, speed a growing crop with Love Fertilizer, or harvest a ripe crop to steal.';
+    let statusMessage = t('Click a plot: clear a problem to help, speed a growing crop with Love Fertilizer, or harvest a ripe crop to steal.');
 
     const tileVisuals = new Map<string, TileVisual>();
 
@@ -80,7 +81,7 @@ export class NeighborScene extends Phaser.Scene {
     };
 
     if (!neighbor) {
-      this.add.text(40, 40, 'No neighbor to visit.', {
+      this.add.text(40, 40, t('No neighbor to visit.'), {
         color: '#3f5f2f',
         fontSize: '18px',
         fontFamily: 'Arial',
@@ -89,7 +90,7 @@ export class NeighborScene extends Phaser.Scene {
     }
 
     this.add
-      .text(40, 28, `Visiting ${neighbor.name}'s farm`, {
+      .text(40, 28, t("Visiting {name}'s farm", { name: neighbor.name }), {
         color: '#2f4f1f',
         fontSize: '22px',
         fontFamily: 'Arial',
@@ -114,7 +115,7 @@ export class NeighborScene extends Phaser.Scene {
       .setDepth(1);
 
     this.add
-      .text(40, 118, 'Help clears a problem (water / weeds / pests). A growing crop gets Love Fertilizer. Stealing takes part of a ripe crop; the owner keeps the rest.', {
+      .text(40, 118, t('Help clears a problem (water / weeds / pests). A growing crop gets Love Fertilizer. Stealing takes part of a ripe crop; the owner keeps the rest.'), {
         color: '#3f5f2f',
         fontSize: '13px',
         fontFamily: 'Arial',
@@ -136,8 +137,8 @@ export class NeighborScene extends Phaser.Scene {
         40,
         216,
         neighbor.hasDog
-          ? `\u{1F415} ${neighbor.name} has a guard dog. Stealing or sabotage may be caught and fined.`
-          : `No guard dog here. ${neighbor.name}'s farm is unprotected.`,
+          ? t('\u{1F415} {name} has a guard dog. Stealing or sabotage may be caught and fined.', { name: neighbor.name })
+          : t("No guard dog here. {name}'s farm is unprotected.", { name: neighbor.name }),
         {
           color: neighbor.hasDog ? '#8a2f2f' : '#3f5f2f',
           fontSize: '13px',
@@ -148,7 +149,7 @@ export class NeighborScene extends Phaser.Scene {
       .setDepth(1);
 
     const backButton = this.add
-      .text(40, 178, '\u2190 Back to my farm (B / Esc)', {
+      .text(40, 178, t('\u2190 Back to my farm (B / Esc)'), {
         color: '#ffffff',
         backgroundColor: '#345c7a',
         fontSize: '15px',
@@ -159,7 +160,7 @@ export class NeighborScene extends Phaser.Scene {
       .setDepth(2);
 
     const giftButton = this.add
-      .text(320, 178, 'Gift a Flower (F)', {
+      .text(320, 178, t('Gift a Flower (F)'), {
         color: '#ffffff',
         backgroundColor: '#8a3b6a',
         fontSize: '15px',
@@ -173,7 +174,7 @@ export class NeighborScene extends Phaser.Scene {
     // can be disabled without touching the rest of the visit flow.
     const sabotageButton = SABOTAGE_ENABLED
       ? this.add
-          .text(520, 178, 'Sabotage: OFF (X)', {
+          .text(520, 178, t('Sabotage: {state} (X)', { state: t('OFF') }), {
             color: '#ffffff',
             backgroundColor: '#7a3b3b',
             fontSize: '15px',
@@ -184,8 +185,19 @@ export class NeighborScene extends Phaser.Scene {
           .setDepth(2)
       : undefined;
 
+    const languageButton = this.add
+      .text(720, 178, t('Language: {lang}', { lang: getLocaleLabel() }), {
+        color: '#ffffff',
+        backgroundColor: '#6a4f99',
+        fontSize: '15px',
+        fontFamily: 'Arial',
+        padding: { x: 12, y: 6 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
     this.add
-      .text(960, 70, 'Activity log', {
+      .text(960, 70, t('Activity log'), {
         color: '#2f4f1f',
         fontSize: '15px',
         fontFamily: 'Arial',
@@ -203,17 +215,22 @@ export class NeighborScene extends Phaser.Scene {
       .setDepth(1);
 
     const refreshHud = (): void => {
-      hudText.setText(`Coins: ${economy.coins} | XP: ${economy.xp} | Level: ${economy.level}`);
+      hudText.setText(t('Coins: {coins} | XP: {xp} | Level: {level}', { coins: economy.coins, xp: economy.xp, level: economy.level }));
       budgetText.setText(
-        `Steal budget this visit: ${stealBudget}/${SOCIAL.STEAL_LIMIT_PER_VISIT} | ` +
-          `Love fertilizer left: ${loveBudget}/${SOCIAL.LOVE_LIMIT_PER_VISIT} | ` +
-          `Daily XP left — help: ${capRemaining(daily, 'help')}, steal: ${capRemaining(daily, 'steal')}`,
+        t('Steal budget this visit: {steal}/{stealMax} | Love fertilizer left: {love}/{loveMax} | Daily XP left \u2014 help: {help}, steal: {stealXp}', {
+          steal: stealBudget,
+          stealMax: SOCIAL.STEAL_LIMIT_PER_VISIT,
+          love: loveBudget,
+          loveMax: SOCIAL.LOVE_LIMIT_PER_VISIT,
+          help: capRemaining(daily, 'help'),
+          stealXp: capRemaining(daily, 'steal'),
+        }),
       );
     };
 
     const refreshLog = (): void => {
       if (events.length === 0) {
-        logText.setText('No activity yet.');
+        logText.setText(t('No activity yet.'));
         return;
       }
       const lines = events.slice(0, 10).map((event) => `\u2022 ${event.message}`);
@@ -247,13 +264,13 @@ export class NeighborScene extends Phaser.Scene {
       if (tile.state !== 'planted') {
         visual.rect.setFillStyle(0xc4955f);
         visual.title.setText('');
-        visual.subtitle.setText('Empty plot');
+        visual.subtitle.setText(t('Empty plot'));
         return;
       }
 
       const growth = getGrowth(tile);
       const crop = growth?.crop ?? getCrop(tile.cropId);
-      const cropName = crop?.name ?? 'Crop';
+      const cropName = crop ? t(crop.name) : t('Crop');
 
       const hasProblem = Boolean(tile.isDry || tile.hasWeeds || tile.hasPests);
       const stealable = Boolean(growth?.ready && (tile.stealRemaining ?? 0) > 0);
@@ -269,17 +286,17 @@ export class NeighborScene extends Phaser.Scene {
       visual.title.setText(cropName);
 
       if (tile.hasPests) {
-        visual.subtitle.setText('Pests \u2022 click to help');
+        visual.subtitle.setText(t('Pests \u2022 click to help'));
       } else if (tile.hasWeeds) {
-        visual.subtitle.setText('Weeds \u2022 click to help');
+        visual.subtitle.setText(t('Weeds \u2022 click to help'));
       } else if (tile.isDry) {
-        visual.subtitle.setText('Dry \u2022 click to help');
+        visual.subtitle.setText(t('Dry \u2022 click to help'));
       } else if (stealable) {
-        visual.subtitle.setText(`Ripe \u2022 steal x${tile.stealRemaining ?? 0}`);
+        visual.subtitle.setText(t('Ripe \u2022 steal x{count}', { count: tile.stealRemaining ?? 0 }));
       } else if (growth) {
-        visual.subtitle.setText(`Growing \u2022 ${Math.floor(growth.progress * 100)}%`);
+        visual.subtitle.setText(t('Growing \u2022 {pct}%', { pct: Math.floor(growth.progress * 100) }));
       } else {
-        visual.subtitle.setText('Growing');
+        visual.subtitle.setText(t('Growing'));
       }
     };
 
@@ -295,10 +312,10 @@ export class NeighborScene extends Phaser.Scene {
       events = pushEvent(
         events,
         'caught',
-        `${neighbor.name}'s dog caught you ${actionLabel}! Fine: ${fine} coins.`,
+        t("{name}'s dog caught you {action}! Fine: {fine} coins.", { name: neighbor.name, action: t(actionLabel), fine }),
         now,
       );
-      statusMessage = `Caught by ${neighbor.name}'s dog while ${actionLabel}! Lost ${fine} coins.`;
+      statusMessage = t("Caught by {name}'s dog while {action}! Lost {fine} coins.", { name: neighbor.name, action: t(actionLabel), fine });
       saveCurrent();
       refreshHud();
       refreshLog();
@@ -308,13 +325,13 @@ export class NeighborScene extends Phaser.Scene {
 
     const handleTileClick = (tile: FarmTile): void => {
       if (tile.state !== 'planted') {
-        statusMessage = 'Empty plot — nothing to do here.';
+        statusMessage = t('Empty plot \u2014 nothing to do here.');
         statusText.setText(statusMessage);
         return;
       }
 
       const crop = getCrop(tile.cropId);
-      const cropName = crop?.name ?? 'crop';
+      const cropName = crop ? t(crop.name) : t('crop');
       const now = Date.now();
 
       // Phase P5: sabotage mode places a bug or weed instead of helping/stealing.
@@ -325,12 +342,12 @@ export class NeighborScene extends Phaser.Scene {
         let placed = '';
         if (!tile.hasPests) {
           tile.hasPests = true;
-          placed = 'bugs';
+          placed = t('bugs');
         } else if (!tile.hasWeeds) {
           tile.hasWeeds = true;
-          placed = 'weeds';
+          placed = t('weeds');
         } else {
-          statusMessage = `${neighbor.name}'s ${cropName} is already infested.`;
+          statusMessage = t("{name}'s {crop} is already infested.", { name: neighbor.name, crop: cropName });
           statusText.setText(statusMessage);
           return;
         }
@@ -338,10 +355,10 @@ export class NeighborScene extends Phaser.Scene {
         events = pushEvent(
           events,
           'sabotage',
-          `You planted ${placed} on ${neighbor.name}'s ${cropName}.`,
+          t("You planted {placed} on {name}'s {crop}.", { placed, name: neighbor.name, crop: cropName }),
           now,
         );
-        statusMessage = `Planted ${placed} on ${neighbor.name}'s ${cropName}.`;
+        statusMessage = t("Planted {placed} on {name}'s {crop}.", { placed, name: neighbor.name, crop: cropName });
         saveCurrent();
         refreshTileVisual(tile);
         refreshLog();
@@ -354,13 +371,13 @@ export class NeighborScene extends Phaser.Scene {
         let verb = '';
         if (tile.hasPests) {
           removePests(tile);
-          verb = 'removed pests from';
+          verb = t('removed pests from');
         } else if (tile.hasWeeds) {
           removeWeeds(tile);
-          verb = 'pulled weeds from';
+          verb = t('pulled weeds from');
         } else {
           waterTile(tile, now);
-          verb = 'watered';
+          verb = t('watered');
         }
 
         // Phase P6: helping always clears the problem, but the XP/coin reward
@@ -370,10 +387,10 @@ export class NeighborScene extends Phaser.Scene {
           events = pushEvent(
             events,
             'help',
-            `You ${verb} ${neighbor.name}'s ${cropName}. Daily help limit reached — no reward.`,
+            t("You {verb} {name}'s {crop}. Daily help limit reached \u2014 no reward.", { verb, name: neighbor.name, crop: cropName }),
             now,
           );
-          statusMessage = `Helped ${neighbor.name}, but the daily help limit is reached — no XP/coins.`;
+          statusMessage = t('Helped {name}, but the daily help limit is reached \u2014 no XP/coins.', { name: neighbor.name });
         } else {
           economy.coins += SOCIAL.HELP_COINS;
           economy.xp += SOCIAL.HELP_XP;
@@ -382,10 +399,10 @@ export class NeighborScene extends Phaser.Scene {
           events = pushEvent(
             events,
             'help',
-            `You ${verb} ${neighbor.name}'s ${cropName}. +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin.`,
+            t("You {verb} {name}'s {crop}. +{xp} XP, +{coins} coin.", { verb, name: neighbor.name, crop: cropName, xp: SOCIAL.HELP_XP, coins: SOCIAL.HELP_COINS }),
             now,
           );
-          statusMessage = `Helped ${neighbor.name}. +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin.`;
+          statusMessage = t('Helped {name}. +{xp} XP, +{coins} coin.', { name: neighbor.name, xp: SOCIAL.HELP_XP, coins: SOCIAL.HELP_COINS });
         }
 
         saveCurrent();
@@ -398,7 +415,7 @@ export class NeighborScene extends Phaser.Scene {
 
       const growth = getGrowth(tile);
       if (!growth) {
-        statusMessage = 'Nothing to do on this empty plot.';
+        statusMessage = t('Nothing to do on this empty plot.');
         statusText.setText(statusMessage);
         return;
       }
@@ -408,7 +425,7 @@ export class NeighborScene extends Phaser.Scene {
         // turning the player away. It is a help-style gesture (capped reward),
         // limited per visit, and never steals anything.
         if (loveBudget <= 0) {
-          statusMessage = 'No Love Fertilizer left for this visit. Come back later.';
+          statusMessage = t('No Love Fertilizer left for this visit. Come back later.');
           statusText.setText(statusMessage);
           return;
         }
@@ -422,10 +439,10 @@ export class NeighborScene extends Phaser.Scene {
           events = pushEvent(
             events,
             'help',
-            `You used Love Fertilizer on ${neighbor.name}'s ${cropName}. Daily help limit reached — no reward.`,
+            t("You used Love Fertilizer on {name}'s {crop}. Daily help limit reached \u2014 no reward.", { name: neighbor.name, crop: cropName }),
             now,
           );
-          statusMessage = `Sped up ${neighbor.name}'s ${cropName}, but the daily help limit is reached — no XP/coins.`;
+          statusMessage = t('Sped up {name}\'s {crop}, but the daily help limit is reached \u2014 no XP/coins.', { name: neighbor.name, crop: cropName });
         } else {
           economy.coins += SOCIAL.HELP_COINS;
           economy.xp += SOCIAL.HELP_XP;
@@ -434,10 +451,10 @@ export class NeighborScene extends Phaser.Scene {
           events = pushEvent(
             events,
             'help',
-            `You used Love Fertilizer on ${neighbor.name}'s ${cropName} (-${loveFertilizer.reduceSeconds}s). +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin.`,
+            t("You used Love Fertilizer on {name}'s {crop} (-{sec}s). +{xp} XP, +{coins} coin.", { name: neighbor.name, crop: cropName, sec: loveFertilizer.reduceSeconds, xp: SOCIAL.HELP_XP, coins: SOCIAL.HELP_COINS }),
             now,
           );
-          statusMessage = `Love Fertilizer on ${neighbor.name}'s ${cropName}. +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin. Left: ${loveBudget}.`;
+          statusMessage = t("Love Fertilizer on {name}'s {crop}. +{xp} XP, +{coins} coin. Left: {left}.", { name: neighbor.name, crop: cropName, xp: SOCIAL.HELP_XP, coins: SOCIAL.HELP_COINS, left: loveBudget });
         }
 
         saveCurrent();
@@ -449,13 +466,13 @@ export class NeighborScene extends Phaser.Scene {
       }
 
       if ((tile.stealRemaining ?? 0) <= 0) {
-        statusMessage = 'Nothing left to steal from this plot.';
+        statusMessage = t('Nothing left to steal from this plot.');
         statusText.setText(statusMessage);
         return;
       }
 
       if (stealBudget <= 0) {
-        statusMessage = 'You have taken all you can this visit. Come back later.';
+        statusMessage = t('You have taken all you can this visit. Come back later.');
         statusText.setText(statusMessage);
         return;
       }
@@ -492,13 +509,13 @@ export class NeighborScene extends Phaser.Scene {
         events,
         'steal',
         stealCapped
-          ? `You took 1 ${cropName} from ${neighbor.name}. Daily steal limit reached — no XP.`
-          : `You took 1 ${cropName} from ${neighbor.name}. +${SOCIAL.STEAL_XP} XP.`,
+          ? t('You took 1 {crop} from {name}. Daily steal limit reached \u2014 no XP.', { crop: cropName, name: neighbor.name })
+          : t('You took 1 {crop} from {name}. +{xp} XP.', { crop: cropName, name: neighbor.name, xp: SOCIAL.STEAL_XP }),
         now,
       );
       statusMessage = stealCapped
-        ? `Took 1 ${cropName} (daily steal XP limit reached). Budget left: ${stealBudget}.`
-        : `Took 1 ${cropName}. +${SOCIAL.STEAL_XP} XP. Budget left: ${stealBudget}.`;
+        ? t('Took 1 {crop} (daily steal XP limit reached). Budget left: {left}.', { crop: cropName, left: stealBudget })
+        : t('Took 1 {crop}. +{xp} XP. Budget left: {left}.', { crop: cropName, xp: SOCIAL.STEAL_XP, left: stealBudget });
 
       saveCurrent();
       refreshTileVisual(tile);
@@ -550,7 +567,7 @@ export class NeighborScene extends Phaser.Scene {
       // Find the first flower the player actually has in stock.
       const flower = flowerCrops().find((crop) => (inventory[crop.id] ?? 0) > 0);
       if (!flower) {
-        statusMessage = 'No flowers to gift. Grow a Rose or Sunflower on your farm first.';
+        statusMessage = t('No flowers to gift. Grow a Rose or Sunflower on your farm first.');
         statusText.setText(statusMessage);
         return;
       }
@@ -566,10 +583,10 @@ export class NeighborScene extends Phaser.Scene {
       events = pushEvent(
         events,
         'system',
-        `You gave a ${flower.name} to ${neighbor.name}. They sent one back!`,
+        t('You gave a {flower} to {name}. They sent one back!', { flower: t(flower.name), name: neighbor.name }),
         now,
       );
-      statusMessage = `Gave a ${flower.name} to ${neighbor.name}. A gift is waiting back home.`;
+      statusMessage = t('Gave a {flower} to {name}. A gift is waiting back home.', { flower: t(flower.name), name: neighbor.name });
 
       saveCurrent();
       refreshHud();
@@ -588,11 +605,11 @@ export class NeighborScene extends Phaser.Scene {
         return;
       }
       sabotageMode = !sabotageMode;
-      sabotageButton.setText(`Sabotage: ${sabotageMode ? 'ON' : 'OFF'} (X)`);
+      sabotageButton.setText(t('Sabotage: {state} (X)', { state: sabotageMode ? t('ON') : t('OFF') }));
       sabotageButton.setBackgroundColor(sabotageMode ? '#b23b3b' : '#7a3b3b');
       statusMessage = sabotageMode
-        ? 'Sabotage mode ON — click a planted plot to plant bugs/weeds.'
-        : 'Sabotage mode OFF. Click a plot to help or steal.';
+        ? t('Sabotage mode ON \u2014 click a planted plot to plant bugs/weeds.')
+        : t('Sabotage mode OFF. Click a plot to help or steal.');
       statusText.setText(statusMessage);
     };
 
@@ -600,6 +617,16 @@ export class NeighborScene extends Phaser.Scene {
       sabotageButton.on('pointerdown', toggleSabotage);
       this.input.keyboard?.on('keydown-X', toggleSabotage);
     }
+
+    languageButton.on('pointerdown', () => {
+      saveCurrent();
+      cycleLocale();
+    });
+    const offLocaleChange = onLocaleChange(() => {
+      saveCurrent();
+      this.scene.restart({ neighborId: this.neighborId });
+    });
+    this.events.once('shutdown', offLocaleChange);
 
     refreshHud();
     refreshLog();
