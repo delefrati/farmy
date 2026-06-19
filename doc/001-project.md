@@ -264,11 +264,18 @@ Phase P5 - Sabotage and protection (dog/security)
   * optional sabotage (place weed/bug on friend farm);
   * dog/guard system that can prevent or penalize theft/sabotage;
   * protection state visibility.
-* Current status: TODO.
+* Current status: DONE.
+* Implementation notes:
+  * `SABOTAGE_ENABLED` product flag in `SocialSystem.ts` gates the whole sabotage path; when off, the sabotage toggle is never created.
+  * Sabotage (NeighborScene "Sabotage: ON/OFF" toggle, key X) places bugs then weeds on a neighbor's planted tile and logs a `sabotage` event; the infestation persists on that neighbor's tile.
+  * Guard dogs: `NeighborFarm.hasDog` (first neighbor unguarded, the rest guarded). Stealing or sabotaging a guarded farm rolls `DOG_CATCH_CHANCE`; on a catch the player is fined `DOG_FINE` coins, the action is aborted, and a `caught` event is logged.
+  * The player can buy a guard dog for their own farm (FarmScene "Buy Guard Dog", key K, `DOG_PRICE` coins); ownership persists and is shown in the HUD. (NPC neighbors don't raid the player in the local prototype, so the player's dog is a visible protection state pending the multiplayer phase.)
+  * Protection visibility: each visit shows whether the farm is guarded; the farm HUD shows the player's own guard-dog state.
+  * Save bumped to v9 (`player.hasDog` + `neighbor.hasDog`); v8→v9 migration assigns the default dog layout and a dogless player. `FarmEventKind` extended with `sabotage` and `caught`.
 * Exit criteria:
-  * sabotage can be enabled/disabled by product flag;
-  * protected farms can trigger anti-theft penalties;
-  * protection outcomes are logged in event history.
+  * sabotage can be enabled/disabled by product flag; [met]
+  * protected farms can trigger anti-theft penalties; [met]
+  * protection outcomes are logged in event history. [met]
 
 Phase P5b - Land expansion and plot unlocks
 

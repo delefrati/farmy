@@ -22,7 +22,19 @@ export const SOCIAL = {
   POPULARITY_PER_GIFT: 5,
   // Small XP nudge for gifting a flower out to a neighbor.
   GIFT_OUT_XP: 1,
+  // Phase P5: guard dog economy. Buying a dog protects the player's own farm;
+  // visiting a guarded neighbor risks a fine when stealing or sabotaging.
+  DOG_PRICE: 60,
+  DOG_CATCH_CHANCE: 0.35,
+  DOG_FINE: 15,
 } as const;
+
+// Phase P5 product flag. Sabotage (placing bugs/weeds on a friend's farm) is a
+// negative interaction that can be turned off wholesale by flipping this flag.
+export const SABOTAGE_ENABLED = true;
+
+// Roll the guard dog's chance to catch the player in the act.
+export const rollDogCatch = (): boolean => Math.random() < SOCIAL.DOG_CATCH_CHANCE;
 
 // Small deterministic PRNG (mulberry32) so neighbor farms regenerate the same
 // way for a given seed and never depend on Math.random.
@@ -113,6 +125,9 @@ const createNeighborFarm = (index: number, now: number): NeighborFarm => {
     id: `neighbor-${index}`,
     name: NEIGHBOR_NAMES[index] ?? `Neighbor ${index + 1}`,
     tiles,
+    // The first neighbor is left unguarded so stealing/sabotage can be tried
+    // freely; the others keep a dog so the protection penalty is observable.
+    hasDog: index !== 0,
   };
 };
 

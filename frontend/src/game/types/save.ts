@@ -19,4 +19,6 @@ export type SaveGame = {
   // Phase P4b social prestige.
   popularity: number;
   giftInbox: Gift[];
+  // Phase P5: whether the player has bought a guard dog for their own farm.
+  hasDog: boolean;
 };

@@ -8,7 +8,7 @@ import type { FarmTile } from './farm';
 // real friend backend lands, these can be swapped for real farms behind the
 // same shape.
 
-export type FarmEventKind = 'help' | 'steal' | 'system';
+export type FarmEventKind = 'help' | 'steal' | 'system' | 'sabotage' | 'caught';
 
 export type FarmEvent = {
   id: string;
@@ -21,6 +21,9 @@ export type NeighborFarm = {
   id: string;
   name: string;
   tiles: FarmTile[];
+  // Phase P5: whether this farm is guarded by a dog. A guarded farm has a
+  // chance to catch the player stealing or sabotaging and fine them.
+  hasDog: boolean;
 };
 
 // Phase P4b: a flower gift sitting in the player's inbox. Collecting it raises

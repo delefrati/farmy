@@ -8,7 +8,7 @@ import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 8;
+const SAVE_VERSION = 9;
 
 // Animal state shape used before v6 (aggregate chicken coops + pooled eggs).
 type LegacyAnimals = {
@@ -85,6 +85,23 @@ type LegacySaveGameV7 = {
   farmTiles: FarmTile[];
   neighbors: NeighborFarm[];
   events: FarmEvent[];
+};
+
+// v8 added the prestige track but had no guard dogs (player.hasDog and
+// neighbor.hasDog were added in v9).
+type LegacySaveGameV8 = {
+  version: number;
+  savedAt: string;
+  economy: PlayerEconomy;
+  inventory: PlayerInventory;
+  fertilizers: PlayerInventory;
+  animals: PlayerAnimals;
+  selectedCropId: string;
+  farmTiles: FarmTile[];
+  neighbors: NeighborFarm[];
+  events: FarmEvent[];
+  popularity: number;
+  giftInbox: Gift[];
 };
 
 const isLegacyAnimals = (value: unknown): value is LegacyAnimals => {
@@ -213,6 +230,7 @@ const isValidNeighbor = (value: unknown): value is NeighborFarm => {
   return (
     typeof neighbor.id === 'string' &&
     typeof neighbor.name === 'string' &&
+    typeof neighbor.hasDog === 'boolean' &&
     Array.isArray(neighbor.tiles) &&
     neighbor.tiles.every(isValidFarmTile)
   );
@@ -220,6 +238,25 @@ const isValidNeighbor = (value: unknown): value is NeighborFarm => {
 
 const isValidNeighbors = (value: unknown): value is NeighborFarm[] =>
   Array.isArray(value) && value.every(isValidNeighbor);
+
+// Pre-v9 neighbors had no `hasDog`. Used only by the v7/v8 legacy validators so
+// those saves still parse before the v9 migration adds the dog flag.
+const isLegacyNeighborNoDog = (value: unknown): boolean => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const neighbor = value as Partial<NeighborFarm>;
+  return (
+    typeof neighbor.id === 'string' &&
+    typeof neighbor.name === 'string' &&
+    Array.isArray(neighbor.tiles) &&
+    neighbor.tiles.every(isValidFarmTile)
+  );
+};
+
+const isLegacyNeighborsNoDog = (value: unknown): boolean =>
+  Array.isArray(value) && value.every(isLegacyNeighborNoDog);
 
 const isValidEvent = (value: unknown): value is FarmEvent => {
   if (!value || typeof value !== 'object') {
@@ -230,7 +267,11 @@ const isValidEvent = (value: unknown): value is FarmEvent => {
   return (
     typeof event.id === 'string' &&
     typeof event.at === 'number' &&
-    (event.kind === 'help' || event.kind === 'steal' || event.kind === 'system') &&
+    (event.kind === 'help' ||
+      event.kind === 'steal' ||
+      event.kind === 'system' ||
+      event.kind === 'sabotage' ||
+      event.kind === 'caught') &&
     typeof event.message === 'string'
   );
 };
@@ -275,7 +316,8 @@ const isValidSaveGame = (value: unknown): value is SaveGame => {
     isValidNeighbors(save.neighbors) &&
     isValidEvents(save.events) &&
     typeof save.popularity === 'number' &&
-    isValidGiftInbox(save.giftInbox)
+    isValidGiftInbox(save.giftInbox) &&
+    typeof save.hasDog === 'boolean'
   );
 };
 
@@ -373,8 +415,32 @@ const isValidLegacySaveGameV7 = (value: unknown): value is LegacySaveGameV7 => {
     Array.isArray(save.farmTiles) &&
     save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
     save.farmTiles.every(isValidFarmTile) &&
-    isValidNeighbors(save.neighbors) &&
+    isLegacyNeighborsNoDog(save.neighbors) &&
     isValidEvents(save.events)
+  );
+};
+
+const isValidLegacySaveGameV8 = (value: unknown): value is LegacySaveGameV8 => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const save = value as Partial<LegacySaveGameV8>;
+  return (
+    typeof save.version === 'number' &&
+    typeof save.savedAt === 'string' &&
+    isValidEconomy(save.economy) &&
+    isValidInventory(save.inventory) &&
+    isValidInventory(save.fertilizers) &&
+    isValidAnimals(save.animals) &&
+    typeof save.selectedCropId === 'string' &&
+    Array.isArray(save.farmTiles) &&
+    save.farmTiles.length === GRID_COLUMNS * GRID_ROWS &&
+    save.farmTiles.every(isValidFarmTile) &&
+    isLegacyNeighborsNoDog(save.neighbors) &&
+    isValidEvents(save.events) &&
+    typeof save.popularity === 'number' &&
+    isValidGiftInbox(save.giftInbox)
   );
 };
 
@@ -395,6 +461,12 @@ const isValidLegacySaveGameV1 = (value: unknown): value is LegacySaveGameV1 => {
   );
 };
 
+// Pre-v9 saves had no guard dogs. Give legacy neighbors the same dog layout a
+// fresh farm would get (first neighbor unguarded, the rest guarded) so the
+// protection mechanic is visible immediately after migrating.
+const withNeighborDogs = (neighbors: NeighborFarm[]): NeighborFarm[] =>
+  neighbors.map((neighbor, index) => ({ ...neighbor, hasDog: index !== 0 }));
+
 export class SaveSystem {
   createDefaultSave(): SaveGame {
     const now = Date.now();
@@ -411,6 +483,7 @@ export class SaveSystem {
       events: [],
       popularity: 0,
       giftInbox: createStarterGifts(now),
+      hasDog: false,
     };
   }
 
@@ -425,6 +498,7 @@ export class SaveSystem {
     events: FarmEvent[];
     popularity: number;
     giftInbox: Gift[];
+    hasDog: boolean;
   }): SaveGame {
     const save: SaveGame = {
       version: SAVE_VERSION,
@@ -439,6 +513,7 @@ export class SaveSystem {
       events: saveInput.events,
       popularity: saveInput.popularity,
       giftInbox: saveInput.giftInbox,
+      hasDog: saveInput.hasDog,
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -470,13 +545,27 @@ export class SaveSystem {
 
       const now = Date.now();
 
+      // v8 only lacked the guard dogs (player.hasDog + neighbor.hasDog) in v9.
+      if (isValidLegacySaveGameV8(parsed) && parsed.version === 8) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          neighbors: withNeighborDogs(parsed.neighbors),
+          hasDog: false,
+        };
+        this.saveGame(migrated);
+        return migrated;
+      }
+
       // v7 only lacked the prestige track (popularity + gift inbox) added in v8.
       if (isValidLegacySaveGameV7(parsed) && parsed.version === 7) {
         const migrated: SaveGame = {
           ...parsed,
           version: SAVE_VERSION,
+          neighbors: withNeighborDogs(parsed.neighbors),
           popularity: 0,
           giftInbox: createStarterGifts(now),
+          hasDog: false,
         };
         this.saveGame(migrated);
         return migrated;
@@ -491,6 +580,7 @@ export class SaveSystem {
           events: [],
           popularity: 0,
           giftInbox: createStarterGifts(now),
+          hasDog: false,
         };
         this.saveGame(migrated);
         return migrated;
@@ -511,6 +601,7 @@ export class SaveSystem {
           events: [],
           popularity: 0,
           giftInbox: createStarterGifts(now),
+          hasDog: false,
         };
         this.saveGame(migrated);
         return migrated;
@@ -532,6 +623,7 @@ export class SaveSystem {
           events: [],
           popularity: 0,
           giftInbox: createStarterGifts(now),
+          hasDog: false,
         };
         this.saveGame(migrated);
         return migrated;
@@ -548,6 +640,7 @@ export class SaveSystem {
           events: [],
           popularity: 0,
           giftInbox: createStarterGifts(now),
+          hasDog: false,
         };
         this.saveGame(migrated);
         return migrated;
@@ -563,6 +656,7 @@ export class SaveSystem {
           events: [],
           popularity: 0,
           giftInbox: createStarterGifts(now),
+          hasDog: false,
         };
         this.saveGame(migrated);
         return migrated;

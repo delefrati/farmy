@@ -67,6 +67,8 @@ export class FarmScene extends Phaser.Scene {
 
   private giftInbox: Gift[] = [];
 
+  private hasDog = false;
+
   private statusMessage = '';
 
   private readonly tileSize = { width: 120, height: 90 };
@@ -98,6 +100,7 @@ export class FarmScene extends Phaser.Scene {
     this.farmEvents = loaded.events;
     this.popularity = loaded.popularity;
     this.giftInbox = loaded.giftInbox;
+    this.hasDog = loaded.hasDog;
     this.selectedCropId = loaded.selectedCropId;
 
     // Advance crop care for any time that passed while the game was closed.
@@ -149,6 +152,25 @@ export class FarmScene extends Phaser.Scene {
       .text(360, 122, 'Collect Gifts (C)', {
         color: '#ffffff',
         backgroundColor: '#8a3b6a',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const dogText = this.add
+      .text(360, 150, '', {
+        color: '#5a3a1a',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
+    const buyDogButton = this.add
+      .text(360, 170, `Buy Guard Dog (K) - ${SOCIAL.DOG_PRICE}c`, {
+        color: '#ffffff',
+        backgroundColor: '#6a4a2a',
         fontSize: '13px',
         fontFamily: 'Arial',
         padding: { x: 8, y: 5 },
@@ -288,14 +310,14 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts', {
+      .text(24, 304, 'Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
-    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts');
+    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog');
 
     this.add
       .rectangle(640, 640, 816, 420, 0x6c9a4b)
@@ -572,6 +594,40 @@ export class FarmScene extends Phaser.Scene {
       const missingXp = getXpToNextLevel(this.economy.xp, this.economy.level);
       progressionText.setText(`Next level in ${missingXp} XP`);
       popularityText.setText(`\u2605 Popularity: ${this.popularity} | Gifts waiting: ${this.giftInbox.length}`);
+      dogText.setText(
+        this.hasDog
+          ? '\u{1F415} Guard dog: ON (protecting your farm)'
+          : '\u{1F415} Guard dog: none',
+      );
+      buyDogButton.setVisible(!this.hasDog);
+    };
+
+    const buyDog = (): void => {
+      if (this.hasDog) {
+        this.statusMessage = 'You already have a guard dog.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+      if (this.economy.coins < SOCIAL.DOG_PRICE) {
+        this.statusMessage = `Not enough coins for a guard dog (need ${SOCIAL.DOG_PRICE}).`;
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      this.economy.coins -= SOCIAL.DOG_PRICE;
+      this.hasDog = true;
+      this.farmEvents = pushEvent(
+        this.farmEvents,
+        'system',
+        `You bought a guard dog for ${SOCIAL.DOG_PRICE} coins. Your farm is now protected.`,
+        Date.now(),
+      );
+      this.statusMessage = 'Guard dog hired. Your farm is now protected.';
+
+      refreshHud();
+      refreshEventLog();
+      saveCurrent();
+      statusText.setText(this.statusMessage);
     };
 
     const collectGifts = (): void => {
@@ -629,6 +685,7 @@ export class FarmScene extends Phaser.Scene {
         events: this.farmEvents,
         popularity: this.popularity,
         giftInbox: this.giftInbox,
+        hasDog: this.hasDog,
       });
     };
 
@@ -644,6 +701,7 @@ export class FarmScene extends Phaser.Scene {
         events: this.farmEvents,
         popularity: this.popularity,
         giftInbox: this.giftInbox,
+        hasDog: this.hasDog,
       });
     };
 
@@ -1167,6 +1225,7 @@ export class FarmScene extends Phaser.Scene {
         this.farmEvents = remoteSave.events;
         this.popularity = remoteSave.popularity;
         this.giftInbox = remoteSave.giftInbox;
+        this.hasDog = remoteSave.hasDog;
         this.selectedCropId = remoteSave.selectedCropId;
         this.statusMessage = 'Remote save downloaded.';
         lastSyncLabel = new Date().toLocaleTimeString();
@@ -1520,6 +1579,7 @@ export class FarmScene extends Phaser.Scene {
       this.farmEvents = reset.events;
       this.popularity = reset.popularity;
       this.giftInbox = reset.giftInbox;
+      this.hasDog = reset.hasDog;
       this.selectedCropId = reset.selectedCropId;
       this.statusMessage = 'Save reset to default state.';
       this.scene.restart();
@@ -1552,6 +1612,7 @@ export class FarmScene extends Phaser.Scene {
       }
     });
     collectGiftsButton.on('pointerdown', collectGifts);
+    buyDogButton.on('pointerdown', buyDog);
     fertilizerModeButton.on('pointerdown', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
@@ -1618,6 +1679,7 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-E', collectProducts);
     this.input.keyboard?.on('keydown-M', sellMaturedAnimals);
     this.input.keyboard?.on('keydown-C', collectGifts);
+    this.input.keyboard?.on('keydown-K', buyDog);
     this.input.keyboard?.on('keydown-F', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';

@@ -9,7 +9,7 @@ import type { PlayerAnimals } from '../types/animals';
 import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import { getLevelFromXp } from '../data/progression';
 import { removePests, removeWeeds, waterTile } from '../systems/CareSystem';
-import { flowerCrops, makeGift, pushEvent, SOCIAL } from '../systems/SocialSystem';
+import { flowerCrops, makeGift, pushEvent, rollDogCatch, SABOTAGE_ENABLED, SOCIAL } from '../systems/SocialSystem';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
@@ -54,6 +54,7 @@ export class NeighborScene extends Phaser.Scene {
 
     // Steal budget is per-visit (resets each time the scene is entered).
     let stealBudget = SOCIAL.STEAL_LIMIT_PER_VISIT;
+    let sabotageMode = false;
     let statusMessage = 'Click a plot: clear a problem to help, or harvest a ripe crop to steal.';
 
     const tileVisuals = new Map<string, TileVisual>();
@@ -123,6 +124,24 @@ export class NeighborScene extends Phaser.Scene {
       })
       .setDepth(1);
 
+    // Phase P5: protection visibility — make the guard dog state obvious before
+    // the player risks a steal or sabotage.
+    this.add
+      .text(
+        40,
+        216,
+        neighbor.hasDog
+          ? `\u{1F415} ${neighbor.name} has a guard dog. Stealing or sabotage may be caught and fined.`
+          : `No guard dog here. ${neighbor.name}'s farm is unprotected.`,
+        {
+          color: neighbor.hasDog ? '#8a2f2f' : '#3f5f2f',
+          fontSize: '13px',
+          fontFamily: 'Arial',
+          fontStyle: neighbor.hasDog ? 'bold' : 'normal',
+        },
+      )
+      .setDepth(1);
+
     const backButton = this.add
       .text(40, 178, '\u2190 Back to my farm (B / Esc)', {
         color: '#ffffff',
@@ -144,6 +163,21 @@ export class NeighborScene extends Phaser.Scene {
       })
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
+
+    // Phase P5: optional sabotage. Gated entirely behind the product flag so it
+    // can be disabled without touching the rest of the visit flow.
+    const sabotageButton = SABOTAGE_ENABLED
+      ? this.add
+          .text(520, 178, 'Sabotage: OFF (X)', {
+            color: '#ffffff',
+            backgroundColor: '#7a3b3b',
+            fontSize: '15px',
+            fontFamily: 'Arial',
+            padding: { x: 12, y: 6 },
+          })
+          .setInteractive({ useHandCursor: true })
+          .setDepth(2)
+      : undefined;
 
     this.add
       .text(960, 70, 'Activity log', {
@@ -189,6 +223,7 @@ export class NeighborScene extends Phaser.Scene {
         events,
         popularity,
         giftInbox,
+        hasDog: save.hasDog,
       });
     };
 
@@ -237,6 +272,29 @@ export class NeighborScene extends Phaser.Scene {
       }
     };
 
+    // Phase P5: a guarded farm has a chance to catch the player in the act and
+    // fine them coins. Returns true when caught so the caller aborts its action.
+    const tryGuardCatch = (actionLabel: string): boolean => {
+      if (!neighbor.hasDog || !rollDogCatch()) {
+        return false;
+      }
+      const now = Date.now();
+      const fine = Math.min(economy.coins, SOCIAL.DOG_FINE);
+      economy.coins -= fine;
+      events = pushEvent(
+        events,
+        'caught',
+        `${neighbor.name}'s dog caught you ${actionLabel}! Fine: ${fine} coins.`,
+        now,
+      );
+      statusMessage = `Caught by ${neighbor.name}'s dog while ${actionLabel}! Lost ${fine} coins.`;
+      saveCurrent();
+      refreshHud();
+      refreshLog();
+      statusText.setText(statusMessage);
+      return true;
+    };
+
     const handleTileClick = (tile: FarmTile): void => {
       if (tile.state !== 'planted') {
         statusMessage = 'Empty plot — nothing to do here.';
@@ -247,6 +305,38 @@ export class NeighborScene extends Phaser.Scene {
       const crop = getCrop(tile.cropId);
       const cropName = crop?.name ?? 'crop';
       const now = Date.now();
+
+      // Phase P5: sabotage mode places a bug or weed instead of helping/stealing.
+      if (sabotageMode) {
+        if (tryGuardCatch('sabotaging')) {
+          return;
+        }
+        let placed = '';
+        if (!tile.hasPests) {
+          tile.hasPests = true;
+          placed = 'bugs';
+        } else if (!tile.hasWeeds) {
+          tile.hasWeeds = true;
+          placed = 'weeds';
+        } else {
+          statusMessage = `${neighbor.name}'s ${cropName} is already infested.`;
+          statusText.setText(statusMessage);
+          return;
+        }
+        tile.careUpdatedAt = now;
+        events = pushEvent(
+          events,
+          'sabotage',
+          `You planted ${placed} on ${neighbor.name}'s ${cropName}.`,
+          now,
+        );
+        statusMessage = `Planted ${placed} on ${neighbor.name}'s ${cropName}.`;
+        saveCurrent();
+        refreshTileVisual(tile);
+        refreshLog();
+        statusText.setText(statusMessage);
+        return;
+      }
 
       // Help first: resolve the most urgent problem (pests > weeds > dry).
       if (tile.hasPests || tile.hasWeeds || tile.isDry) {
@@ -297,6 +387,11 @@ export class NeighborScene extends Phaser.Scene {
       if (stealBudget <= 0) {
         statusMessage = 'You have taken all you can this visit. Come back later.';
         statusText.setText(statusMessage);
+        return;
+      }
+
+      // Phase P5: a guard dog may catch you before the harvest succeeds.
+      if (tryGuardCatch('stealing')) {
         return;
       }
 
@@ -406,6 +501,24 @@ export class NeighborScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-F', giftFlower);
     this.input.keyboard?.on('keydown-B', goBack);
     this.input.keyboard?.on('keydown-ESC', goBack);
+
+    const toggleSabotage = (): void => {
+      if (!sabotageButton) {
+        return;
+      }
+      sabotageMode = !sabotageMode;
+      sabotageButton.setText(`Sabotage: ${sabotageMode ? 'ON' : 'OFF'} (X)`);
+      sabotageButton.setBackgroundColor(sabotageMode ? '#b23b3b' : '#7a3b3b');
+      statusMessage = sabotageMode
+        ? 'Sabotage mode ON — click a planted plot to plant bugs/weeds.'
+        : 'Sabotage mode OFF. Click a plot to help or steal.';
+      statusText.setText(statusMessage);
+    };
+
+    if (sabotageButton) {
+      sabotageButton.on('pointerdown', toggleSabotage);
+      this.input.keyboard?.on('keydown-X', toggleSabotage);
+    }
 
     refreshHud();
     refreshLog();
