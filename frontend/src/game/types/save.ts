@@ -3,6 +3,7 @@ import type { PlayerEconomy } from './economy';
 import type { PlayerInventory } from './inventory';
 import type { PlayerAnimals } from './animals';
 import type { FarmEvent, Gift, NeighborFarm } from './social';
+import type { DailyState } from '../systems/DailySystem';
 
 export type SaveGame = {
   version: number;
@@ -21,4 +22,6 @@ export type SaveGame = {
   giftInbox: Gift[];
   // Phase P5: whether the player has bought a guard dog for their own farm.
   hasDog: boolean;
+  // Phase P6: daily reward claim state + daily anti-abuse XP caps.
+  daily: DailyState;
 };

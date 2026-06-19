@@ -10,6 +10,7 @@ import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import { getLevelFromXp } from '../data/progression';
 import { removePests, removeWeeds, waterTile } from '../systems/CareSystem';
 import { flowerCrops, makeGift, pushEvent, rollDogCatch, SABOTAGE_ENABLED, SOCIAL } from '../systems/SocialSystem';
+import { capRemaining, recordCapXp, rolloverDaily, type DailyState } from '../systems/DailySystem';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
@@ -49,6 +50,7 @@ export class NeighborScene extends Phaser.Scene {
     let events: FarmEvent[] = save.events;
     const popularity: number = save.popularity;
     let giftInbox: Gift[] = save.giftInbox;
+    let daily: DailyState = rolloverDaily(save.daily, Date.now());
 
     const neighbor = neighbors.find((item) => item.id === this.neighborId) ?? neighbors[0];
 
@@ -199,7 +201,10 @@ export class NeighborScene extends Phaser.Scene {
 
     const refreshHud = (): void => {
       hudText.setText(`Coins: ${economy.coins} | XP: ${economy.xp} | Level: ${economy.level}`);
-      budgetText.setText(`Steal budget this visit: ${stealBudget}/${SOCIAL.STEAL_LIMIT_PER_VISIT}`);
+      budgetText.setText(
+        `Steal budget this visit: ${stealBudget}/${SOCIAL.STEAL_LIMIT_PER_VISIT} | ` +
+          `Daily XP left — help: ${capRemaining(daily, 'help')}, steal: ${capRemaining(daily, 'steal')}`,
+      );
     };
 
     const refreshLog = (): void => {
@@ -224,6 +229,7 @@ export class NeighborScene extends Phaser.Scene {
         popularity,
         giftInbox,
         hasDog: save.hasDog,
+        daily,
       });
     };
 
@@ -352,16 +358,30 @@ export class NeighborScene extends Phaser.Scene {
           verb = 'watered';
         }
 
-        economy.coins += SOCIAL.HELP_COINS;
-        economy.xp += SOCIAL.HELP_XP;
-        economy.level = getLevelFromXp(economy.xp);
-        events = pushEvent(
-          events,
-          'help',
-          `You ${verb} ${neighbor.name}'s ${cropName}. +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin.`,
-          now,
-        );
-        statusMessage = `Helped ${neighbor.name}. +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin.`;
+        // Phase P6: helping always clears the problem, but the XP/coin reward
+        // stops once the player hits the daily help cap (anti-abuse).
+        const capped = capRemaining(daily, 'help') < SOCIAL.HELP_XP;
+        if (capped) {
+          events = pushEvent(
+            events,
+            'help',
+            `You ${verb} ${neighbor.name}'s ${cropName}. Daily help limit reached — no reward.`,
+            now,
+          );
+          statusMessage = `Helped ${neighbor.name}, but the daily help limit is reached — no XP/coins.`;
+        } else {
+          economy.coins += SOCIAL.HELP_COINS;
+          economy.xp += SOCIAL.HELP_XP;
+          economy.level = getLevelFromXp(economy.xp);
+          daily = recordCapXp(daily, 'help', SOCIAL.HELP_XP);
+          events = pushEvent(
+            events,
+            'help',
+            `You ${verb} ${neighbor.name}'s ${cropName}. +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin.`,
+            now,
+          );
+          statusMessage = `Helped ${neighbor.name}. +${SOCIAL.HELP_XP} XP, +${SOCIAL.HELP_COINS} coin.`;
+        }
 
         saveCurrent();
         refreshTileVisual(tile);
@@ -401,8 +421,15 @@ export class NeighborScene extends Phaser.Scene {
       }
       tile.stealRemaining = (tile.stealRemaining ?? 0) - 1;
       stealBudget -= 1;
-      economy.xp += SOCIAL.STEAL_XP;
-      economy.level = getLevelFromXp(economy.xp);
+
+      // Phase P6: the crop is always taken, but stealing stops paying XP once
+      // the daily steal cap is reached (anti-abuse).
+      const stealCapped = capRemaining(daily, 'steal') < SOCIAL.STEAL_XP;
+      if (!stealCapped) {
+        economy.xp += SOCIAL.STEAL_XP;
+        economy.level = getLevelFromXp(economy.xp);
+        daily = recordCapXp(daily, 'steal', SOCIAL.STEAL_XP);
+      }
 
       // Once fully picked, the owner keeps the rest and the crop regrows so the
       // neighbor farm stays alive on future visits.
@@ -414,10 +441,14 @@ export class NeighborScene extends Phaser.Scene {
       events = pushEvent(
         events,
         'steal',
-        `You took 1 ${cropName} from ${neighbor.name}. +${SOCIAL.STEAL_XP} XP.`,
+        stealCapped
+          ? `You took 1 ${cropName} from ${neighbor.name}. Daily steal limit reached — no XP.`
+          : `You took 1 ${cropName} from ${neighbor.name}. +${SOCIAL.STEAL_XP} XP.`,
         now,
       );
-      statusMessage = `Took 1 ${cropName}. +${SOCIAL.STEAL_XP} XP. Budget left: ${stealBudget}.`;
+      statusMessage = stealCapped
+        ? `Took 1 ${cropName} (daily steal XP limit reached). Budget left: ${stealBudget}.`
+        : `Took 1 ${cropName}. +${SOCIAL.STEAL_XP} XP. Budget left: ${stealBudget}.`;
 
       saveCurrent();
       refreshTileVisual(tile);

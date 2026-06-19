@@ -17,6 +17,15 @@ import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import { formatEventTime, pushEvent, SOCIAL } from '../systems/SocialSystem';
 import { plotUnlockInfo } from '../systems/LandSystem';
 import {
+  applyDailyReward,
+  claimDailyReward,
+  createDailyState,
+  isRewardAvailable,
+  rewardForStreak,
+  rolloverDaily,
+  type DailyState,
+} from '../systems/DailySystem';
+import {
   ANIMAL,
   createAnimalInstance,
   feedAnimal,
@@ -70,6 +79,8 @@ export class FarmScene extends Phaser.Scene {
 
   private hasDog = false;
 
+  private daily: DailyState = createDailyState(Date.now());
+
   private statusMessage = '';
 
   private readonly tileSize = { width: 120, height: 90 };
@@ -102,6 +113,7 @@ export class FarmScene extends Phaser.Scene {
     this.popularity = loaded.popularity;
     this.giftInbox = loaded.giftInbox;
     this.hasDog = loaded.hasDog;
+    this.daily = rolloverDaily(loaded.daily, Date.now());
     this.selectedCropId = loaded.selectedCropId;
 
     // Advance crop care for any time that passed while the game was closed.
@@ -172,6 +184,25 @@ export class FarmScene extends Phaser.Scene {
       .text(360, 170, `Buy Guard Dog (K) - ${SOCIAL.DOG_PRICE}c`, {
         color: '#ffffff',
         backgroundColor: '#6a4a2a',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+        padding: { x: 8, y: 5 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2);
+
+    const dailyText = this.add
+      .text(360, 198, '', {
+        color: '#2f6f3f',
+        fontSize: '13px',
+        fontFamily: 'Arial',
+      })
+      .setDepth(1);
+
+    const claimDailyButton = this.add
+      .text(360, 218, 'Claim Daily Reward (J)', {
+        color: '#ffffff',
+        backgroundColor: '#2f7f4f',
         fontSize: '13px',
         fontFamily: 'Arial',
         padding: { x: 8, y: 5 },
@@ -318,7 +349,7 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
-    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog. Click a locked plot to unlock it.');
+    controlsHintText.setText('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily. Click a locked plot to unlock it.');
 
     this.add
       .rectangle(640, 640, 816, 420, 0x6c9a4b)
@@ -601,6 +632,16 @@ export class FarmScene extends Phaser.Scene {
           : '\u{1F415} Guard dog: none',
       );
       buyDogButton.setVisible(!this.hasDog);
+
+      const now = Date.now();
+      const available = isRewardAvailable(this.daily, now);
+      const nextReward = rewardForStreak(available ? this.daily.streak + 1 : this.daily.streak);
+      dailyText.setText(
+        available
+          ? `\u{1F381} Daily reward ready: ${nextReward.label} (streak ${this.daily.streak + 1})`
+          : `\u{1F381} Daily reward claimed. Streak: ${this.daily.streak}. Come back tomorrow.`,
+      );
+      claimDailyButton.setVisible(available);
     };
 
     const buyDog = (): void => {
@@ -624,6 +665,33 @@ export class FarmScene extends Phaser.Scene {
         Date.now(),
       );
       this.statusMessage = 'Guard dog hired. Your farm is now protected.';
+
+      refreshHud();
+      refreshEventLog();
+      saveCurrent();
+      statusText.setText(this.statusMessage);
+    };
+
+    const claimDaily = (): void => {
+      const now = Date.now();
+      this.daily = rolloverDaily(this.daily, now);
+      if (!isRewardAvailable(this.daily, now)) {
+        this.statusMessage = 'Daily reward already claimed today. Come back tomorrow.';
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      const result = claimDailyReward(this.daily, now);
+      this.daily = result.state;
+      applyDailyReward(result.reward, this.economy, this.inventory, this.fertilizers);
+      this.economy.level = getLevelFromXp(this.economy.xp);
+      this.farmEvents = pushEvent(
+        this.farmEvents,
+        'system',
+        `Daily reward (day ${result.streak}): ${result.reward.label}.`,
+        now,
+      );
+      this.statusMessage = `Daily reward claimed: ${result.reward.label} (streak ${result.streak}).`;
 
       refreshHud();
       refreshEventLog();
@@ -687,6 +755,7 @@ export class FarmScene extends Phaser.Scene {
         popularity: this.popularity,
         giftInbox: this.giftInbox,
         hasDog: this.hasDog,
+        daily: this.daily,
       });
     };
 
@@ -703,6 +772,7 @@ export class FarmScene extends Phaser.Scene {
         popularity: this.popularity,
         giftInbox: this.giftInbox,
         hasDog: this.hasDog,
+        daily: this.daily,
       });
     };
 
@@ -1626,6 +1696,7 @@ export class FarmScene extends Phaser.Scene {
       this.popularity = reset.popularity;
       this.giftInbox = reset.giftInbox;
       this.hasDog = reset.hasDog;
+      this.daily = reset.daily;
       this.selectedCropId = reset.selectedCropId;
       this.statusMessage = 'Save reset to default state.';
       this.scene.restart();
@@ -1659,6 +1730,7 @@ export class FarmScene extends Phaser.Scene {
     });
     collectGiftsButton.on('pointerdown', collectGifts);
     buyDogButton.on('pointerdown', buyDog);
+    claimDailyButton.on('pointerdown', claimDaily);
     fertilizerModeButton.on('pointerdown', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';
@@ -1726,6 +1798,7 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-M', sellMaturedAnimals);
     this.input.keyboard?.on('keydown-C', collectGifts);
     this.input.keyboard?.on('keydown-K', buyDog);
+    this.input.keyboard?.on('keydown-J', claimDaily);
     this.input.keyboard?.on('keydown-F', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? 'Fertilizer mode enabled.' : 'Fertilizer mode disabled.';

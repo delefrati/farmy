@@ -303,11 +303,17 @@ Phase P6 - Daily systems and anti-abuse limits
   * daily reward;
   * daily XP/action caps for repetitive social actions;
   * server-side reset window for caps.
-* Current status: TODO.
+* Current status: DONE (client-side; backend enforcement deferred to P8).
+* Implementation notes:
+  * `systems/DailySystem.ts` holds both mechanics. `DailyState` (in the save) tracks `lastClaimDate` + `streak` for the reward and `capsDate` + `helpXp` + `stealXp` for the anti-abuse caps. The reset window is the player's local calendar day (`dayKey`); `rolloverDaily` resets the cap counters when the day changes.
+  * Daily reward: a 5-day rotating table (`DAILY_REWARD_CYCLE`: coins / produce / fertilizer / coins / rare produce — faithful to the original coins/seed/fertilizer/decoration/rare-seed idea, mapped onto this prototype's systems since planting costs coins directly and there is no decoration inventory yet). The streak continues if the previous claim was yesterday, otherwise it restarts at 1. FarmScene shows a "Daily reward ready / claimed" line plus a "Claim Daily Reward (J)" button that only appears when a claim is available.
+  * Anti-abuse caps: helping and stealing stop paying XP/coins once the per-day XP cap is hit (`DAILY.HELP_XP_CAP` 40, `DAILY.STEAL_XP_CAP` 30). The action itself still happens (the friend's plot is still cleared, the crop is still taken) — only the reward stops, matching the original "after the daily cap these actions stopped giving XP/coins". NeighborScene shows the remaining daily XP for help and steal.
+  * Save bumped to v11 (`SaveGame.daily`); v10->v11 (and every older branch) seeds a fresh `DailyState`. The daily state round-trips through local save, reload, and upload/download sync.
+  * Backend note: per the project's local-first ordering ("Sync UX is LAST", P8), the reset window and caps are enforced client-side here. The "enforced by backend / server-side reset window" exit criterion is deferred to P8, where the save sync and server authority land; the cap/reward fields already live in the synced save so the backend can take over enforcement there.
 * Exit criteria:
-  * daily reward claim persists by date;
-  * help/steal XP gains stop or taper after cap;
-  * cap state is enforced by backend, not only UI.
+  * daily reward claim persists by date; [met]
+  * help/steal XP gains stop or taper after cap; [met]
+  * cap state is enforced by backend, not only UI. [deferred to P8 — client-side enforcement in place, fields synced for backend takeover]
 
 Phase P7 - Economy parity tuning pass
 

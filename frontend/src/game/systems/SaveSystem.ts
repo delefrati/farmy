@@ -4,11 +4,12 @@ import { createDefaultInventory, type PlayerInventory } from '../types/inventory
 import { createDefaultAnimals, type AnimalState, type PlayerAnimals } from '../types/animals';
 import { defaultCropId } from '../data/crops';
 import { createNeighborFarms, createStarterGifts } from './SocialSystem';
+import { createDailyState, type DailyState } from './DailySystem';
 import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import type { SaveGame } from '../types/save';
 
 const SAVE_KEY = 'farmy.save.v1';
-const SAVE_VERSION = 10;
+const SAVE_VERSION = 11;
 
 // Animal state shape used before v6 (aggregate chicken coops + pooled eggs).
 type LegacyAnimals = {
@@ -103,6 +104,11 @@ type LegacySaveGameV8 = {
   popularity: number;
   giftInbox: Gift[];
 };
+
+// v9 and v10 share the same TS shape as a full save minus the daily state
+// (v10 only added the optional FarmTile.locked over v9). The daily systems
+// (reward + caps) were added in v11.
+type LegacySaveGamePreDaily = Omit<SaveGame, 'daily'>;
 
 const isLegacyAnimals = (value: unknown): value is LegacyAnimals => {
   if (!value || typeof value !== 'object') {
@@ -297,7 +303,25 @@ const isValidGift = (value: unknown): value is Gift => {
 const isValidGiftInbox = (value: unknown): value is Gift[] =>
   Array.isArray(value) && value.every(isValidGift);
 
-const isValidSaveGame = (value: unknown): value is SaveGame => {
+const isValidDaily = (value: unknown): value is DailyState => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const daily = value as Partial<DailyState>;
+  return (
+    (daily.lastClaimDate === null || typeof daily.lastClaimDate === 'string') &&
+    typeof daily.streak === 'number' &&
+    typeof daily.capsDate === 'string' &&
+    typeof daily.helpXp === 'number' &&
+    typeof daily.stealXp === 'number'
+  );
+};
+
+// Everything a full save needs except the daily state added in v11. Shared by
+// the v11 validator and the v9/v10 -> v11 migration detection (those versions
+// are structurally identical except for the daily field).
+const isValidPreDailySave = (value: unknown): value is LegacySaveGamePreDaily => {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -320,6 +344,14 @@ const isValidSaveGame = (value: unknown): value is SaveGame => {
     isValidGiftInbox(save.giftInbox) &&
     typeof save.hasDog === 'boolean'
   );
+};
+
+const isValidSaveGame = (value: unknown): value is SaveGame => {
+  if (!isValidPreDailySave(value)) {
+    return false;
+  }
+
+  return isValidDaily((value as Partial<SaveGame>).daily);
 };
 
 const isValidLegacySaveGameV2 = (value: unknown): value is LegacySaveGameV2 => {
@@ -495,6 +527,7 @@ export class SaveSystem {
       popularity: 0,
       giftInbox: createStarterGifts(now),
       hasDog: false,
+      daily: createDailyState(now),
     };
   }
 
@@ -510,6 +543,7 @@ export class SaveSystem {
     popularity: number;
     giftInbox: Gift[];
     hasDog: boolean;
+    daily: DailyState;
   }): SaveGame {
     const save: SaveGame = {
       version: SAVE_VERSION,
@@ -525,6 +559,7 @@ export class SaveSystem {
       popularity: saveInput.popularity,
       giftInbox: saveInput.giftInbox,
       hasDog: saveInput.hasDog,
+      daily: saveInput.daily,
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -556,15 +591,29 @@ export class SaveSystem {
 
       const now = Date.now();
 
+      // v10 only lacked the daily systems (reward + caps) added in v11. v10 is
+      // structurally identical to v11 except for the daily field, so it is
+      // detected by version number and seeded with a fresh daily state.
+      if (isValidPreDailySave(parsed) && parsed.version === 10) {
+        const migrated: SaveGame = {
+          ...parsed,
+          version: SAVE_VERSION,
+          daily: createDailyState(now),
+        };
+        this.saveGame(migrated);
+        return migrated;
+      }
+
       // v9 only lacked the land-lock field (P5b). v9 is structurally identical
       // to v10 (locked is optional), so it is detected by version number. Lock
       // the empty bottom-row plots so existing players also get the expansion,
       // while never locking a plot that already has a crop or decoration.
-      if (isValidSaveGame(parsed) && parsed.version === 9) {
+      if (isValidPreDailySave(parsed) && parsed.version === 9) {
         const migrated: SaveGame = {
           ...parsed,
           version: SAVE_VERSION,
           farmTiles: withLockedBottomPlots(parsed.farmTiles),
+          daily: createDailyState(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -578,6 +627,7 @@ export class SaveSystem {
           farmTiles: withLockedBottomPlots(parsed.farmTiles),
           neighbors: withNeighborDogs(parsed.neighbors),
           hasDog: false,
+          daily: createDailyState(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -593,6 +643,7 @@ export class SaveSystem {
           popularity: 0,
           giftInbox: createStarterGifts(now),
           hasDog: false,
+          daily: createDailyState(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -609,6 +660,7 @@ export class SaveSystem {
           popularity: 0,
           giftInbox: createStarterGifts(now),
           hasDog: false,
+          daily: createDailyState(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -631,6 +683,7 @@ export class SaveSystem {
           popularity: 0,
           giftInbox: createStarterGifts(now),
           hasDog: false,
+          daily: createDailyState(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -654,6 +707,7 @@ export class SaveSystem {
           popularity: 0,
           giftInbox: createStarterGifts(now),
           hasDog: false,
+          daily: createDailyState(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -671,6 +725,7 @@ export class SaveSystem {
           popularity: 0,
           giftInbox: createStarterGifts(now),
           hasDog: false,
+          daily: createDailyState(now),
         };
         this.saveGame(migrated);
         return migrated;
@@ -687,6 +742,7 @@ export class SaveSystem {
           popularity: 0,
           giftInbox: createStarterGifts(now),
           hasDog: false,
+          daily: createDailyState(now),
         };
         this.saveGame(migrated);
         return migrated;
