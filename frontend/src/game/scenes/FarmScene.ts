@@ -218,6 +218,11 @@ export class FarmScene extends Phaser.Scene {
       });
     };
 
+    const toTimestamp = (iso: string): number => {
+      const parsed = Date.parse(iso);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
     const getInventoryLabel = (): string => {
       const entries = Object.entries(this.inventory).filter(([, amount]) => amount > 0);
       if (entries.length === 0) {
@@ -361,6 +366,15 @@ export class FarmScene extends Phaser.Scene {
       setSyncLabel('syncing');
       try {
         const currentSave = buildCurrentSave();
+
+        const remoteSave = await this.remoteSaveService.downloadSave();
+        if (remoteSave && toTimestamp(remoteSave.savedAt) > toTimestamp(currentSave.savedAt)) {
+          this.statusMessage = 'Upload blocked: remote save is newer. Download first.';
+          setSyncLabel('error', 'upload blocked by newer remote');
+          statusText.setText(this.statusMessage);
+          return;
+        }
+
         await this.remoteSaveService.uploadSave(currentSave);
         this.statusMessage = 'Save uploaded to backend.';
         lastSyncLabel = new Date().toLocaleTimeString();
@@ -382,10 +396,18 @@ export class FarmScene extends Phaser.Scene {
       isSyncing = true;
       setSyncLabel('syncing');
       try {
+        const localSave = this.saveSystem.loadGame();
         const remoteSave = await this.remoteSaveService.downloadSave();
         if (!remoteSave) {
           this.statusMessage = 'No remote save found yet.';
           setSyncLabel('idle', 'no remote save');
+          statusText.setText(this.statusMessage);
+          return;
+        }
+
+        if (toTimestamp(remoteSave.savedAt) < toTimestamp(localSave.savedAt)) {
+          this.statusMessage = 'Download blocked: local save is newer. Upload first.';
+          setSyncLabel('error', 'download blocked by newer local');
           statusText.setText(this.statusMessage);
           return;
         }

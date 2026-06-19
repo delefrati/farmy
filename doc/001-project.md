@@ -148,6 +148,7 @@ This section reflects the current implementation state in the repository and loc
   * last successful sync timestamp is displayed in UI
   * active sync profile id is displayed and configurable (`?profile=<id>` / env / localStorage)
   * profile token is configurable (`?token=<value>` / env / localStorage) and shown as masked preview
+  * sync now blocks overwriting when target save is newer (basic timestamp conflict guard)
 
 ### In Progress / Partial
 
@@ -163,7 +164,7 @@ This section reflects the current implementation state in the repository and loc
 ### Not Started Yet (Gameplay)
 
 * Full account identity/auth lifecycle (beyond token-per-profile).
-* Merge/conflict strategy between local and remote saves.
+* Merge strategy beyond timestamp guard (manual merge/force options).
 * Economy balancing for seed costs, sell prices, growth times, and XP curve.
 * UI polish for shop and feedback panel.
 * Animal/decor/social phases.
