@@ -104,11 +104,17 @@
     "Sell Mature (M)": "Vender Adultos (M)",
     "Fertilizer (F)": "Fertilizante (F)",
     "Buy Fertilizer (B)": "Comprar Fertilizante (B)",
+    "Shop (O)": "Loja (O)",
+    "Shop": "Loja",
+    "Animals": "Animais",
+    "Seeds": "Sementes",
+    "Fertilizer": "Fertilizante",
+    "Decorations": "Decorações",
     "Seed Shop:": "Loja de Sementes:",
     "Decorations:": "Decorações:",
 
     "Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.": "Clique em um espaço vazio para plantar. Clique em uma plantação para cuidar (regar/ervas/pragas) ou colher. Venda com S.",
-    "Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing | Y sync. Click a locked plot to unlock it.": "Atalhos: S vender | R resetar | L entrar | U enviar | D baixar | G decoração | F fertilizar | B comprar fert | ,/. trocar | A alimentar | E coletar | M vender adultos | C presentes | K cão | J diária | P ritmo | Y sincronizar. Clique em um espaço bloqueado para desbloqueá-lo.",
+    "Shortcuts: O shop | S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing | Y sync. Click a locked plot to unlock it.": "Atalhos: O loja | S vender | R resetar | L entrar | U enviar | D baixar | G decoração | F fertilizar | B comprar fert | ,/. trocar | A alimentar | E coletar | M vender adultos | C presentes | K cão | J diária | P ritmo | Y sincronizar. Clique em um espaço bloqueado para desbloqueá-lo.",
 
     "Coins: {coins} | XP: {xp} | Level: {level}": "Moedas: {coins} | XP: {xp} | Nível: {level}",
     "Next level in {xp} XP": "Próximo nível em {xp} XP",

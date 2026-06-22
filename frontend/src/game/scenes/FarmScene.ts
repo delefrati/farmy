@@ -8,14 +8,14 @@ import type { PlayerAnimals } from '../types/animals';
 import { crops, defaultCropId } from '../data/crops';
 import type { CropDefinition } from '../types/crop';
 import { RemoteSaveService } from '../services/RemoteSaveService';
-import { getLevelFromXp, getXpToNextLevel } from '../data/progression';
+import { getLevelFromXp, getXpRequiredForLevel, getXpToNextLevel } from '../data/progression';
 import { decorations, defaultDecorationId } from '../data/decorations';
 import type { DecorationDefinition } from '../types/decoration';
 import { fertilizers, defaultFertilizerId } from '../data/fertilizers';
 import type { FertilizerDefinition } from '../types/fertilizer';
 import { animalDefinitions, getAnimalDefinition } from '../data/animals';
 import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
-import { formatEventTime, pushEvent, SOCIAL } from '../systems/SocialSystem';
+import { avatarKeyForNeighbor, formatEventTime, pushEvent, SOCIAL } from '../systems/SocialSystem';
 import { plotUnlockInfo } from '../systems/LandSystem';
 import {
   applyDailyReward,
@@ -60,6 +60,8 @@ import {
   waterTile,
 } from '../systems/CareSystem';
 import { cycleLocale, getLocaleLabel, onLocaleChange, t } from '../i18n';
+import { mountDevMenu, unmountDevMenu } from '../dev/DevMenu';
+import { createNineSlice } from '../ui/NineSlice';
 
 type TileVisual = {
   rect: Phaser.GameObjects.Rectangle;
@@ -170,12 +172,21 @@ export class FarmScene extends Phaser.Scene {
     const tileVisuals = new Map<string, TileVisual>();
 
     this.add
-      .text(24, 836, t('Farmy — mechanics prototype'), {
+      .text(24, 686, t('Farmy — mechanics prototype'), {
         color: '#3f5f2f',
         fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
+
+    // Shop is now a tabbed modal (see the "Shop modal" section below) opened
+    // from a single button, instead of an always-visible bottom tray. These
+    // shared values place the purchasable buttons inside the modal's content
+    // area at a depth above the nine-slice panel, and the arrays collect the
+    // seed/decoration selector buttons so each tab can toggle its own group.
+    const SHOP_CONTENT_DEPTH = 4002;
+    const seedShopButtons: Phaser.GameObjects.Text[] = [];
+    const decorationShopButtons: Phaser.GameObjects.Text[] = [];
 
     const hudText = this.add
       .text(46, 100, '', {
@@ -215,7 +226,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const buyDogButton = this.add
-      .text(360, 170, t('Buy Guard Dog (K) - {price}c', { price: SOCIAL.DOG_PRICE }), {
+      .text(480, 452, t('Buy Guard Dog (K) - {price}c', { price: SOCIAL.DOG_PRICE }), {
         color: '#ffffff',
         backgroundColor: '#6a4a2a',
         fontSize: '13px',
@@ -223,7 +234,8 @@ export class FarmScene extends Phaser.Scene {
         padding: { x: 8, y: 5 },
       })
       .setInteractive({ useHandCursor: true })
-      .setDepth(2);
+      .setDepth(SHOP_CONTENT_DEPTH)
+      .setVisible(false);
 
     const dailyText = this.add
       .text(360, 198, '', {
@@ -371,9 +383,18 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
-    const visitButtons: Phaser.GameObjects.Text[] = this.neighbors.map((neighbor, index) =>
-      this.add
-        .text(1058, 142 + index * 34, t('Visit {name}', { name: neighbor.name }), {
+    const visitButtons: Phaser.GameObjects.Text[] = this.neighbors.map((neighbor, index) => {
+      const rowY = 142 + index * 34;
+      // Small round portrait to the left of the button, when the art exists.
+      const avatarKey = avatarKeyForNeighbor(neighbor.id);
+      const hasAvatar = this.textures.exists(avatarKey);
+      if (hasAvatar) {
+        const avatar = this.add.image(1042, rowY + 9, avatarKey).setDepth(2);
+        const size = 26;
+        avatar.setDisplaySize(size, (avatar.height / avatar.width) * size);
+      }
+      return this.add
+        .text(hasAvatar ? 1058 : 1042, rowY, t('Visit {name}', { name: neighbor.name }), {
           color: '#ffffff',
           backgroundColor: '#345c7a',
           fontSize: '13px',
@@ -381,8 +402,8 @@ export class FarmScene extends Phaser.Scene {
           padding: { x: 8, y: 5 },
         })
         .setInteractive({ useHandCursor: true })
-        .setDepth(2),
-    );
+        .setDepth(2);
+    });
 
     this.add
       .text(1058, 142 + this.neighbors.length * 34 + 6, t('Activity log'), {
@@ -411,7 +432,7 @@ export class FarmScene extends Phaser.Scene {
       })
       .setDepth(1);
 
-    controlsHintText.setText(t('Shortcuts: S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing | Y sync. Click a locked plot to unlock it.'));
+    controlsHintText.setText(t('Shortcuts: O shop | S sell | R reset | L login | U upload | D download | G decor | F fertilize | B buy fert | ,/. switch | A feed | E collect | M sell mature | C gifts | K dog | J daily | P pacing | Y sync. Click a locked plot to unlock it.'));
 
     const resetButton = this.add
       .text(790, 14, t('Reset Save (R)'), {
@@ -524,7 +545,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const buyChickenButton = this.add
-      .text(820, 54, t('Buy Chicken'), {
+      .text(480, 340, t('Buy Chicken'), {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
         fontSize: '13px',
@@ -532,10 +553,11 @@ export class FarmScene extends Phaser.Scene {
         padding: { x: 8, y: 5 },
       })
       .setInteractive({ useHandCursor: true })
-      .setDepth(2);
+      .setDepth(SHOP_CONTENT_DEPTH)
+      .setVisible(false);
 
     const buyCalfButton = this.add
-      .text(940, 54, t('Buy Calf'), {
+      .text(480, 396, t('Buy Calf'), {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
         fontSize: '13px',
@@ -543,7 +565,8 @@ export class FarmScene extends Phaser.Scene {
         padding: { x: 8, y: 5 },
       })
       .setInteractive({ useHandCursor: true })
-      .setDepth(2);
+      .setDepth(SHOP_CONTENT_DEPTH)
+      .setVisible(false);
 
     const feedAnimalsButton = this.add
       .text(1040, 54, t('Feed All (A)'), {
@@ -590,7 +613,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const buyFertilizerButton = this.add
-      .text(305, 54, t('Buy Fertilizer (B)'), {
+      .text(480, 360, t('Buy Fertilizer (B)'), {
         color: '#ffffff',
         backgroundColor: '#2f6f3b',
         fontSize: '12px',
@@ -598,7 +621,8 @@ export class FarmScene extends Phaser.Scene {
         padding: { x: 8, y: 5 },
       })
       .setInteractive({ useHandCursor: true })
-      .setDepth(2);
+      .setDepth(SHOP_CONTENT_DEPTH)
+      .setVisible(false);
 
     // Prefix a text button with a small icon drawn inside extra left padding,
     // so the button grows to the right only. Tolerant of missing art: when the
@@ -635,6 +659,184 @@ export class FarmScene extends Phaser.Scene {
     // Buttons that toggle visibility: keep their icon in sync (see refreshHud).
     const buyDogIcon = addButtonIcon(buyDogButton, 'icon_dog');
     const claimDailyIcon = addButtonIcon(claimDailyButton, 'icon_calendar');
+
+    // ----- Shop modal -----------------------------------------------------
+    // A tabbed pop-up that gathers every purchasable into one nine-slice wood
+    // panel, opened from a single button. The purchase/selector buttons live at
+    // SHOP_CONTENT_DEPTH (above the panel) and are toggled per tab; the chrome
+    // (dimmer, panel, ribbon title, tab buttons, close) toggles with open/close.
+    type ShopTab = 'animals' | 'seeds' | 'fertilizer' | 'decorations';
+    type Hideable = { setVisible: (value: boolean) => unknown };
+
+    const SHOP_PANEL_DEPTH = 3998;
+    let shopOpen = false;
+    let activeShopTab: ShopTab = 'animals';
+
+    const shopDimmer = this.add
+      .rectangle(640, 430, 1280, 860, 0x000000, 0.45)
+      .setDepth(3990)
+      .setInteractive()
+      .setVisible(false);
+
+    const shopPanel: Phaser.GameObjects.Container | Phaser.GameObjects.Rectangle = this.textures.exists('panel_wood')
+      ? createNineSlice({ scene: this, key: 'panel_wood', x: 640, y: 392, width: 920, height: 600, left: 104 })
+          .setDepth(SHOP_PANEL_DEPTH)
+          .setVisible(false)
+      : this.add
+          .rectangle(640, 392, 920, 600, 0xede0c0, 0.98)
+          .setStrokeStyle(4, 0x7b4f1d)
+          .setDepth(SHOP_PANEL_DEPTH)
+          .setVisible(false);
+
+    // Transparent interactive cover so clicks on the panel body don't fall
+    // through to the dimmer (which closes the shop). Phaser's topOnly input
+    // routing means tab/content buttons above this still receive their clicks.
+    const shopBlocker = this.add
+      .rectangle(640, 392, 920, 600, 0x000000, 0.001)
+      .setDepth(SHOP_PANEL_DEPTH + 1)
+      .setInteractive()
+      .setVisible(false);
+
+    let shopRibbon: Phaser.GameObjects.Image | null = null;
+    if (this.textures.exists('panel_ribbon')) {
+      shopRibbon = this.add.image(640, 150, 'panel_ribbon').setDepth(4001).setVisible(false);
+      const ribbonWidth = 340;
+      shopRibbon.setDisplaySize(ribbonWidth, ribbonWidth * (shopRibbon.height / shopRibbon.width));
+    }
+
+    const shopTitle = this.add
+      .text(640, 138, t('Shop'), {
+        color: '#5a3210',
+        fontSize: '24px',
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(4002)
+      .setVisible(false);
+
+    const shopCloseButton = this.add
+      .text(1052, 124, '\u2715', {
+        color: '#ffffff',
+        backgroundColor: '#a23b2a',
+        fontSize: '18px',
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(4003)
+      .setVisible(false);
+
+    const shopTabDefs: Array<{ id: ShopTab; label: string }> = [
+      { id: 'animals', label: t('Animals') },
+      { id: 'seeds', label: t('Seeds') },
+      { id: 'fertilizer', label: t('Fertilizer') },
+      { id: 'decorations', label: t('Decorations') },
+    ];
+    const shopTabButtons = new Map<ShopTab, Phaser.GameObjects.Text>();
+
+    const shopTabGroup = (tab: ShopTab): Hideable[] => {
+      switch (tab) {
+        case 'animals':
+          return [buyChickenButton, buyCalfButton, buyDogButton, buyDogIcon].filter(
+            (object): object is Phaser.GameObjects.Text | Phaser.GameObjects.Image => object !== null,
+          );
+        case 'seeds':
+          return seedShopButtons;
+        case 'fertilizer':
+          return [buyFertilizerButton];
+        case 'decorations':
+          return decorationShopButtons;
+      }
+    };
+
+    const applyShopVisibility = (): void => {
+      (['animals', 'seeds', 'fertilizer', 'decorations'] as ShopTab[]).forEach((tab) => {
+        const visible = shopOpen && tab === activeShopTab;
+        shopTabGroup(tab).forEach((object) => object.setVisible(visible));
+      });
+      // Guard dog vanishes from the Animals tab once it has been purchased.
+      const dogVisible = shopOpen && activeShopTab === 'animals' && !this.hasDog;
+      buyDogButton.setVisible(dogVisible);
+      buyDogIcon?.setVisible(dogVisible);
+    };
+
+    const setShopTab = (tab: ShopTab): void => {
+      activeShopTab = tab;
+      shopTabButtons.forEach((button, id) => {
+        button.setBackgroundColor(id === tab ? '#c98a3a' : '#7a5a32');
+      });
+      applyShopVisibility();
+    };
+
+    shopTabDefs.forEach((tab, index) => {
+      const tabX = 640 + (index - (shopTabDefs.length - 1) / 2) * 172;
+      const button = this.add
+        .text(tabX, 236, tab.label, {
+          color: '#ffffff',
+          backgroundColor: '#7a5a32',
+          fontSize: '14px',
+          fontFamily: 'Arial',
+          fontStyle: 'bold',
+          padding: { x: 12, y: 6 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(4001)
+        .setVisible(false);
+      button.on('pointerdown', () => setShopTab(tab.id));
+      shopTabButtons.set(tab.id, button);
+    });
+
+    const setShopChromeVisible = (visible: boolean): void => {
+      shopDimmer.setVisible(visible);
+      shopPanel.setVisible(visible);
+      shopBlocker.setVisible(visible);
+      shopRibbon?.setVisible(visible);
+      shopTitle.setVisible(visible);
+      shopCloseButton.setVisible(visible);
+      shopTabButtons.forEach((button) => button.setVisible(visible));
+    };
+
+    const openShop = (): void => {
+      shopOpen = true;
+      setShopChromeVisible(true);
+      setShopTab(activeShopTab);
+    };
+
+    const closeShop = (): void => {
+      shopOpen = false;
+      setShopChromeVisible(false);
+      applyShopVisibility();
+    };
+
+    const toggleShop = (): void => {
+      if (shopOpen) {
+        closeShop();
+      } else {
+        openShop();
+      }
+    };
+
+    shopDimmer.on('pointerdown', closeShop);
+    shopCloseButton.on('pointerdown', closeShop);
+
+    const openShopButton = this.add
+      .text(24, 712, t('Shop (O)'), {
+        color: '#ffffff',
+        backgroundColor: '#7b4f1d',
+        fontSize: '15px',
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
+        padding: { x: 12, y: 7 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(3);
+    openShopButton.on('pointerdown', toggleShop);
+    addButtonIcon(openShopButton, 'icon_seed');
+    // ----- end Shop modal -------------------------------------------------
 
     const getCrop = (cropId: string | undefined): CropDefinition | undefined => {
       if (!cropId) {
@@ -753,8 +955,7 @@ export class FarmScene extends Phaser.Scene {
           ? t('\u{1F415} Guard dog: ON (protecting your farm)')
           : t('\u{1F415} Guard dog: none'),
       );
-      buyDogButton.setVisible(!this.hasDog);
-      buyDogIcon?.setVisible(!this.hasDog);
+      applyShopVisibility();
 
       const now = Date.now();
       const available = isRewardAvailable(this.daily, now);
@@ -1215,29 +1416,29 @@ export class FarmScene extends Phaser.Scene {
     };
 
     const renderSeedSelector = (): void => {
-      this.add
-        .text(24, 340, t('Seed Shop:'), {
-          color: '#1f3f10',
-          fontSize: '16px',
-          fontFamily: 'Arial',
-        })
-        .setDepth(2);
+      seedShopButtons.length = 0;
 
       crops.forEach((crop, index) => {
         const isSelected = crop.id === this.selectedCropId;
         const isUnlocked = this.economy.level >= crop.unlockLevel;
 
+        // 3-per-row grid inside the Seeds tab of the shop modal.
+        const perRow = 3;
+        const col = index % perRow;
+        const row = Math.floor(index / perRow);
+
         const button = this.add
-          .text(130 + index * 140, 334, `${t(crop.name)}\nL${crop.unlockLevel}`, {
+          .text(360 + col * 200, 320 + row * 70, `${t(crop.name)} · L${crop.unlockLevel}`, {
             color: '#ffffff',
             backgroundColor: isSelected ? '#357a38' : isUnlocked ? '#4b6d33' : '#777777',
-            fontSize: '12px',
+            fontSize: '13px',
             fontFamily: 'Arial',
-            padding: { x: 8, y: 6 },
-            align: 'center',
+            padding: { x: 10, y: 7 },
           })
           .setInteractive({ useHandCursor: true })
-          .setDepth(2);
+          .setDepth(SHOP_CONTENT_DEPTH)
+          .setVisible(false);
+        seedShopButtons.push(button);
 
         button.on('pointerdown', () => {
           if (this.economy.level < crop.unlockLevel) {
@@ -1258,35 +1459,29 @@ export class FarmScene extends Phaser.Scene {
     };
 
     const renderDecorationSelector = (): void => {
-      this.add
-        .text(24, 390, t('Decorations:'), {
-          color: '#4f2f77',
-          fontSize: '14px',
-          fontFamily: 'Arial',
-        })
-        .setDepth(2);
+      decorationShopButtons.length = 0;
 
       decorations.forEach((decoration, index) => {
         const isSelected = decoration.id === selectedDecorationId;
         const isUnlocked = this.economy.level >= decoration.unlockLevel;
 
-        // Wrap the buttons into rows so the (now longer) decoration list stays
-        // on-screen instead of running off the right edge.
-        const perRow = 7;
+        // 4-per-row grid inside the Decorations tab of the shop modal.
+        const perRow = 4;
         const col = index % perRow;
         const row = Math.floor(index / perRow);
 
         const button = this.add
-          .text(130 + col * 150, 384 + row * 38, `${t(decoration.name)}\nL${decoration.unlockLevel}`, {
+          .text(300 + col * 196, 318 + row * 58, `${t(decoration.name)} · L${decoration.unlockLevel}`, {
             color: '#ffffff',
             backgroundColor: isSelected ? '#5f3b8a' : isUnlocked ? '#7751a1' : '#777777',
-            fontSize: '11px',
+            fontSize: '12px',
             fontFamily: 'Arial',
-            padding: { x: 8, y: 5 },
-            align: 'center',
+            padding: { x: 8, y: 6 },
           })
           .setInteractive({ useHandCursor: true })
-          .setDepth(2);
+          .setDepth(SHOP_CONTENT_DEPTH)
+          .setVisible(false);
+        decorationShopButtons.push(button);
 
         button.on('pointerdown', () => {
           if (!isUnlocked) {
@@ -2370,6 +2565,7 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-K', buyDog);
     this.input.keyboard?.on('keydown-J', claimDaily);
     this.input.keyboard?.on('keydown-P', cyclePacing);
+    this.input.keyboard?.on('keydown-O', toggleShop);
     this.input.keyboard?.on('keydown-F', () => {
       fertilizerMode = !fertilizerMode;
       this.statusMessage = fertilizerMode ? t('Fertilizer mode enabled.') : t('Fertilizer mode disabled.');
@@ -2432,6 +2628,152 @@ export class FarmScene extends Phaser.Scene {
     refreshSelectedSeedLabel();
     renderSeedSelector();
     renderDecorationSelector();
+
+    if (isDevMode) {
+      // Dev-only overlay for fast validation: edit values and run shortcuts,
+      // then persist + restart so the change is fully reflected. Hidden from
+      // production builds (import.meta.env.DEV is false there).
+      const applyDev = (): void => {
+        saveCurrent();
+        this.scene.restart();
+      };
+
+      const setCount = (bag: PlayerInventory, id: string, value: number): void => {
+        const count = Math.max(0, Math.floor(value));
+        if (count <= 0) {
+          delete bag[id];
+        } else {
+          bag[id] = count;
+        }
+      };
+
+      const makeAllCropsReady = (): void => {
+        const now = Date.now();
+        this.farmTiles.forEach((tile) => {
+          if (tile.state !== 'planted') {
+            return;
+          }
+          const crop = getCrop(tile.cropId);
+          if (!crop) {
+            return;
+          }
+          // Back-date planting so growth reads as complete under the current
+          // pacing scale, and clear any care problems so it isn't flagged dead.
+          tile.plantedAt = now - Math.ceil((crop.growSeconds * 1000) / effectiveScale()) - 1000;
+          tile.health = CARE.MAX_HEALTH;
+          tile.isDry = false;
+          tile.hasWeeds = false;
+          tile.hasPests = false;
+          tile.wateredAt = now;
+          tile.careUpdatedAt = now;
+        });
+      };
+
+      const clearAllTiles = (): void => {
+        this.farmTiles.forEach((tile) => {
+          tile.state = 'empty';
+          tile.cropId = undefined;
+          tile.plantedAt = undefined;
+          tile.decorationId = undefined;
+          tile.season = undefined;
+          tile.fertilizedStage = undefined;
+          clearTileCare(tile);
+        });
+      };
+
+      const matureAllAnimals = (): void => {
+        const now = Date.now();
+        this.animals.animals.forEach((animal) => {
+          const def = getAnimalDefinition(animal.defId);
+          if (!def) {
+            return;
+          }
+          animal.fedUntil = now + 10 * 60 * 1000;
+          if (def.kind === 'growing') {
+            animal.matured = true;
+            animal.growthMs = (def.growSeconds ?? 0) * 1000;
+          } else {
+            animal.storedProduct = def.produceCap ?? animal.storedProduct;
+          }
+        });
+      };
+
+      const productFields = animalDefinitions
+        .filter((def) => def.kind === 'productive' && def.productId)
+        .map((def) => ({
+          label: t(def.productLabel ?? def.productId ?? def.name),
+          get: () => this.inventory[def.productId as string] ?? 0,
+          set: (v: number) => setCount(this.inventory, def.productId as string, v),
+        }));
+
+      mountDevMenu({
+        onChange: applyDev,
+        sections: [
+          {
+            title: 'Economy',
+            fields: [
+              { label: 'Coins', get: () => this.economy.coins, set: (v) => { this.economy.coins = Math.max(0, Math.floor(v)); } },
+              { label: 'XP', get: () => this.economy.xp, set: (v) => { this.economy.xp = Math.max(0, Math.floor(v)); this.economy.level = getLevelFromXp(this.economy.xp); } },
+              { label: 'Level', get: () => this.economy.level, set: (v) => { const lvl = Math.max(1, Math.floor(v)); this.economy.level = lvl; this.economy.xp = Math.max(this.economy.xp, getXpRequiredForLevel(lvl)); } },
+              { label: 'Popularity', get: () => this.popularity, set: (v) => { this.popularity = Math.max(0, Math.floor(v)); } },
+            ],
+            actions: [
+              { label: '+1k coins', run: () => { this.economy.coins += 1000; } },
+              { label: 'Max level', run: () => { this.economy.level = 15; this.economy.xp = getXpRequiredForLevel(15); } },
+              { label: 'Toggle dog', run: () => { this.hasDog = !this.hasDog; } },
+              { label: '+1 gift', run: () => { this.giftInbox.push({ id: `gift-dev-${Date.now()}`, fromName: 'Dev', flowerId: 'rose', at: Date.now() }); } },
+            ],
+          },
+          {
+            title: 'Inventory',
+            fields: [
+              ...crops.map((crop) => ({
+                label: t(crop.name),
+                get: () => this.inventory[crop.id] ?? 0,
+                set: (v: number) => setCount(this.inventory, crop.id, v),
+              })),
+              ...productFields,
+            ],
+          },
+          {
+            title: 'Fertilizers',
+            fields: fertilizers.map((fert) => ({
+              label: t(fert.name),
+              get: () => this.fertilizers[fert.id] ?? 0,
+              set: (v: number) => setCount(this.fertilizers, fert.id, v),
+            })),
+          },
+          {
+            title: 'Animals',
+            actions: [
+              ...animalDefinitions.map((def) => ({
+                label: `Add ${t(def.name)}`,
+                run: () => { this.animals.animals.push(createAnimalInstance(def.id, Date.now())); },
+              })),
+              { label: 'Mature all', run: matureAllAnimals },
+              { label: 'Remove all', run: () => { this.animals.animals = []; } },
+            ],
+          },
+          {
+            title: 'Land & Crops',
+            actions: [
+              { label: 'Unlock all land', run: () => { this.farmTiles.forEach((tile) => { tile.locked = false; }); } },
+              { label: 'Ripen crops', run: makeAllCropsReady },
+              { label: 'Clear tiles', run: clearAllTiles },
+            ],
+          },
+          {
+            title: 'Save',
+            actions: [
+              { label: 'Reset save', run: resetSave, apply: false },
+            ],
+          },
+        ],
+      });
+
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, unmountDevMenu);
+      this.events.once(Phaser.Scenes.Events.DESTROY, unmountDevMenu);
+    }
 
     renderGrid();
 

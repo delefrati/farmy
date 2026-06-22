@@ -10,7 +10,7 @@ import type { PlayerAnimals } from '../types/animals';
 import type { FarmEvent, Gift, NeighborFarm } from '../types/social';
 import { getLevelFromXp } from '../data/progression';
 import { removePests, removeWeeds, waterTile } from '../systems/CareSystem';
-import { flowerCrops, makeGift, pushEvent, rollDogCatch, SABOTAGE_ENABLED, SOCIAL } from '../systems/SocialSystem';
+import { avatarKeyForNeighbor, flowerCrops, makeGift, pushEvent, rollDogCatch, SABOTAGE_ENABLED, SOCIAL } from '../systems/SocialSystem';
 import { capRemaining, recordCapXp, rolloverDaily, type DailyState } from '../systems/DailySystem';
 import { cycleLocale, getLocaleLabel, onLocaleChange, t } from '../i18n';
 
@@ -103,8 +103,17 @@ export class NeighborScene extends Phaser.Scene {
       return;
     }
 
+    // Round portrait of the neighbor being visited, when the art is present.
+    const avatarKey = avatarKeyForNeighbor(neighbor.id);
+    const headerTextX = this.textures.exists(avatarKey) ? 96 : 40;
+    if (this.textures.exists(avatarKey)) {
+      const avatar = this.add.image(64, 44, avatarKey).setDepth(1);
+      const diameter = 56;
+      avatar.setDisplaySize(diameter, (avatar.height / avatar.width) * diameter);
+    }
+
     this.add
-      .text(40, 28, t("Visiting {name}'s farm", { name: neighbor.name }), {
+      .text(headerTextX, 28, t("Visiting {name}'s farm", { name: neighbor.name }), {
         color: '#2f4f1f',
         fontSize: '22px',
         fontFamily: 'Arial',

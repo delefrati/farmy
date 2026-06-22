@@ -55,6 +55,20 @@ const mulberry32 = (seed: number): (() => number) => {
 
 const NEIGHBOR_NAMES = ['Maria', 'João', 'Ana'] as const;
 
+// Texture key for a neighbor's round portrait, keyed by their generated id
+// (`neighbor-<index>`). Falls back to the generic placeholder avatar.
+const NEIGHBOR_AVATAR_KEYS = [
+  'neighbor_avatar_maria',
+  'neighbor_avatar_joao',
+  'neighbor_avatar_ana',
+] as const;
+
+export const avatarKeyForNeighbor = (id: string): string => {
+  const match = /^neighbor-(\d+)$/.exec(id);
+  const index = match ? Number(match[1]) : -1;
+  return NEIGHBOR_AVATAR_KEYS[index] ?? 'avatar_placeholder';
+};
+
 const pickCrop = (rng: () => number): CropDefinition => {
   const index = Math.floor(rng() * crops.length) % crops.length;
   return crops[index];

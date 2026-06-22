@@ -113,6 +113,15 @@ JOBS = [
         (0.333, 0.667, 0.667, 1.000, 'decor', 'decor_path_tile'),
         (0.667, 0.667, 1.000, 1.000, 'decor', 'decor_fence_post'),
     ]),
+    # Phase 2 — neighbor avatars (2x2 grid, solid cyan studio background).
+    # bgmode 'solid' flood-fills the flat backdrop from the borders; the golden
+    # ring frames wall off each portrait's interior so the inner sky is kept.
+    ('ChatGPT Image Jun 19, 2026, 03_47_04 PM.png', [
+        (0.0, 0.0, 0.5, 0.5, 'ui', 'neighbor_avatar_maria'),
+        (0.5, 0.0, 1.0, 0.5, 'ui', 'neighbor_avatar_joao'),
+        (0.0, 0.5, 0.5, 1.0, 'ui', 'neighbor_avatar_ana'),
+        (0.5, 0.5, 1.0, 1.0, 'ui', 'avatar_placeholder'),
+    ], 'solid'),
 ]
 
 MIN_AREA = 1200
@@ -138,17 +147,40 @@ def make_alpha(arr):
     return ~background
 
 
+def make_alpha_solid(arr):
+    """Return a boolean foreground mask for a sheet drawn on a single flat
+    studio color (e.g. solid cyan). Flood-fills pixels close to the sheet's
+    dominant border color inward from the edges. Sprite interiors that happen to
+    share that color are kept as long as a darker outline walls them off from the
+    border (the same assumption make_alpha relies on)."""
+    rgb = arr[:, :, :3].astype(int)
+    border_px = np.concatenate([rgb[0, :, :], rgb[-1, :, :], rgb[:, 0, :], rgb[:, -1, :]])
+    bcol = np.median(border_px, axis=0)
+    dist = np.abs(rgb - bcol).sum(2)
+    bg_like = dist < 60
+    labels, n = ndimage.label(bg_like)
+    if n == 0:
+        return np.ones(rgb.shape[:2], dtype=bool)
+    border = set(labels[0, :]) | set(labels[-1, :]) | set(labels[:, 0]) | set(labels[:, -1])
+    border.discard(0)
+    background = np.isin(labels, list(border))
+    return ~background
+
+
 def main():
-    for fname, cells in JOBS:
+    for job in JOBS:
+        fname, cells = job[0], job[1]
+        bgmode = job[2] if len(job) > 2 else 'auto'
         path = os.path.join(SRC, fname)
         src = Image.open(path).convert('RGBA')
         W, H = src.size
         arr = np.array(src)
         # Some sheets are already exported with a real alpha channel; others have
-        # a baked-in light-gray checkerboard background. Reuse the existing alpha
-        # when the source is already meaningfully transparent, otherwise derive
-        # the foreground by flood-filling the checkerboard from the borders.
-        if (arr[:, :, 3] < 16).mean() > 0.02:
+        # a baked-in light-gray checkerboard background; a few sit on a single
+        # flat studio color. Pick the matching foreground extractor.
+        if bgmode == 'solid':
+            fg = make_alpha_solid(arr)
+        elif (arr[:, :, 3] < 16).mean() > 0.02:
             fg = arr[:, :, 3] > 32
         else:
             fg = make_alpha(arr)

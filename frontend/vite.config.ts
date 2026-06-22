@@ -19,6 +19,9 @@ export default defineConfig({
     },
   },
   server: {
+    // Bind to 0.0.0.0 so the dev server is reachable from other devices on
+    // the local network (phones, other PCs). Vite prints the LAN URL on start.
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:53001',

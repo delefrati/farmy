@@ -15,6 +15,11 @@ export const createGameConfig = (parent: string | HTMLElement): Phaser.Types.Cor
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    // Fill the available container (full viewport on mobile) and letterbox the
+    // fixed 1280x860 design inside it, keeping aspect ratio.
+    width: 1280,
+    height: 860,
+    expandParent: true,
   },
   scene: [BootScene, FarmScene, NeighborScene],
 });

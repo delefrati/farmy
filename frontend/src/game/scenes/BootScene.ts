@@ -49,6 +49,56 @@ export class BootScene extends Phaser.Scene {
       });
     }
 
-    this.scene.start('FarmScene');
+    this.showSplash(() => this.scene.start('FarmScene'));
+  }
+
+  /**
+   * Brief branded splash: fade the logo in over a soft backdrop, hold, then
+   * fade the scene out and continue. Falls back to starting immediately when
+   * the logo art isn't present. A pointer/key press skips the wait.
+   */
+  private showSplash(done: () => void): void {
+    if (!this.textures.exists('logo_farmy')) {
+      done();
+      return;
+    }
+
+    const { width, height } = this.scale;
+    this.cameras.main.setBackgroundColor('#9fdd7a');
+
+    const logo = this.add
+      .image(width / 2, height / 2, 'logo_farmy')
+      .setOrigin(0.5)
+      .setAlpha(0);
+
+    // Fit the logo to ~70% of the canvas width, preserving aspect.
+    const maxWidth = width * 0.7;
+    if (logo.width > maxWidth) {
+      const scale = maxWidth / logo.width;
+      logo.setScale(scale);
+    }
+
+    let finished = false;
+    const finish = (): void => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      this.cameras.main.fadeOut(220, 159, 221, 122);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, done);
+    };
+
+    this.tweens.add({
+      targets: logo,
+      alpha: 1,
+      scale: { from: logo.scale * 0.9, to: logo.scale },
+      ease: 'Back.Out',
+      duration: 360,
+    });
+
+    // Auto-advance after a short hold; let the player tap/press to skip.
+    this.time.delayedCall(1400, finish);
+    this.input.once(Phaser.Input.Events.POINTER_DOWN, finish);
+    this.input.keyboard?.once('keydown', finish);
   }
 }

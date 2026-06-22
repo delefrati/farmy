@@ -87,6 +87,11 @@ const uiAssets: AssetEntry[] = [
   { key: 'icon_lock', url: `${BASE}/ui/icon_lock.png` },
   { key: 'icon_sync', url: `${BASE}/ui/icon_sync.png` },
   { key: 'icon_globe', url: `${BASE}/ui/icon_globe.png` },
+  { key: 'logo_farmy', url: `${BASE}/ui/logo_farmy.png` },
+  { key: 'neighbor_avatar_maria', url: `${BASE}/ui/neighbor_avatar_maria.png` },
+  { key: 'neighbor_avatar_joao', url: `${BASE}/ui/neighbor_avatar_joao.png` },
+  { key: 'neighbor_avatar_ana', url: `${BASE}/ui/neighbor_avatar_ana.png` },
+  { key: 'avatar_placeholder', url: `${BASE}/ui/avatar_placeholder.png` },
 ];
 
 const backgroundAssets: AssetEntry[] = [
