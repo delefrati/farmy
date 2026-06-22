@@ -217,6 +217,16 @@ export class FarmScene extends Phaser.Scene {
     makeHudPanel(806, 92, 236, 268); // barn / animals (center)
     makeHudPanel(1046, 96, 230, 272); // neighbors + activity log (right)
 
+    // Bottom info strip: a translucent parchment bar that holds the mode/hint
+    // text so it reads on a surface instead of clipping off the canvas edge.
+    this.add
+      .graphics()
+      .setDepth(0)
+      .fillStyle(0xf1e6c4, 0.86)
+      .fillRoundedRect(8, 772, 1264, 80, 14)
+      .lineStyle(2, 0x6f4a25, 0.6)
+      .strokeRoundedRect(8, 772, 1264, 80, 14);
+
     // ----- Floating stat chips --------------------------------------------
     // Compact rounded badges (icon + value), each its own standalone element
     // that floats at the top-left instead of being a line inside a panel. They
@@ -329,11 +339,11 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const decorationModeText = this.add
-      .text(24, 760, '', {
+      .text(24, 784, '', {
         color: '#5f3b8a',
         fontSize: '12px',
         fontFamily: 'Arial',
-        wordWrap: { width: 1180 },
+        wordWrap: { width: 1236 },
       })
       .setDepth(1);
 
@@ -461,11 +471,11 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 798, '', {
+      .text(24, 810, '', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
-        wordWrap: { width: 1180 },
+        wordWrap: { width: 1236 },
       })
       .setDepth(1);
 
