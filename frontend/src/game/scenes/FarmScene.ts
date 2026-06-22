@@ -185,29 +185,121 @@ export class FarmScene extends Phaser.Scene {
     // area at a depth above the nine-slice panel, and the arrays collect the
     // seed/decoration selector buttons so each tab can toggle its own group.
     const SHOP_CONTENT_DEPTH = 4002;
-    const seedShopButtons: Phaser.GameObjects.Text[] = [];
-    const decorationShopButtons: Phaser.GameObjects.Text[] = [];
+    const seedShopButtons: Phaser.GameObjects.Container[] = [];
+    const decorationShopButtons: Phaser.GameObjects.Container[] = [];
 
-    const hudText = this.add
-      .text(46, 100, '', {
-        color: '#2f4f1f',
-        backgroundColor: '#9fdd7a',
-        fontSize: '16px',
-        fontFamily: 'Arial',
-        padding: { x: 2, y: 1 },
-      })
-      .setDepth(1);
+    // Soft parchment cards behind the HUD text columns so the status labels read
+    // on a surface instead of directly over the painted farm background. Drawn
+    // at depth 0: above the bg (-10), below all HUD text/buttons (depth >= 1).
+    // The grid sits lower on the canvas (y >= ~360) so these never cover tiles.
+    const makeHudPanel = (x: number, y: number, w: number, h: number): void => {
+      if (this.textures.exists('panel_wood')) {
+        createNineSlice({
+          scene: this,
+          key: 'panel_wood',
+          x: x + w / 2,
+          y: y + h / 2,
+          width: w,
+          height: h,
+          left: 30,
+        }).setDepth(0);
+        return;
+      }
+      this.add
+        .graphics()
+        .setDepth(0)
+        .fillStyle(0xf1e6c4, 0.9)
+        .fillRoundedRect(x, y, w, h, 14)
+        .lineStyle(3, 0x6f4a25, 0.85)
+        .strokeRoundedRect(x, y, w, h, 14);
+    };
+    makeHudPanel(8, 170, 396, 300); // status / inventory column (left)
+    makeHudPanel(806, 92, 236, 268); // barn / animals (center)
+    makeHudPanel(1046, 96, 230, 272); // neighbors + activity log (right)
 
-    const popularityText = this.add
-      .text(382, 100, '', {
-        color: '#8a3b6a',
-        fontSize: '15px',
-        fontFamily: 'Arial',
-      })
-      .setDepth(1);
+    // ----- Floating stat chips --------------------------------------------
+    // Compact rounded badges (icon + value), each its own standalone element
+    // that floats at the top-left instead of being a line inside a panel. They
+    // flow left to right and wrap; relayoutChips() recomputes each chip's width
+    // and position after any text change so the pill always hugs its content.
+    interface StatChip {
+      readonly text: Phaser.GameObjects.Text;
+      width: () => number;
+      setPosition: (x: number, y: number) => void;
+      redraw: () => void;
+    }
+    const CHIP_DEPTH = 6;
+    const CHIP_HEIGHT = 30;
+    const statChips: StatChip[] = [];
+    const makeChip = (iconKey: string, fill: number, textColor: string): StatChip => {
+      const padX = 10;
+      const iconSize = 18;
+      const iconGap = 6;
+      const fillHex = `#${fill.toString(16).padStart(6, '0')}`;
+      let originX = 0;
+      let originY = 0;
+      const bg = this.add.graphics().setDepth(CHIP_DEPTH);
+      const icon = this.textures.exists(iconKey)
+        ? this.add
+            .image(0, 0, iconKey)
+            .setOrigin(0, 0.5)
+            .setDisplaySize(iconSize, iconSize)
+            .setDepth(CHIP_DEPTH + 1)
+        : null;
+      const text = this.add
+        .text(0, 0, '', { color: textColor, backgroundColor: fillHex, fontSize: '14px', fontFamily: 'Arial' })
+        .setOrigin(0, 0.5)
+        .setDepth(CHIP_DEPTH + 1);
+      const contentLeft = (): number => padX + (icon ? iconSize + iconGap : 0);
+      const width = (): number => contentLeft() + Math.ceil(text.width) + padX;
+      const redraw = (): void => {
+        const midY = originY + CHIP_HEIGHT / 2;
+        if (icon) {
+          icon.setPosition(originX + padX, midY);
+        }
+        text.setPosition(originX + contentLeft(), midY);
+        bg.clear();
+        bg.fillStyle(fill, 0.95);
+        bg.fillRoundedRect(originX, originY, width(), CHIP_HEIGHT, 10);
+        bg.lineStyle(2, 0x000000, 0.12);
+        bg.strokeRoundedRect(originX, originY, width(), CHIP_HEIGHT, 10);
+      };
+      const setPosition = (x: number, y: number): void => {
+        originX = x;
+        originY = y;
+        redraw();
+      };
+      const chip: StatChip = { text, width, setPosition, redraw };
+      statChips.push(chip);
+      return chip;
+    };
+    const CHIP_X0 = 16;
+    const CHIP_Y0 = 88;
+    const CHIP_GAP = 8;
+    const CHIP_ROW_H = 36;
+    const CHIP_MAX_X = 792;
+    const relayoutChips = (): void => {
+      let cx = CHIP_X0;
+      let cy = CHIP_Y0;
+      for (const chip of statChips) {
+        const w = chip.width();
+        if (cx > CHIP_X0 && cx + w > CHIP_MAX_X) {
+          cx = CHIP_X0;
+          cy += CHIP_ROW_H;
+        }
+        chip.setPosition(cx, cy);
+        cx += w + CHIP_GAP;
+      }
+    };
+    const coinsChip = makeChip('icon_coin', 0xf6e3a8, '#5a3d12');
+    const levelChip = makeChip('icon_xp', 0xcdeac0, '#23491b');
+    const popularityChip = makeChip('icon_popularity', 0xf3cfe0, '#7a2f5a');
+    const seedChip = makeChip('icon_seed', 0xd8ecc4, '#2f4f1f');
+    const dailyChip = makeChip('icon_calendar', 0xcfe8d6, '#1f5c39');
+
 
     const collectGiftsButton = this.add
-      .text(360, 122, t('Collect Gifts (C)'), {
+      .text(40, 424, t('Collect Gifts (C)'), {
         color: '#ffffff',
         backgroundColor: '#8a3b6a',
         fontSize: '13px',
@@ -218,35 +310,15 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const dogText = this.add
-      .text(360, 150, '', {
+      .text(40, 196, '', {
         color: '#5a3a1a',
         fontSize: '13px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
-    const buyDogButton = this.add
-      .text(480, 452, t('Buy Guard Dog (K) - {price}c', { price: SOCIAL.DOG_PRICE }), {
-        color: '#ffffff',
-        backgroundColor: '#6a4a2a',
-        fontSize: '13px',
-        fontFamily: 'Arial',
-        padding: { x: 8, y: 5 },
-      })
-      .setInteractive({ useHandCursor: true })
-      .setDepth(SHOP_CONTENT_DEPTH)
-      .setVisible(false);
-
-    const dailyText = this.add
-      .text(360, 198, '', {
-        color: '#2f6f3f',
-        fontSize: '13px',
-        fontFamily: 'Arial',
-      })
-      .setDepth(1);
-
     const claimDailyButton = this.add
-      .text(360, 218, t('Claim Daily Reward (J)'), {
+      .text(210, 424, t('Claim Daily Reward (J)'), {
         color: '#ffffff',
         backgroundColor: '#2f7f4f',
         fontSize: '13px',
@@ -256,117 +328,81 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
-    const progressionText = this.add
-      .text(46, 122, '', {
-        color: '#2f4f1f',
-        fontSize: '14px',
-        fontFamily: 'Arial',
-      })
-      .setDepth(1);
-
-    // Leading stat icons for the HUD lines. Each is placed in the gap opened up
-    // by nudging its text line right; tolerant of missing art (skipped if the
-    // texture isn't loaded). 18px square, vertically centred on its text.
-    const addStatIcon = (iconKey: string, x: number, y: number): void => {
-      if (!this.textures.exists(iconKey)) {
-        return;
-      }
-      this.add
-        .image(x, y, iconKey)
-        .setOrigin(0.5)
-        .setDisplaySize(18, 18)
-        .setDepth(2);
-    };
-    addStatIcon('icon_coin', 33, 110);
-    addStatIcon('icon_xp', 33, 130);
-    addStatIcon('icon_popularity', 371, 110);
-
-    const selectedSeedText = this.add
-      .text(24, 144, '', {
-        color: '#2f4f1f',
-        fontSize: '16px',
-        fontFamily: 'Arial',
-      })
-      .setDepth(1);
-
-    const selectedSeedMetaText = this.add
-      .text(24, 164, '', {
-        color: '#335a2a',
-        fontSize: '13px',
-        fontFamily: 'Arial',
-      })
-      .setDepth(1);
-
     const decorationModeText = this.add
-      .text(24, 286, '', {
+      .text(24, 760, '', {
         color: '#5f3b8a',
         fontSize: '12px',
         fontFamily: 'Arial',
+        wordWrap: { width: 1180 },
       })
       .setDepth(1);
 
     const statusText = this.add
-      .text(24, 188, t('Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.'), {
+      .text(40, 218, t('Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.'), {
         color: '#3f5f2f',
-        fontSize: '14px',
+        fontSize: '13px',
         fontFamily: 'Arial',
+        wordWrap: { width: 312 },
       })
       .setDepth(1);
 
     const inventoryText = this.add
-      .text(24, 210, t('Inventory: empty'), {
+      .text(40, 278, t('Inventory: empty'), {
         color: '#2f4f1f',
-        fontSize: '14px',
+        fontSize: '13px',
         fontFamily: 'Arial',
+        wordWrap: { width: 312 },
       })
       .setDepth(1);
 
     const syncText = this.add
-      .text(24, 230, 'Sync: idle | Last sync: never', {
+      .text(40, 342, 'Sync: idle | Last sync: never', {
         color: '#1f5c99',
-        fontSize: '13px',
+        fontSize: '12px',
         fontFamily: 'Arial',
+        wordWrap: { width: 320 },
       })
       .setDepth(1);
 
     const authText = this.add
-      .text(24, 248, '', {
+      .text(40, 374, '', {
         color: '#0f4f8c',
-        fontSize: '13px',
+        fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
     const devSpeedText = this.add
-      .text(24, 266, '', {
+      .text(40, 392, '', {
         color: '#7a3b00',
-        fontSize: '13px',
+        fontSize: '12px',
         fontFamily: 'Arial',
       })
       .setDepth(1);
 
     const pacingButton = this.add
-      .text(24, 284, '', {
+      .text(300, 54, '', {
         color: '#ffffff',
         backgroundColor: '#5a3d8a',
         fontSize: '12px',
         fontFamily: 'Arial',
-        padding: { x: 8, y: 4 },
+        padding: { x: 8, y: 6 },
       })
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
     const animalsText = this.add
-      .text(820, 150, '', {
+      .text(842, 152, '', {
         color: '#5b3c18',
         fontSize: '13px',
         fontFamily: 'Arial',
         lineSpacing: 2,
+        wordWrap: { width: 162 },
       })
       .setDepth(1);
 
     this.add
-      .text(820, 124, t('Barn'), {
+      .text(842, 126, t('Barn'), {
         color: '#5b3c18',
         fontSize: '15px',
         fontFamily: 'Arial',
@@ -375,7 +411,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     this.add
-      .text(1058, 116, t('Neighbors'), {
+      .text(1082, 128, t('Neighbors'), {
         color: '#2f4f1f',
         fontSize: '15px',
         fontFamily: 'Arial',
@@ -384,17 +420,17 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const visitButtons: Phaser.GameObjects.Text[] = this.neighbors.map((neighbor, index) => {
-      const rowY = 142 + index * 34;
+      const rowY = 156 + index * 34;
       // Small round portrait to the left of the button, when the art exists.
       const avatarKey = avatarKeyForNeighbor(neighbor.id);
       const hasAvatar = this.textures.exists(avatarKey);
       if (hasAvatar) {
-        const avatar = this.add.image(1042, rowY + 9, avatarKey).setDepth(2);
+        const avatar = this.add.image(1094, rowY + 9, avatarKey).setDepth(2);
         const size = 26;
         avatar.setDisplaySize(size, (avatar.height / avatar.width) * size);
       }
       return this.add
-        .text(hasAvatar ? 1058 : 1042, rowY, t('Visit {name}', { name: neighbor.name }), {
+        .text(hasAvatar ? 1114 : 1082, rowY, t('Visit {name}', { name: neighbor.name }), {
           color: '#ffffff',
           backgroundColor: '#345c7a',
           fontSize: '13px',
@@ -406,7 +442,7 @@ export class FarmScene extends Phaser.Scene {
     });
 
     this.add
-      .text(1058, 142 + this.neighbors.length * 34 + 6, t('Activity log'), {
+      .text(1082, 156 + this.neighbors.length * 34 + 8, t('Activity log'), {
         color: '#2f4f1f',
         fontSize: '14px',
         fontFamily: 'Arial',
@@ -415,20 +451,21 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const eventLogText = this.add
-      .text(1058, 142 + this.neighbors.length * 34 + 28, '', {
+      .text(1082, 156 + this.neighbors.length * 34 + 30, '', {
         color: '#3a5530',
         fontSize: '11px',
         fontFamily: 'Arial',
         lineSpacing: 3,
-        wordWrap: { width: 210 },
+        wordWrap: { width: 158 },
       })
       .setDepth(1);
 
     const controlsHintText = this.add
-      .text(24, 326, '', {
+      .text(24, 798, '', {
         color: '#36522a',
         fontSize: '12px',
         fontFamily: 'Arial',
+        wordWrap: { width: 1180 },
       })
       .setDepth(1);
 
@@ -544,32 +581,8 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
-    const buyChickenButton = this.add
-      .text(480, 340, t('Buy Chicken'), {
-        color: '#ffffff',
-        backgroundColor: '#7b4f1d',
-        fontSize: '13px',
-        fontFamily: 'Arial',
-        padding: { x: 8, y: 5 },
-      })
-      .setInteractive({ useHandCursor: true })
-      .setDepth(SHOP_CONTENT_DEPTH)
-      .setVisible(false);
-
-    const buyCalfButton = this.add
-      .text(480, 396, t('Buy Calf'), {
-        color: '#ffffff',
-        backgroundColor: '#7b4f1d',
-        fontSize: '13px',
-        fontFamily: 'Arial',
-        padding: { x: 8, y: 5 },
-      })
-      .setInteractive({ useHandCursor: true })
-      .setDepth(SHOP_CONTENT_DEPTH)
-      .setVisible(false);
-
     const feedAnimalsButton = this.add
-      .text(1040, 54, t('Feed All (A)'), {
+      .text(842, 250, t('Feed All (A)'), {
         color: '#ffffff',
         backgroundColor: '#5f7b1d',
         fontSize: '13px',
@@ -580,7 +593,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const collectProductsButton = this.add
-      .text(820, 88, t('Collect Products (E)'), {
+      .text(842, 314, t('Collect Products (E)'), {
         color: '#ffffff',
         backgroundColor: '#7b4f1d',
         fontSize: '13px',
@@ -591,7 +604,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const sellAnimalsButton = this.add
-      .text(1010, 88, t('Sell Mature (M)'), {
+      .text(842, 282, t('Sell Mature (M)'), {
         color: '#ffffff',
         backgroundColor: '#2f7a41',
         fontSize: '13px',
@@ -611,18 +624,6 @@ export class FarmScene extends Phaser.Scene {
       })
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
-
-    const buyFertilizerButton = this.add
-      .text(480, 360, t('Buy Fertilizer (B)'), {
-        color: '#ffffff',
-        backgroundColor: '#2f6f3b',
-        fontSize: '12px',
-        fontFamily: 'Arial',
-        padding: { x: 8, y: 5 },
-      })
-      .setInteractive({ useHandCursor: true })
-      .setDepth(SHOP_CONTENT_DEPTH)
-      .setVisible(false);
 
     // Prefix a text button with a small icon drawn inside extra left padding,
     // so the button grows to the right only. Tolerant of missing art: when the
@@ -657,7 +658,6 @@ export class FarmScene extends Phaser.Scene {
     addButtonIcon(sellAnimalsButton, 'icon_sell');
     addButtonIcon(fertilizerModeButton, 'icon_seed');
     // Buttons that toggle visibility: keep their icon in sync (see refreshHud).
-    const buyDogIcon = addButtonIcon(buyDogButton, 'icon_dog');
     const claimDailyIcon = addButtonIcon(claimDailyButton, 'icon_calendar');
 
     // ----- Shop modal -----------------------------------------------------
@@ -670,7 +670,7 @@ export class FarmScene extends Phaser.Scene {
 
     const SHOP_PANEL_DEPTH = 3998;
     let shopOpen = false;
-    let activeShopTab: ShopTab = 'animals';
+    let activeShopTab: ShopTab = 'seeds';
 
     const shopDimmer = this.add
       .rectangle(640, 430, 1280, 860, 0x000000, 0.45)
@@ -679,7 +679,7 @@ export class FarmScene extends Phaser.Scene {
       .setVisible(false);
 
     const shopPanel: Phaser.GameObjects.Container | Phaser.GameObjects.Rectangle = this.textures.exists('panel_wood')
-      ? createNineSlice({ scene: this, key: 'panel_wood', x: 640, y: 392, width: 920, height: 600, left: 104 })
+      ? createNineSlice({ scene: this, key: 'panel_wood', x: 640, y: 392, width: 920, height: 600, left: 34 })
           .setDepth(SHOP_PANEL_DEPTH)
           .setVisible(false)
       : this.add
@@ -729,9 +729,171 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(4003)
       .setVisible(false);
 
+    // A purchasable item card: thumbnail + title + action pill, drawn with
+    // Graphics so each entry reads as a real shop item instead of a bare text
+    // button. Cards live above the panel and toggle per tab. The transparent
+    // zone is the click target; hovering grows the card slightly.
+    interface ShopCardSpec {
+      x: number;
+      y: number;
+      thumbKeys: string[];
+      title: string;
+      pillLabel: string;
+      pillColor: number;
+      locked: boolean;
+      onClick: () => void;
+    }
+    const CARD_W = 178;
+    const CARD_H = 138;
+    const createShopCard = (spec: ShopCardSpec): Phaser.GameObjects.Container => {
+      const parts: Phaser.GameObjects.GameObject[] = [];
+
+      const bg = this.add.graphics();
+      bg.fillStyle(spec.locked ? 0xe7dcc2 : 0xf6ead0, 0.98);
+      bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 14);
+      bg.lineStyle(3, spec.locked ? 0x9a8a6a : 0x8a5a24, 1);
+      bg.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 14);
+      parts.push(bg);
+
+      const thumbKey = spec.thumbKeys.find((key) => this.textures.exists(key));
+      if (thumbKey) {
+        const thumb = this.add.image(0, -32, thumbKey).setOrigin(0.5);
+        const maxDim = 54;
+        thumb.setScale(Math.min(maxDim / thumb.width, maxDim / thumb.height));
+        if (spec.locked) {
+          thumb.setTint(0x9d9d9d);
+        }
+        parts.push(thumb);
+      }
+
+      parts.push(
+        this.add
+          .text(0, 6, spec.title, {
+            color: '#4a2f12',
+            fontSize: '14px',
+            fontFamily: 'Arial',
+            fontStyle: 'bold',
+            align: 'center',
+          })
+          .setOrigin(0.5),
+      );
+
+      const pillW = 132;
+      const pillH = 28;
+      const pillY = 46;
+      const pill = this.add.graphics();
+      pill.fillStyle(spec.pillColor, 1);
+      pill.fillRoundedRect(-pillW / 2, pillY - pillH / 2, pillW, pillH, 9);
+      parts.push(pill);
+      parts.push(
+        this.add
+          .text(0, pillY, spec.pillLabel, {
+            color: '#ffffff',
+            fontSize: '13px',
+            fontFamily: 'Arial',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5),
+      );
+
+      const zone = this.add
+        .rectangle(0, 0, CARD_W, CARD_H, 0x000000, 0.001)
+        .setInteractive({ useHandCursor: true });
+      parts.push(zone);
+
+      const container = this.add
+        .container(spec.x, spec.y, parts)
+        .setDepth(SHOP_CONTENT_DEPTH)
+        .setVisible(false);
+
+      zone.on('pointerover', () => container.setScale(1.04));
+      zone.on('pointerout', () => container.setScale(1));
+      zone.on('pointerdown', spec.onClick);
+
+      return container;
+    };
+
+    // Lay out cards in a centered grid inside the panel content area.
+    const cardSlot = (index: number, perRow: number): { x: number; y: number } => {
+      const colSpacing = 196;
+      const rowSpacing = 150;
+      const startY = 322;
+      const col = index % perRow;
+      const row = Math.floor(index / perRow);
+      const rowStartX = 640 - ((perRow - 1) / 2) * colSpacing;
+      return { x: rowStartX + col * colSpacing, y: startY + row * rowSpacing };
+    };
+
+    const animalThumbKey = (def: (typeof animalDefinitions)[number]): string =>
+      def.kind === 'growing' && def.growStages && def.growStages.length > 0
+        ? `animal_${def.id}_${def.growStages[def.growStages.length - 1].toLowerCase()}`
+        : `animal_${def.id}`;
+
+    // ----- Animal & guard-dog cards (Animals tab) -----
+    const animalShopCards: Phaser.GameObjects.Container[] = [];
+    let dogCard: Phaser.GameObjects.Container | null = null;
+
+    animalDefinitions.forEach((def, index) => {
+      const slot = cardSlot(index, 3);
+      const locked = this.economy.level < def.unlockLevel;
+      animalShopCards.push(
+        createShopCard({
+          x: slot.x,
+          y: slot.y,
+          thumbKeys: [animalThumbKey(def), 'icon_harvest'],
+          title: t(def.name),
+          pillLabel: locked
+            ? t('Lv {level}', { level: def.unlockLevel })
+            : t('Buy \u00b7 {price}c', { price: def.price }),
+          pillColor: locked ? 0x8a8170 : 0x3f8a3a,
+          locked,
+          onClick: () => buyAnimal(def.id),
+        }),
+      );
+    });
+
+    {
+      const slot = cardSlot(animalDefinitions.length, 3);
+      dogCard = createShopCard({
+        x: slot.x,
+        y: slot.y,
+        thumbKeys: ['animal_dog', 'icon_dog'],
+        title: t('Guard Dog'),
+        pillLabel: t('Buy \u00b7 {price}c', { price: SOCIAL.DOG_PRICE }),
+        pillColor: 0x3f8a3a,
+        locked: false,
+        onClick: () => buyDog(),
+      });
+      animalShopCards.push(dogCard);
+    }
+
+    // ----- Fertilizer cards (Fertilizer tab) -----
+    const fertilizerShopCards: Phaser.GameObjects.Container[] = [];
+    fertilizers.forEach((fert, index) => {
+      const slot = cardSlot(index, 3);
+      const locked = this.economy.level < fert.unlockLevel;
+      fertilizerShopCards.push(
+        createShopCard({
+          x: slot.x,
+          y: slot.y,
+          thumbKeys: ['icon_fertilizer'],
+          title: t(fert.name),
+          pillLabel: locked
+            ? t('Lv {level}', { level: fert.unlockLevel })
+            : t('Buy \u00b7 {price}c', { price: fert.price }),
+          pillColor: locked ? 0x8a8170 : 0x2f7a41,
+          locked,
+          onClick: () => {
+            selectedFertilizerId = fert.id;
+            buyFertilizer();
+          },
+        }),
+      );
+    });
+
     const shopTabDefs: Array<{ id: ShopTab; label: string }> = [
-      { id: 'animals', label: t('Animals') },
       { id: 'seeds', label: t('Seeds') },
+      { id: 'animals', label: t('Animals') },
       { id: 'fertilizer', label: t('Fertilizer') },
       { id: 'decorations', label: t('Decorations') },
     ];
@@ -740,13 +902,11 @@ export class FarmScene extends Phaser.Scene {
     const shopTabGroup = (tab: ShopTab): Hideable[] => {
       switch (tab) {
         case 'animals':
-          return [buyChickenButton, buyCalfButton, buyDogButton, buyDogIcon].filter(
-            (object): object is Phaser.GameObjects.Text | Phaser.GameObjects.Image => object !== null,
-          );
+          return animalShopCards;
         case 'seeds':
           return seedShopButtons;
         case 'fertilizer':
-          return [buyFertilizerButton];
+          return fertilizerShopCards;
         case 'decorations':
           return decorationShopButtons;
       }
@@ -758,29 +918,29 @@ export class FarmScene extends Phaser.Scene {
         shopTabGroup(tab).forEach((object) => object.setVisible(visible));
       });
       // Guard dog vanishes from the Animals tab once it has been purchased.
-      const dogVisible = shopOpen && activeShopTab === 'animals' && !this.hasDog;
-      buyDogButton.setVisible(dogVisible);
-      buyDogIcon?.setVisible(dogVisible);
+      if (shopOpen && activeShopTab === 'animals' && this.hasDog) {
+        dogCard?.setVisible(false);
+      }
     };
 
     const setShopTab = (tab: ShopTab): void => {
       activeShopTab = tab;
       shopTabButtons.forEach((button, id) => {
-        button.setBackgroundColor(id === tab ? '#c98a3a' : '#7a5a32');
+        button.setBackgroundColor(id === tab ? '#d99a3c' : '#6f5230');
       });
       applyShopVisibility();
     };
 
     shopTabDefs.forEach((tab, index) => {
-      const tabX = 640 + (index - (shopTabDefs.length - 1) / 2) * 172;
+      const tabX = 640 + (index - (shopTabDefs.length - 1) / 2) * 178;
       const button = this.add
-        .text(tabX, 236, tab.label, {
+        .text(tabX, 240, tab.label, {
           color: '#ffffff',
-          backgroundColor: '#7a5a32',
-          fontSize: '14px',
+          backgroundColor: '#6f5230',
+          fontSize: '15px',
           fontFamily: 'Arial',
           fontStyle: 'bold',
-          padding: { x: 12, y: 6 },
+          padding: { x: 18, y: 9 },
         })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true })
@@ -803,7 +963,10 @@ export class FarmScene extends Phaser.Scene {
     const openShop = (): void => {
       shopOpen = true;
       setShopChromeVisible(true);
-      setShopTab(activeShopTab);
+      // Open on the tab holding the player's current selection/mode so the
+      // active choice is visible right away (decoration > fertilizer > seeds).
+      const startTab: ShopTab = decorationMode ? 'decorations' : fertilizerMode ? 'fertilizer' : 'seeds';
+      setShopTab(startTab);
     };
 
     const closeShop = (): void => {
@@ -823,19 +986,55 @@ export class FarmScene extends Phaser.Scene {
     shopDimmer.on('pointerdown', closeShop);
     shopCloseButton.on('pointerdown', closeShop);
 
-    const openShopButton = this.add
-      .text(24, 712, t('Shop (O)'), {
-        color: '#ffffff',
-        backgroundColor: '#7b4f1d',
-        fontSize: '15px',
-        fontFamily: 'Arial',
-        fontStyle: 'bold',
-        padding: { x: 12, y: 7 },
-      })
-      .setInteractive({ useHandCursor: true })
-      .setDepth(3);
-    openShopButton.on('pointerdown', toggleShop);
-    addButtonIcon(openShopButton, 'icon_seed');
+    // Prominent bottom-left call-to-action that opens the shop. A warm gold pill
+    // contrasts against the green farm so it reads as the primary action.
+    const SHOP_BTN_W = 176;
+    const SHOP_BTN_H = 56;
+    const openShopParts: Phaser.GameObjects.GameObject[] = [];
+    const shopBtnBg = this.add.graphics();
+    // Drop shadow.
+    shopBtnBg.fillStyle(0x000000, 0.28);
+    shopBtnBg.fillRoundedRect(-SHOP_BTN_W / 2 + 3, -SHOP_BTN_H / 2 + 5, SHOP_BTN_W, SHOP_BTN_H, 16);
+    // Body + border.
+    shopBtnBg.fillStyle(0xf2a234, 1);
+    shopBtnBg.fillRoundedRect(-SHOP_BTN_W / 2, -SHOP_BTN_H / 2, SHOP_BTN_W, SHOP_BTN_H, 16);
+    shopBtnBg.lineStyle(3, 0x8a5210, 1);
+    shopBtnBg.strokeRoundedRect(-SHOP_BTN_W / 2, -SHOP_BTN_H / 2, SHOP_BTN_W, SHOP_BTN_H, 16);
+    // Top gloss highlight.
+    shopBtnBg.fillStyle(0xffd884, 0.55);
+    shopBtnBg.fillRoundedRect(-SHOP_BTN_W / 2 + 6, -SHOP_BTN_H / 2 + 5, SHOP_BTN_W - 12, SHOP_BTN_H / 2 - 4, 11);
+    openShopParts.push(shopBtnBg);
+    let shopLabelX = 0;
+    if (this.textures.exists('icon_seed')) {
+      const icon = this.add.image(-48, -1, 'icon_seed').setOrigin(0.5);
+      const isz = 28;
+      icon.setScale(Math.min(isz / icon.width, isz / icon.height));
+      openShopParts.push(icon);
+      shopLabelX = 14;
+    }
+    openShopParts.push(
+      this.add
+        .text(shopLabelX, 0, t('Shop'), {
+          color: '#ffffff',
+          fontSize: '22px',
+          fontFamily: 'Arial',
+          fontStyle: 'bold',
+          stroke: '#7a3d0a',
+          strokeThickness: 4,
+        })
+        .setOrigin(0.5),
+    );
+    // A transparent interactive child zone is the click target (the same proven
+    // pattern as the shop cards). Giving the Container itself a Geom.Rectangle
+    // hit area mis-registers under the FIT canvas scale, so we avoid it here.
+    const openShopZone = this.add
+      .rectangle(0, 0, SHOP_BTN_W, SHOP_BTN_H, 0x000000, 0.001)
+      .setInteractive({ useHandCursor: true });
+    openShopParts.push(openShopZone);
+    const openShopButton = this.add.container(102, 668, openShopParts).setDepth(3);
+    openShopZone.on('pointerover', () => openShopButton.setScale(1.05));
+    openShopZone.on('pointerout', () => openShopButton.setScale(1));
+    openShopZone.on('pointerdown', toggleShop);
     // ----- end Shop modal -------------------------------------------------
 
     const getCrop = (cropId: string | undefined): CropDefinition | undefined => {
@@ -896,10 +1095,16 @@ export class FarmScene extends Phaser.Scene {
 
     const refreshSelectedSeedLabel = (): void => {
       const selected = getSelectedCrop();
-      selectedSeedText.setText(t('Selected seed: {name} (Cost: {cost})', { name: t(selected.name), cost: selected.seedPrice }));
-      selectedSeedMetaText.setText(
-        t('Sell: {sell} | Profit: {profit} | Growth: {grow}s | XP: +{xp}', { sell: selected.sellPrice, profit: selected.sellPrice - selected.seedPrice, grow: selected.growSeconds, xp: selected.xp }),
+      seedChip.text.setText(
+        t('{name} · {cost}c → {sell}c · +{xp}xp · {grow}s', {
+          name: t(selected.name),
+          cost: selected.seedPrice,
+          sell: selected.sellPrice,
+          xp: selected.xp,
+          grow: selected.growSeconds,
+        }),
       );
+      relayoutChips();
 
       const selectedDecoration = getSelectedDecoration();
       const modeLabel = decorationMode ? t('ON') : t('OFF');
@@ -946,10 +1151,10 @@ export class FarmScene extends Phaser.Scene {
     };
 
     const refreshHud = (): void => {
-      hudText.setText(t('Coins: {coins} | XP: {xp} | Level: {level}', { coins: this.economy.coins, xp: this.economy.xp, level: this.economy.level }));
+      coinsChip.text.setText(t('{coins}', { coins: this.economy.coins }));
       const missingXp = getXpToNextLevel(this.economy.xp, this.economy.level);
-      progressionText.setText(t('Next level in {xp} XP', { xp: missingXp }));
-      popularityText.setText(t('Popularity: {pop} | Gifts waiting: {gifts}', { pop: this.popularity, gifts: this.giftInbox.length }));
+      levelChip.text.setText(t('Lv {level} · {xp}xp · next {missing}', { level: this.economy.level, xp: this.economy.xp, missing: missingXp }));
+      popularityChip.text.setText(t('{pop} ♥ · {gifts} gifts', { pop: this.popularity, gifts: this.giftInbox.length }));
       dogText.setText(
         this.hasDog
           ? t('\u{1F415} Guard dog: ON (protecting your farm)')
@@ -960,13 +1165,14 @@ export class FarmScene extends Phaser.Scene {
       const now = Date.now();
       const available = isRewardAvailable(this.daily, now);
       const nextReward = rewardForStreak(available ? this.daily.streak + 1 : this.daily.streak);
-      dailyText.setText(
+      dailyChip.text.setText(
         available
-          ? t('\u{1F381} Daily reward ready: {label} (streak {streak})', { label: t(nextReward.label), streak: this.daily.streak + 1 })
-          : t('\u{1F381} Daily reward claimed. Streak: {streak}. Come back tomorrow.', { streak: this.daily.streak }),
+          ? t('Reward ready: {label} (streak {streak})', { label: t(nextReward.label), streak: this.daily.streak + 1 })
+          : t('Claimed · streak {streak}', { streak: this.daily.streak }),
       );
       claimDailyButton.setVisible(available);
       claimDailyIcon?.setVisible(available);
+      relayoutChips();
     };
 
     const buyDog = (): void => {
@@ -1421,40 +1627,41 @@ export class FarmScene extends Phaser.Scene {
       crops.forEach((crop, index) => {
         const isSelected = crop.id === this.selectedCropId;
         const isUnlocked = this.economy.level >= crop.unlockLevel;
+        const slot = cardSlot(index, 4);
+        const lastStage = crop.stages[crop.stages.length - 1];
 
-        // 3-per-row grid inside the Seeds tab of the shop modal.
-        const perRow = 3;
-        const col = index % perRow;
-        const row = Math.floor(index / perRow);
+        const pillLabel = !isUnlocked
+          ? t('Lv {level}', { level: crop.unlockLevel })
+          : isSelected
+            ? t('Selected \u2713')
+            : t('Plant \u00b7 {price}c', { price: crop.seedPrice });
+        const pillColor = !isUnlocked ? 0x8a8170 : isSelected ? 0x2f6f9f : 0x4b8d52;
 
-        const button = this.add
-          .text(360 + col * 200, 320 + row * 70, `${t(crop.name)} · L${crop.unlockLevel}`, {
-            color: '#ffffff',
-            backgroundColor: isSelected ? '#357a38' : isUnlocked ? '#4b6d33' : '#777777',
-            fontSize: '13px',
-            fontFamily: 'Arial',
-            padding: { x: 10, y: 7 },
-          })
-          .setInteractive({ useHandCursor: true })
-          .setDepth(SHOP_CONTENT_DEPTH)
-          .setVisible(false);
-        seedShopButtons.push(button);
+        const card = createShopCard({
+          x: slot.x,
+          y: slot.y,
+          thumbKeys: [`crop_${crop.id}_${lastStage}`, 'icon_seed'],
+          title: t(crop.name),
+          pillLabel,
+          pillColor,
+          locked: !isUnlocked,
+          onClick: () => {
+            if (this.economy.level < crop.unlockLevel) {
+              this.statusMessage = t('{name} unlocks at level {level}.', { name: t(crop.name), level: crop.unlockLevel });
+              statusText.setText(this.statusMessage);
+              return;
+            }
 
-        button.on('pointerdown', () => {
-          if (this.economy.level < crop.unlockLevel) {
-            this.statusMessage = t('{name} unlocks at level {level}.', { name: t(crop.name), level: crop.unlockLevel });
+            this.selectedCropId = crop.id;
+            saveCurrent();
+            refreshSelectedSeedLabel();
+
+            this.statusMessage = t('{name} seed selected.', { name: t(crop.name) });
             statusText.setText(this.statusMessage);
-            return;
-          }
-
-          this.selectedCropId = crop.id;
-          saveCurrent();
-          refreshSelectedSeedLabel();
-
-          this.statusMessage = t('{name} seed selected.', { name: t(crop.name) });
-          statusText.setText(this.statusMessage);
-          this.scene.restart();
+            this.scene.restart();
+          },
         });
+        seedShopButtons.push(card);
       });
     };
 
@@ -1464,38 +1671,38 @@ export class FarmScene extends Phaser.Scene {
       decorations.forEach((decoration, index) => {
         const isSelected = decoration.id === selectedDecorationId;
         const isUnlocked = this.economy.level >= decoration.unlockLevel;
+        const slot = cardSlot(index, 4);
 
-        // 4-per-row grid inside the Decorations tab of the shop modal.
-        const perRow = 4;
-        const col = index % perRow;
-        const row = Math.floor(index / perRow);
+        const pillLabel = !isUnlocked
+          ? t('Lv {level}', { level: decoration.unlockLevel })
+          : isSelected
+            ? t('Selected \u2713')
+            : t('Select');
+        const pillColor = !isUnlocked ? 0x8a8170 : isSelected ? 0x5f3b8a : 0x7751a1;
 
-        const button = this.add
-          .text(300 + col * 196, 318 + row * 58, `${t(decoration.name)} · L${decoration.unlockLevel}`, {
-            color: '#ffffff',
-            backgroundColor: isSelected ? '#5f3b8a' : isUnlocked ? '#7751a1' : '#777777',
-            fontSize: '12px',
-            fontFamily: 'Arial',
-            padding: { x: 8, y: 6 },
-          })
-          .setInteractive({ useHandCursor: true })
-          .setDepth(SHOP_CONTENT_DEPTH)
-          .setVisible(false);
-        decorationShopButtons.push(button);
+        const card = createShopCard({
+          x: slot.x,
+          y: slot.y,
+          thumbKeys: [`decor_${decoration.id}`, 'icon_harvest'],
+          title: t(decoration.name),
+          pillLabel,
+          pillColor,
+          locked: !isUnlocked,
+          onClick: () => {
+            if (!isUnlocked) {
+              this.statusMessage = t('{name} unlocks at level {level}.', { name: t(decoration.name), level: decoration.unlockLevel });
+              statusText.setText(this.statusMessage);
+              return;
+            }
 
-        button.on('pointerdown', () => {
-          if (!isUnlocked) {
-            this.statusMessage = t('{name} unlocks at level {level}.', { name: t(decoration.name), level: decoration.unlockLevel });
+            selectedDecorationId = decoration.id;
+            refreshSelectedSeedLabel();
+            this.statusMessage = t('{name} selected.', { name: t(decoration.name) });
             statusText.setText(this.statusMessage);
-            return;
-          }
-
-          selectedDecorationId = decoration.id;
-          refreshSelectedSeedLabel();
-          this.statusMessage = t('{name} selected.', { name: t(decoration.name) });
-          statusText.setText(this.statusMessage);
-          this.scene.restart();
+            this.scene.restart();
+          },
         });
+        decorationShopButtons.push(card);
       });
     };
 
@@ -2462,8 +2669,6 @@ export class FarmScene extends Phaser.Scene {
       refreshSelectedSeedLabel();
       statusText.setText(this.statusMessage);
     });
-    buyChickenButton.on('pointerdown', () => buyAnimal('chicken'));
-    buyCalfButton.on('pointerdown', () => buyAnimal('calf'));
     feedAnimalsButton.on('pointerdown', feedAllAnimals);
     collectProductsButton.on('pointerdown', collectProducts);
     sellAnimalsButton.on('pointerdown', sellMaturedAnimals);
@@ -2474,7 +2679,6 @@ export class FarmScene extends Phaser.Scene {
       }
     });
     collectGiftsButton.on('pointerdown', collectGifts);
-    buyDogButton.on('pointerdown', buyDog);
     claimDailyButton.on('pointerdown', claimDaily);
     pacingButton.on('pointerdown', cyclePacing);
     fertilizerModeButton.on('pointerdown', () => {
@@ -2483,7 +2687,6 @@ export class FarmScene extends Phaser.Scene {
       refreshSelectedSeedLabel();
       statusText.setText(this.statusMessage);
     });
-    buyFertilizerButton.on('pointerdown', buyFertilizer);
     uploadButton.on('pointerdown', () => {
       void uploadRemoteSave();
     });
