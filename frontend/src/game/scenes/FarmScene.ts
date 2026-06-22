@@ -8,7 +8,7 @@ import type { PlayerAnimals } from '../types/animals';
 import { crops, defaultCropId } from '../data/crops';
 import type { CropDefinition } from '../types/crop';
 import { RemoteSaveService } from '../services/RemoteSaveService';
-import { getLevelFromXp, getXpRequiredForLevel, getXpToNextLevel } from '../data/progression';
+import { getLevelFromXp, getXpRequiredForLevel } from '../data/progression';
 import { decorations, defaultDecorationId } from '../data/decorations';
 import type { DecorationDefinition } from '../types/decoration';
 import { fertilizers, defaultFertilizerId } from '../data/fertilizers';
@@ -283,6 +283,81 @@ export class FarmScene extends Phaser.Scene {
       statChips.push(chip);
       return chip;
     };
+
+    // A QQ Farm-style level widget: "Lv N" + a filled XP progress bar + the
+    // remaining XP, all inside one pill. Satisfies the StatChip layout contract
+    // so it flows alongside the other chips.
+    interface XpChip extends StatChip {
+      setProgress: (level: number, xp: number) => void;
+    }
+    const makeXpChip = (): XpChip => {
+      const fill = 0xcdeac0;
+      const padX = 10;
+      const iconSize = 16;
+      const barW = 110;
+      const barH = 9;
+      let originX = 0;
+      let originY = 0;
+      let frac = 0;
+      const bg = this.add.graphics().setDepth(CHIP_DEPTH);
+      const icon = this.textures.exists('icon_xp')
+        ? this.add.image(0, 0, 'icon_xp').setOrigin(0, 0.5).setDisplaySize(iconSize, iconSize).setDepth(CHIP_DEPTH + 1)
+        : null;
+      const lvlText = this.add
+        .text(0, 0, 'Lv 1', { color: '#23491b', backgroundColor: '#cdeac0', fontSize: '14px', fontFamily: 'Arial', fontStyle: 'bold' })
+        .setOrigin(0, 0.5)
+        .setDepth(CHIP_DEPTH + 1);
+      const bar = this.add.graphics().setDepth(CHIP_DEPTH + 1);
+      const xpText = this.add
+        .text(0, 0, '0/40', { color: '#2f5a22', backgroundColor: '#cdeac0', fontSize: '11px', fontFamily: 'Arial' })
+        .setOrigin(0, 0.5)
+        .setDepth(CHIP_DEPTH + 1);
+      const barLeft = (): number => padX + iconSize + 6 + 40 + 8; // icon + gap + reserved "Lv NN" + gap
+      const xpLeft = (): number => barLeft() + barW + 8;
+      const width = (): number => xpLeft() + Math.ceil(xpText.width) + padX;
+      const redraw = (): void => {
+        const midY = originY + CHIP_HEIGHT / 2;
+        if (icon) {
+          icon.setPosition(originX + padX, midY);
+        }
+        lvlText.setPosition(originX + padX + iconSize + 6, midY);
+        xpText.setPosition(originX + xpLeft(), midY);
+        bg.clear();
+        bg.fillStyle(fill, 0.95);
+        bg.fillRoundedRect(originX, originY, width(), CHIP_HEIGHT, 10);
+        bg.lineStyle(2, 0x000000, 0.12);
+        bg.strokeRoundedRect(originX, originY, width(), CHIP_HEIGHT, 10);
+        const bx = originX + barLeft();
+        const by = midY - barH / 2;
+        bar.clear();
+        bar.fillStyle(0x3f6b2c, 1);
+        bar.fillRoundedRect(bx, by, barW, barH, 4);
+        if (frac > 0) {
+          bar.fillStyle(0x7ad04a, 1);
+          bar.fillRoundedRect(bx, by, Math.max(4, barW * frac), barH, 4);
+        }
+        bar.lineStyle(1, 0x000000, 0.18);
+        bar.strokeRoundedRect(bx, by, barW, barH, 4);
+      };
+      const setPosition = (x: number, y: number): void => {
+        originX = x;
+        originY = y;
+        redraw();
+      };
+      const setProgress = (level: number, xp: number): void => {
+        const curBase = getXpRequiredForLevel(level);
+        const nextBase = getXpRequiredForLevel(level + 1);
+        const span = Math.max(nextBase - curBase, 1);
+        const into = Math.max(0, xp - curBase);
+        frac = Math.min(1, into / span);
+        lvlText.setText(t('Lv {level}', { level }));
+        xpText.setText(`${into}/${span}`);
+        redraw();
+      };
+      const chip: XpChip = { text: xpText, width, setPosition, redraw, setProgress };
+      statChips.push(chip);
+      return chip;
+    };
     const CHIP_X0 = 16;
     const CHIP_Y0 = 88;
     const CHIP_GAP = 8;
@@ -302,7 +377,7 @@ export class FarmScene extends Phaser.Scene {
       }
     };
     const coinsChip = makeChip('icon_coin', 0xf6e3a8, '#5a3d12');
-    const levelChip = makeChip('icon_xp', 0xcdeac0, '#23491b');
+    const levelChip = makeXpChip();
     const popularityChip = makeChip('icon_popularity', 0xf3cfe0, '#7a2f5a');
     const seedChip = makeChip('icon_seed', 0xd8ecc4, '#2f4f1f');
     const dailyChip = makeChip('icon_calendar', 0xcfe8d6, '#1f5c39');
@@ -1162,8 +1237,7 @@ export class FarmScene extends Phaser.Scene {
 
     const refreshHud = (): void => {
       coinsChip.text.setText(t('{coins}', { coins: this.economy.coins }));
-      const missingXp = getXpToNextLevel(this.economy.xp, this.economy.level);
-      levelChip.text.setText(t('Lv {level} · {xp}xp · next {missing}', { level: this.economy.level, xp: this.economy.xp, missing: missingXp }));
+      levelChip.setProgress(this.economy.level, this.economy.xp);
       popularityChip.text.setText(t('{pop} ♥ · {gifts} gifts', { pop: this.popularity, gifts: this.giftInbox.length }));
       dogText.setText(
         this.hasDog
