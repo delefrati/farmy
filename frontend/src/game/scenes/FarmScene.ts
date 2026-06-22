@@ -217,6 +217,17 @@ export class FarmScene extends Phaser.Scene {
     makeHudPanel(806, 92, 236, 268); // barn / animals (center)
     makeHudPanel(1046, 96, 230, 272); // neighbors + activity log (right)
 
+    // Top status bar: a translucent wooden banner that gathers the toolbar
+    // buttons and stat chips onto one surface (QQ Farm-style top bar) instead
+    // of leaving them floating over the sky.
+    this.add
+      .graphics()
+      .setDepth(0)
+      .fillStyle(0x6b4a24, 0.34)
+      .fillRoundedRect(4, 6, 1272, 106, 16)
+      .lineStyle(2, 0x3a2410, 0.45)
+      .strokeRoundedRect(4, 6, 1272, 106, 16);
+
     // Bottom info strip: a translucent parchment bar that holds the mode/hint
     // text so it reads on a surface instead of clipping off the canvas edge.
     this.add
