@@ -299,3 +299,247 @@ Hay Day / Happy Farm style.
 ```
 Slices to `neighbor_avatar_maria`, `neighbor_avatar_joao`,
 `neighbor_avatar_ana`, `avatar_placeholder`.
+
+---
+
+# Phase 3 — animated animals + status states
+
+Goal: show the animals as living sprites on the farm (not just a text list) with
+frame-by-frame motion AND distinct visual states (fed/idle, hungry, ready,
+deceased). These load through the SAME sprite-strip pipeline already used by
+`fx_water_splash` — a single PNG cut into equal frames, listed in
+`spriteSheetManifest` in `src/game/assets/manifest.ts` and built into a Phaser
+animation in `BootScene`.
+
+> IMPORTANT — do NOT make GIFs. Phaser's Canvas renderer cannot play animated
+> GIF/WebP. Deliver each animation as a **horizontal sprite-strip PNG**: the
+> same character drawn N times left-to-right, equal-width frames, transparent
+> background. The frame count goes in the file name (`_strip4`, `_strip6`).
+
+## Transparency — avoid the fake checkerboard (read this first)
+
+ChatGPT / DALL·E almost always *fake* transparency: they paint a light-gray
+**checkerboard pattern** (or a flat color) directly INTO the pixels instead of
+using a real alpha channel. If you drop that straight into the game, the
+animal will animate inside a gray checker box. Two ways to get genuinely
+transparent PNGs:
+
+1. **Ask, then clean (most reliable).** Generate the strip, then run it through
+   the strip-safe cleaner which removes a baked-in checkerboard or flat color
+   while keeping the full strip dimensions (so the equal frames survive):
+
+   ```bash
+   python3 doc/assets/clean_strip_bg.py path/to/animal_chicken_idle_strip4.png \
+       frontend/public/assets/animals/animal_chicken_idle_strip4.png
+   ```
+
+   It auto-detects checkerboard vs flat backgrounds; force one with
+   `--mode checker` or `--mode solid`. Already-transparent PNGs pass through
+   untouched. (The grid `slice_assets.py` does the same for contact sheets, but
+   it trims to content and would destroy a strip's frame layout — use
+   `clean_strip_bg.py` for strips.)
+
+2. **Generate on a flat key color.** If a model keeps drawing the checker even
+   when asked for transparency, instead ask for a **solid flat magenta
+   (#FF00FF) background** behind the frames (a color that never appears on the
+   animal), then run `clean_strip_bg.py --mode solid`. A single flat color keys
+   out far more cleanly than a checker.
+
+Whichever you pick, ALWAYS verify the final PNG actually has alpha (open it over
+a colored background, or check that it shows transparency in an image viewer)
+before wiring it in — a checker that slips through will be very visible in-game.
+
+
+## How the frames must be laid out (read before generating)
+
+These rules make the strip slice and animate cleanly. Bake them into every
+prompt (they're repeated in the shared block below):
+
+- **One animation per image.** A single horizontal row of frames, left to right.
+- **Equal-width frames, no gaps, no dividers, no frame borders/numbers.** The
+  loader cuts the strip into `frameCount` equal slices, so any uneven spacing or
+  visible grid lines will misalign the animation.
+- **Identical character in every frame** — same colors, same outline, same size.
+  Only the moving part (legs, wings, head, tail) changes between frames.
+- **Locked position + baseline.** The animal's feet sit on the SAME invisible
+  ground line and the body stays centered in each frame (no drifting across the
+  strip), so it doesn't jitter when played.
+- **Soft top-down 3/4 view** to match the existing static animal art.
+- **Fully transparent background, no ground shadow, no text.**
+- Target each frame roughly **square (256x256)**, so a 4-frame strip = 1024x256
+  and a 6-frame strip = 1536x256.
+
+**Shared style + frame block — paste at the END of every prompt below:**
+
+```
+Style: glossy cartoon mobile farm game art, soft cel shading, thick clean
+outlines, warm saturated colors, soft top-down 3/4 view, Hay Day / Happy Farm
+style. Horizontal sprite-sheet strip, frames laid left to right, EQUAL WIDTH,
+evenly spaced with NO gaps, NO dividing lines, NO frame borders, NO numbers, NO
+text. The SAME character in every frame — identical size, colors and outline;
+only the described motion changes. Feet aligned on the same baseline, body
+centered, no drifting. The background MUST be 100% empty: a real transparent
+alpha background, completely uniform, with absolutely NO checkerboard pattern,
+NO gray-and-white squares, NO grid, NO drop shadow, NO ground — nothing behind
+the character but pure transparency.
+```
+
+> If the model still bakes in a gray checkerboard, regenerate asking for a
+> "solid flat magenta (#FF00FF) background" instead, then key it out with
+> `python3 doc/assets/clean_strip_bg.py <file> --mode solid` (see the
+> Transparency section above).
+
+
+## Required strips (file name -> frames -> what to draw)
+
+Drop the PNGs in `frontend/public/assets/animals/`. Frame counts can be reduced
+if the generator struggles with consistency — fewer frames animate more
+reliably.
+
+### Chicken (productive)
+- `animal_chicken_idle_strip4.png` — 4 frames, calm chicken pecking the ground
+  (head dips down and back up), occasional blink.
+- `animal_chicken_hungry_strip4.png` — 4 frames, thin sad chicken, head drooping,
+  wings sagging, looking around weakly.
+- `animal_chicken_ready_strip4.png` — 4 frames, happy chicken clucking proudly
+  with a fresh egg beside it (the "product ready to collect" state).
+- `animal_chicken_dead_strip1.png` — 1 frame, gentle cartoon "fainted" chicken
+  lying on its back, legs up, simple X eyes (not gory).
+
+### Cow line (growing — three body stages)
+- `animal_calf_calf_idle_strip4.png` — 4 frames, small brown calf chewing /
+  swishing tail, ears flick.
+- `animal_calf_calf_hungry_strip4.png` — 4 frames, the small calf looking thin
+  and droopy, head low.
+- `animal_calf_heifer_idle_strip4.png` — 4 frames, young cow chewing, tail swish.
+- `animal_calf_heifer_hungry_strip4.png` — 4 frames, the young cow droopy/sad.
+- `animal_calf_cow_idle_strip4.png` — 4 frames, fat happy cow chewing, tail swish,
+  blink.
+- `animal_calf_cow_hungry_strip4.png` — 4 frames, the fat cow looking thin and
+  unhappy, head low.
+- `animal_calf_dead_strip1.png` — 1 frame, gentle cartoon cow lying down on its
+  side, simple X eyes (not gory). Shared across the cow stages.
+
+### Dog (guard — not fed in the current model)
+- `animal_dog_idle_strip4.png` — 4 frames, cute brown puppy sitting, tail wagging,
+  blinking, ears twitch.
+- `animal_dog_alert_strip4.png` — 4 frames, the same puppy standing and barking
+  (mouth opens/closes, front paw lifts) — for the guard "caught a thief" moment.
+
+## Ready-to-paste prompts
+
+Generate each block as its OWN image. Append the shared style + frame block
+(above) to every one.
+
+### Chicken — idle (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of a plump white cartoon
+chicken with a red comb and orange beak, pecking the ground: frame 1 standing
+upright, frame 2 head lowering, frame 3 beak touching the ground, frame 4 head
+rising back up. Same chicken, same spot, in every frame.
+```
+
+### Chicken — hungry (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of the SAME white cartoon
+chicken but hungry and weak: thinner body, droopy head and wings, sad eyes,
+slowly looking left and right across the frames. Same chicken, same spot.
+```
+
+### Chicken — ready / egg laid (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of the SAME white cartoon
+chicken looking happy and proud next to a single fresh white egg on the ground:
+gentle clucking bob, little wing flap, the egg stays in place. Same chicken,
+same spot.
+```
+
+### Chicken — deceased (256x256, single frame)
+```
+A single gentle cartoon frame of the SAME white chicken having fainted, lying on
+its back with both legs sticking up and simple X-shaped closed eyes, a tiny
+swirl above its head. Cute and harmless, NOT gory or bloody.
+```
+
+### Calf — idle (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of a small brown cartoon calf
+with white patches, chewing and gently swishing its tail, ears flicking. Same
+calf, same spot, in every frame.
+```
+
+### Calf — hungry (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of the SAME small brown calf
+looking hungry: thinner, head hanging low, sad droopy eyes, tail still. Same
+calf, same spot.
+```
+
+### Heifer — idle (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of a young cartoon cow (heifer,
+medium size, brown and white) chewing and swishing its tail, ears flicking. Same
+cow, same spot.
+```
+
+### Heifer — hungry (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of the SAME young cow looking
+hungry and droopy: thinner, head low, sad eyes. Same cow, same spot.
+```
+
+### Cow — idle (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of a big fat happy cartoon cow
+(brown and white, pink udder) chewing, swishing its tail and blinking. Same cow,
+same spot.
+```
+
+### Cow — hungry (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of the SAME big cow looking
+hungry and unhappy: thinner, head hanging low, sad droopy eyes, tail still. Same
+cow, same spot.
+```
+
+### Cow line — deceased (256x256, single frame)
+```
+A single gentle cartoon frame of a brown-and-white cow lying down on its side
+asleep/fainted, with simple X-shaped closed eyes and a tiny swirl above its head.
+Cute and harmless, NOT gory or bloody. Used for any cow growth stage.
+```
+
+### Dog — idle (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of a cute brown cartoon guard
+puppy sitting, wagging its tail, blinking and twitching its ears. Same puppy,
+same spot.
+```
+
+### Dog — alert / bark (1024x256)
+```
+A horizontal sprite-sheet strip of 4 equal frames of the SAME brown puppy
+standing and barking: frame 1 standing alert, frame 2 mouth opening, frame 3
+barking with one front paw lifted, frame 4 mouth closing. Same puppy, same spot.
+```
+
+## After the art is generated (wiring notes for the dev)
+
+1. Drop the PNGs in `frontend/public/assets/animals/`.
+2. Add a `SpriteSheetEntry` per strip to `spriteSheetManifest` in
+   `manifest.ts`, e.g. `{ key: 'animal_chicken_idle', url:
+   '${BASE}/animals/animal_chicken_idle_strip4.png', frameWidth: 256,
+   frameHeight: 256, frameCount: 4 }`. `BootScene` already loops the manifest to
+   `load.spritesheet` + `anims.create`, so each strip becomes a playable anim
+   keyed by `key`.
+3. Single-frame `_strip1` "dead" sprites can stay as plain `AssetEntry` images
+   (no animation) instead of sprite sheets.
+4. Render owned animals as sprites on the farm and pick the anim by state:
+   fed+idle, `storedProduct>0` -> chicken `_ready`, not fed -> `_hungry`,
+   matured cow -> `_cow_idle`, dead -> `_dead`.
+
+> MODEL CHANGE NEEDED for "deceased": animals currently have no death state
+> (only crops can die). To use the dead sprites, `AnimalState` needs a health /
+> dead flag (e.g. die after being left hungry past a grace period), bumping
+> `SAVE_VERSION` with a migration. Flagged here so the art and the mechanic land
+> together — say the word and I'll implement the animal-death rule + rendering.

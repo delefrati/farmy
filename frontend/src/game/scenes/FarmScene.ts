@@ -4,7 +4,8 @@ import type { FarmTile } from '../types/farm';
 import type { SaveGame } from '../types/save';
 import type { PlayerEconomy } from '../types/economy';
 import type { PlayerInventory } from '../types/inventory';
-import type { PlayerAnimals } from '../types/animals';
+import type { PlayerAnimals, AnimalState } from '../types/animals';
+import type { AnimalDefinition } from '../types/animal';
 import { crops, defaultCropId } from '../data/crops';
 import type { CropDefinition } from '../types/crop';
 import { RemoteSaveService } from '../services/RemoteSaveService';
@@ -1429,7 +1430,162 @@ export class FarmScene extends Phaser.Scene {
       });
     };
 
+    // --- Animated on-farm animal sprites -----------------------------------
+    // Each owned animal is drawn as a sprite standing in the front-left yard.
+    // The animation/texture is chosen from the animal's live state (idle /
+    // hungry / ready / dead), falling back to the existing static art whenever
+    // a given state's strip isn't present.
+    const ANIMAL_YARD = { x0: 74, y0: 566, dx: 96, dyRow: 104, perRow: 4, size: 84 };
+    const animalSlot = (index: number): { x: number; y: number } => {
+      const col = index % ANIMAL_YARD.perRow;
+      const row = Math.floor(index / ANIMAL_YARD.perRow);
+      return {
+        x: ANIMAL_YARD.x0 + col * ANIMAL_YARD.dx,
+        y: ANIMAL_YARD.y0 + row * ANIMAL_YARD.dyRow,
+      };
+    };
+
+    type AnimalView = { sprite: Phaser.GameObjects.Sprite; visual: string };
+    const animalSprites = new Map<string, AnimalView>();
+    let dogSprite: Phaser.GameObjects.Sprite | null = null;
+
+    const animalBaseKey = (animal: AnimalState, def: AnimalDefinition): string => {
+      if (def.kind === 'growing') {
+        return `animal_${def.id}_${getGrowthStageLabel(animal, def).toLowerCase()}`;
+      }
+      return `animal_${def.id}`;
+    };
+
+    type AnimalStateKind = 'idle' | 'hungry' | 'ready' | 'dead';
+    type AnimalVisual = { key: string; anim: boolean; specific: boolean; state: AnimalStateKind };
+
+    const resolveAnimalVisual = (
+      animal: AnimalState,
+      def: AnimalDefinition,
+      now: number,
+    ): AnimalVisual | null => {
+      const base = animalBaseKey(animal, def);
+      let state: AnimalStateKind;
+      if (animal.dead) {
+        state = 'dead';
+      } else if (def.kind === 'productive' && animal.storedProduct > 0) {
+        state = 'ready';
+      } else if (!isFed(animal, now)) {
+        state = 'hungry';
+      } else {
+        state = 'idle';
+      }
+
+      const candidates: { key: string; anim: boolean; specific: boolean }[] = [];
+      if (state === 'dead') {
+        candidates.push({ key: `animal_${def.id}_dead`, anim: false, specific: true });
+      } else {
+        candidates.push({ key: `${base}_${state}`, anim: true, specific: true });
+      }
+      candidates.push({ key: `${base}_idle`, anim: true, specific: false });
+      candidates.push({ key: base, anim: false, specific: false });
+
+      for (const cand of candidates) {
+        const present = cand.anim ? this.anims.exists(cand.key) : this.textures.exists(cand.key);
+        if (present) {
+          return { ...cand, state };
+        }
+      }
+      return null;
+    };
+
+    const applyAnimalVisual = (view: AnimalView, vis: AnimalVisual, baseSize: number): void => {
+      const sprite = view.sprite;
+      const visualId = `${vis.key}|${vis.anim ? 'a' : 't'}`;
+      if (view.visual !== visualId) {
+        view.visual = visualId;
+        if (vis.anim) {
+          sprite.play(vis.key);
+        } else {
+          sprite.anims.stop();
+          sprite.setTexture(vis.key);
+        }
+      }
+      // Keep a stable on-screen height regardless of each strip's native size.
+      const h = sprite.height || baseSize;
+      sprite.setScale(baseSize / h);
+      // Convey state even when the state-specific art is missing: a hungry
+      // animal looks washed-out, a deceased one greys out and keels over.
+      if (vis.state === 'dead') {
+        if (vis.specific) {
+          sprite.clearTint().setAngle(0).setAlpha(1);
+        } else {
+          sprite.setTint(0x6f6f6f).setAngle(80).setAlpha(0.95);
+        }
+      } else if (vis.state === 'hungry' && !vis.specific) {
+        sprite.setTint(0xccba8c).setAngle(0).setAlpha(1);
+      } else {
+        sprite.clearTint().setAngle(0).setAlpha(1);
+      }
+    };
+
+    const syncAnimalSprites = (): void => {
+      const now = Date.now();
+      const live = new Set(this.animals.animals.map((a) => a.id));
+      for (const [id, view] of animalSprites) {
+        if (!live.has(id)) {
+          view.sprite.destroy();
+          animalSprites.delete(id);
+        }
+      }
+
+      this.animals.animals.forEach((animal, index) => {
+        const def = getAnimalDefinition(animal.defId);
+        if (!def) {
+          return;
+        }
+        const vis = resolveAnimalVisual(animal, def, now);
+        let view = animalSprites.get(animal.id);
+        if (!vis) {
+          if (view) {
+            view.sprite.destroy();
+            animalSprites.delete(animal.id);
+          }
+          return;
+        }
+        const slot = animalSlot(index);
+        if (!view) {
+          const sprite = this.add
+            .sprite(slot.x, slot.y, vis.key)
+            .setOrigin(0.5, 1)
+            .setDepth(2500 + index);
+          view = { sprite, visual: '' };
+          animalSprites.set(animal.id, view);
+        }
+        view.sprite.setPosition(slot.x, slot.y).setDepth(2500 + index);
+        const size = ANIMAL_YARD.size * (def.kind === 'growing' ? 1.15 : 1);
+        applyAnimalVisual(view, vis, size);
+      });
+
+      // Guard dog: stored as a boolean flag, not in the animals array.
+      const dogArt = this.anims.exists('animal_dog_idle') || this.textures.exists('animal_dog');
+      if (this.hasDog && dogArt) {
+        if (!dogSprite) {
+          const initKey = this.textures.exists('animal_dog') ? 'animal_dog' : 'animal_dog_idle';
+          dogSprite = this.add.sprite(42, 742, initKey).setOrigin(0.5, 1).setDepth(2490);
+        }
+        if (this.anims.exists('animal_dog_idle')) {
+          if (dogSprite.anims.getName() !== 'animal_dog_idle') {
+            dogSprite.play('animal_dog_idle');
+          }
+        } else {
+          dogSprite.setTexture('animal_dog');
+        }
+        const dh = dogSprite.height || 70;
+        dogSprite.setScale(70 / dh);
+      } else if (dogSprite) {
+        dogSprite.destroy();
+        dogSprite = null;
+      }
+    };
+
     const refreshAnimalsLabel = (): void => {
+      syncAnimalSprites();
       if (this.animals.animals.length === 0) {
         animalsText.setText(t('Animals: none yet.\nBuy a Chicken (eggs) or a Calf (raise & sell).'));
         return;
@@ -3049,6 +3205,8 @@ export class FarmScene extends Phaser.Scene {
                 run: () => { this.animals.animals.push(createAnimalInstance(def.id, Date.now())); },
               })),
               { label: 'Mature all', run: matureAllAnimals },
+              { label: 'Starve all', run: () => { const past = Date.now() - 1; this.animals.animals.forEach((a) => { if (!a.dead) { a.fedUntil = past; a.starveMs = ANIMAL.STARVE_SECONDS * 1000 * 0.95; } }); } },
+              { label: 'Kill all', run: () => { this.animals.animals.forEach((a) => { a.dead = true; }); } },
               { label: 'Remove all', run: () => { this.animals.animals = []; } },
             ],
           },

@@ -50,6 +50,14 @@ const animalAssets: AssetEntry[] = animalDefinitions.flatMap((def) => {
   return entries;
 });
 
+// Single-frame "deceased" art for animals that can starve. Loaded as plain
+// images (no animation). Growing animals share one carcass (`animal_calf_dead`)
+// regardless of their growth stage. Missing files fall back to a tinted body.
+const animalDeadAssets: AssetEntry[] = [
+  { key: 'animal_chicken_dead', url: `${BASE}/animals/animal_chicken_dead_strip1.png` },
+  { key: 'animal_calf_dead', url: `${BASE}/animals/animal_calf_dead_strip1.png` },
+];
+
 const decorAssets: AssetEntry[] = decorations.map((decor) => ({
   key: `decor_${decor.id}`,
   url: `${BASE}/decor/decor_${decor.id}.png`,
@@ -104,6 +112,7 @@ export const assetManifest: AssetEntry[] = [
   ...tileAssets,
   ...cropAssets,
   ...animalAssets,
+  ...animalDeadAssets,
   ...decorAssets,
   ...buildingAssets,
   ...uiAssets,
@@ -141,4 +150,34 @@ export const spriteSheetManifest: SpriteSheetEntry[] = [
     // -> small settle, skipping the dead-stick (3) and heart (5) frames.
     frameSequence: [0, 2, 1, 4],
   },
+];
+
+/**
+ * Animated animal sprite-strips. Unlike {@link SpriteSheetEntry} these are
+ * loaded as plain images and sliced into frames at runtime, so the frame size
+ * doesn't need to be known up-front (the loader divides the strip width by
+ * `frameCount`). This keeps the pipeline size-agnostic across the differently
+ * sized strips ChatGPT produces. Each entry becomes a looping animation whose
+ * key equals `key`. Missing files are tolerated — the farm falls back to the
+ * existing static animal textures.
+ */
+export interface AnimalAnimEntry {
+  key: string;
+  url: string;
+  frameCount: number;
+  frameRate?: number;
+}
+
+export const animalAnimManifest: AnimalAnimEntry[] = [
+  { key: 'animal_chicken_idle', url: `${BASE}/animals/animal_chicken_idle_strip4.png`, frameCount: 4 },
+  { key: 'animal_chicken_hungry', url: `${BASE}/animals/animal_chicken_hungry_strip4.png`, frameCount: 4 },
+  { key: 'animal_chicken_ready', url: `${BASE}/animals/animal_chicken_ready_strip4.png`, frameCount: 4 },
+  { key: 'animal_calf_calf_idle', url: `${BASE}/animals/animal_calf_calf_idle_strip4.png`, frameCount: 4 },
+  { key: 'animal_calf_calf_hungry', url: `${BASE}/animals/animal_calf_calf_hungry_strip4.png`, frameCount: 4 },
+  { key: 'animal_calf_heifer_idle', url: `${BASE}/animals/animal_calf_heifer_idle_strip4.png`, frameCount: 4 },
+  { key: 'animal_calf_heifer_hungry', url: `${BASE}/animals/animal_calf_heifer_hungry_strip4.png`, frameCount: 4 },
+  { key: 'animal_calf_cow_idle', url: `${BASE}/animals/animal_calf_cow_idle_strip4.png`, frameCount: 4 },
+  { key: 'animal_calf_cow_hungry', url: `${BASE}/animals/animal_calf_cow_hungry_strip4.png`, frameCount: 4 },
+  { key: 'animal_dog_idle', url: `${BASE}/animals/animal_dog_idle_strip4.png`, frameCount: 4 },
+  { key: 'animal_dog_alert', url: `${BASE}/animals/animal_dog_alert_strip4.png`, frameCount: 4 },
 ];

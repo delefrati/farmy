@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { assetManifest, spriteSheetManifest } from '../assets/manifest';
+import { animalAnimManifest, assetManifest, spriteSheetManifest } from '../assets/manifest';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -27,6 +27,12 @@ export class BootScene extends Phaser.Scene {
         frameHeight: sheet.frameHeight,
       });
     }
+
+    // Animal strips are loaded as plain images and sliced at runtime (see
+    // create), so we don't need to know their frame size ahead of time.
+    for (const entry of animalAnimManifest) {
+      this.load.image(entry.key, entry.url);
+    }
   }
 
   create(): void {
@@ -46,6 +52,34 @@ export class BootScene extends Phaser.Scene {
         ),
         frameRate: 12,
         repeat: 0,
+      });
+    }
+
+    // Slice each loaded animal strip into equal frames and register a looping
+    // animation. Strips that failed to load are skipped (the farm falls back to
+    // the static animal textures).
+    for (const entry of animalAnimManifest) {
+      if (!this.textures.exists(entry.key) || this.anims.exists(entry.key)) {
+        continue;
+      }
+      const texture = this.textures.get(entry.key);
+      const source = texture.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+      const count = Math.max(1, entry.frameCount);
+      const frameWidth = Math.floor(source.width / count);
+      const frameHeight = source.height;
+      if (frameWidth <= 0 || frameHeight <= 0) {
+        continue;
+      }
+      for (let i = 0; i < count; i += 1) {
+        if (!texture.has(String(i))) {
+          texture.add(i, 0, i * frameWidth, 0, frameWidth, frameHeight);
+        }
+      }
+      this.anims.create({
+        key: entry.key,
+        frames: this.anims.generateFrameNumbers(entry.key, { start: 0, end: count - 1 }),
+        frameRate: entry.frameRate ?? 6,
+        repeat: -1,
       });
     }
 
