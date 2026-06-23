@@ -4,7 +4,12 @@
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    // Emit the composite build output (declaration + JS) into a temp dir so it
+    // does not produce a root-level `vite.config.js` that would shadow and
+    // override `vite.config.ts` when Vite resolves its config.
+    "outDir": "./node_modules/.tmp/node-config",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
   "include": ["vite.config.ts"]
 }

@@ -366,8 +366,15 @@ prompt (they're repeated in the shared block below):
   strip), so it doesn't jitter when played.
 - **Soft top-down 3/4 view** to match the existing static animal art.
 - **Fully transparent background, no ground shadow, no text.**
-- Target each frame roughly **square (256x256)**, so a 4-frame strip = 1024x256
-  and a 6-frame strip = 1536x256.
+- Target each frame roughly **square (256x256)**, so an **8-frame strip = 2048x256**
+  (a 4-frame strip = 1024x256). More frames = smoother motion; the loader slices
+  whatever it's given, so the count is flexible.
+
+> **Frame count is auto-detected.** `BootScene` derives the number of frames from
+> the strip's proportions (`round(width / height)`, frames are square), so you
+> do NOT need to touch the manifest when you change the count — just keep the
+> frames square and laid out in one even row. The `_stripN` in the file name is
+> only documentation. Prefer **8 frames** for the smooth look; 4 still works.
 
 **Shared style + frame block — paste at the END of every prompt below:**
 
@@ -397,33 +404,33 @@ if the generator struggles with consistency — fewer frames animate more
 reliably.
 
 ### Chicken (productive)
-- `animal_chicken_idle_strip4.png` — 4 frames, calm chicken pecking the ground
+- `animal_chicken_idle_strip8.png` — 8 frames, calm chicken pecking the ground
   (head dips down and back up), occasional blink.
-- `animal_chicken_hungry_strip4.png` — 4 frames, thin sad chicken, head drooping,
+- `animal_chicken_hungry_strip8.png` — 8 frames, thin sad chicken, head drooping,
   wings sagging, looking around weakly.
-- `animal_chicken_ready_strip4.png` — 4 frames, happy chicken clucking proudly
+- `animal_chicken_ready_strip8.png` — 8 frames, happy chicken clucking proudly
   with a fresh egg beside it (the "product ready to collect" state).
 - `animal_chicken_dead_strip1.png` — 1 frame, gentle cartoon "fainted" chicken
   lying on its back, legs up, simple X eyes (not gory).
 
 ### Cow line (growing — three body stages)
-- `animal_calf_calf_idle_strip4.png` — 4 frames, small brown calf chewing /
+- `animal_calf_calf_idle_strip8.png` — 8 frames, small brown calf chewing /
   swishing tail, ears flick.
-- `animal_calf_calf_hungry_strip4.png` — 4 frames, the small calf looking thin
+- `animal_calf_calf_hungry_strip8.png` — 8 frames, the small calf looking thin
   and droopy, head low.
-- `animal_calf_heifer_idle_strip4.png` — 4 frames, young cow chewing, tail swish.
-- `animal_calf_heifer_hungry_strip4.png` — 4 frames, the young cow droopy/sad.
-- `animal_calf_cow_idle_strip4.png` — 4 frames, fat happy cow chewing, tail swish,
+- `animal_calf_heifer_idle_strip8.png` — 8 frames, young cow chewing, tail swish.
+- `animal_calf_heifer_hungry_strip8.png` — 8 frames, the young cow droopy/sad.
+- `animal_calf_cow_idle_strip8.png` — 8 frames, fat happy cow chewing, tail swish,
   blink.
-- `animal_calf_cow_hungry_strip4.png` — 4 frames, the fat cow looking thin and
+- `animal_calf_cow_hungry_strip8.png` — 8 frames, the fat cow looking thin and
   unhappy, head low.
 - `animal_calf_dead_strip1.png` — 1 frame, gentle cartoon cow lying down on its
   side, simple X eyes (not gory). Shared across the cow stages.
 
 ### Dog (guard — not fed in the current model)
-- `animal_dog_idle_strip4.png` — 4 frames, cute brown puppy sitting, tail wagging,
+- `animal_dog_idle_strip8.png` — 8 frames, cute brown puppy sitting, tail wagging,
   blinking, ears twitch.
-- `animal_dog_alert_strip4.png` — 4 frames, the same puppy standing and barking
+- `animal_dog_alert_strip8.png` — 8 frames, the same puppy standing and barking
   (mouth opens/closes, front paw lifts) — for the guard "caught a thief" moment.
 
 ## Ready-to-paste prompts
@@ -431,27 +438,47 @@ reliably.
 Generate each block as its OWN image. Append the shared style + frame block
 (above) to every one.
 
-### Chicken — idle (1024x256)
+> **How the `_idle` strip is played (important for the art).** The idle strip is
+> NOT looped continuously — that makes a yard of animals move in robotic unison.
+> Instead the game holds the animal on **frame 1 (a calm resting pose)** and adds
+> subtle, *desynchronized* life procedurally (a gentle breathing bob + the
+> occasional small head/kick wobble). Every few seconds, at random, it plays the
+> whole idle strip **once** as a "peck" accent, then settles back on frame 1. So:
+> make **frame 1 a clean neutral standing pose** (this is what's shown most of
+> the time), put the actual action (the peck/chew) in the middle frames, and end
+> on a pose close to frame 1 so it settles cleanly. The `_hungry` / `_ready`
+> strips still loop normally.
+
+### Chicken — idle (2048x256, 8 frames)
 ```
-A horizontal sprite-sheet strip of 4 equal frames of a plump white cartoon
-chicken with a red comb and orange beak, pecking the ground: frame 1 standing
-upright, frame 2 head lowering, frame 3 beak touching the ground, frame 4 head
-rising back up. Same chicken, same spot, in every frame.
+A horizontal sprite-sheet strip of 8 equal frames of a plump white cartoon
+chicken with a red comb and orange beak. Frame 1 is a calm neutral standing
+pose (this is the resting pose). The strip then plays ONE pecking action and
+returns to rest: frames 2-3 head tilting and lowering, frame 4 beak almost
+touching the ground, frame 5 beak pecking the ground (one eye blinks), frames
+6-7 head rising back up, frame 8 back to the same calm standing pose as frame 1.
+Same chicken, same spot, in every frame.
 ```
 
-### Chicken — hungry (1024x256)
+### Chicken — hungry (2048x256, 8 frames)
 ```
-A horizontal sprite-sheet strip of 4 equal frames of the SAME white cartoon
-chicken but hungry and weak: thinner body, droopy head and wings, sad eyes,
-slowly looking left and right across the frames. Same chicken, same spot.
+A horizontal sprite-sheet strip of 8 equal frames of the SAME white cartoon
+chicken but hungry and weak: thinner body, droopy head and sagging wings, sad
+half-closed eyes. ONE slow, tired looping sway: frames 1-2 head hanging low and
+centered, frames 3-4 weakly turning to look left, frame 5 back to center, frames
+6-7 weakly turning to look right, frame 8 returning toward center (loops into
+frame 1). Movement is small and sluggish. Same chicken, same spot.
 ```
 
-### Chicken — ready / egg laid (1024x256)
+### Chicken — ready / egg laid (2048x256, 8 frames)
 ```
-A horizontal sprite-sheet strip of 4 equal frames of the SAME white cartoon
-chicken looking happy and proud next to a single fresh white egg on the ground:
-gentle clucking bob, little wing flap, the egg stays in place. Same chicken,
-same spot.
+A horizontal sprite-sheet strip of 8 equal frames of the SAME white cartoon
+chicken looking happy and proud next to a single fresh white egg resting on the
+ground: ONE looping proud-cluck cycle: frame 1 upright, frame 2 chest puffing up
+with a little bob, frames 3-4 one wing lifting outward in a flap, frames 5-6 the
+wing lowering back, frame 7 a small happy head cluck, frame 8 settling back to
+frame 1. The egg stays in exactly the same place and size in every frame. Same
+chicken, same spot.
 ```
 
 ### Chicken — deceased (256x256, single frame)
@@ -461,45 +488,59 @@ its back with both legs sticking up and simple X-shaped closed eyes, a tiny
 swirl above its head. Cute and harmless, NOT gory or bloody.
 ```
 
-### Calf — idle (1024x256)
+### Calf — idle (2048x256, 8 frames)
 ```
-A horizontal sprite-sheet strip of 4 equal frames of a small brown cartoon calf
-with white patches, chewing and gently swishing its tail, ears flicking. Same
-calf, same spot, in every frame.
-```
-
-### Calf — hungry (1024x256)
-```
-A horizontal sprite-sheet strip of 4 equal frames of the SAME small brown calf
-looking hungry: thinner, head hanging low, sad droopy eyes, tail still. Same
-calf, same spot.
+A horizontal sprite-sheet strip of 8 equal frames of a small brown cartoon calf
+with white patches. Frame 1 is a calm neutral standing pose (the resting pose).
+The strip then plays ONE gentle idle action and returns to rest: frames 2-3 slow
+chewing (jaw down and up), frames 4-6 the tail swishing across, frames 7-8 ears
+flicking and a blink, ending on the same calm pose as frame 1. Same calf, same
+spot, in every frame.
 ```
 
-### Heifer — idle (1024x256)
+### Calf — hungry (2048x256, 8 frames)
 ```
-A horizontal sprite-sheet strip of 4 equal frames of a young cartoon cow (heifer,
-medium size, brown and white) chewing and swishing its tail, ears flicking. Same
-cow, same spot.
-```
-
-### Heifer — hungry (1024x256)
-```
-A horizontal sprite-sheet strip of 4 equal frames of the SAME young cow looking
-hungry and droopy: thinner, head low, sad eyes. Same cow, same spot.
+A horizontal sprite-sheet strip of 8 equal frames of the SAME small brown calf
+looking hungry: thinner, head hanging low, sad droopy eyes. ONE slow tired
+looping motion: frames 1-2 head low and still, frames 3-4 a weak slow sway to
+one side, frame 5 center, frames 6-7 a weak sway to the other side, frame 8
+returning toward center to loop. Small, sluggish movement. Same calf, same spot.
 ```
 
-### Cow — idle (1024x256)
+### Heifer — idle (2048x256, 8 frames)
 ```
-A horizontal sprite-sheet strip of 4 equal frames of a big fat happy cartoon cow
-(brown and white, pink udder) chewing, swishing its tail and blinking. Same cow,
-same spot.
+A horizontal sprite-sheet strip of 8 equal frames of a young cartoon cow (heifer,
+medium size, brown and white). Frame 1 is a calm neutral standing pose (the
+resting pose). The strip then plays ONE gentle idle action and returns to rest:
+frames 2-3 slow chewing, frames 4-6 tail swishing across, frames 7-8 ears
+flicking and a blink, ending on the same calm pose as frame 1. Same cow, same
+spot.
 ```
 
-### Cow — hungry (1024x256)
+### Heifer — hungry (2048x256, 8 frames)
 ```
-A horizontal sprite-sheet strip of 4 equal frames of the SAME big cow looking
-hungry and unhappy: thinner, head hanging low, sad droopy eyes, tail still. Same
-cow, same spot.
+A horizontal sprite-sheet strip of 8 equal frames of the SAME young cow looking
+hungry and droopy: thinner, head low, sad eyes. ONE slow looping tired sway:
+frames 1-2 head low, frames 3-4 weak lean one way, frame 5 center, frames 6-7
+weak lean the other way, frame 8 back toward center to loop. Same cow, same spot.
+```
+
+### Cow — idle (2048x256, 8 frames)
+```
+A horizontal sprite-sheet strip of 8 equal frames of a big fat happy cartoon cow
+(brown and white, pink udder). Frame 1 is a calm neutral standing pose (the
+resting pose). The strip then plays ONE gentle idle action and returns to rest:
+frames 2-3 slow chewing, frames 4-6 tail swishing across, frames 7-8 a blink and
+ear flick, ending on the same calm pose as frame 1. Same cow, same spot.
+```
+
+### Cow — hungry (2048x256, 8 frames)
+```
+A horizontal sprite-sheet strip of 8 equal frames of the SAME big cow looking
+hungry and unhappy: thinner, head hanging low, sad droopy eyes. ONE slow looping
+tired sway: frames 1-2 head low and still, frames 3-4 weak lean one way, frame 5
+center, frames 6-7 weak lean the other way, frame 8 back toward center to loop.
+Same cow, same spot.
 ```
 
 ### Cow line — deceased (256x256, single frame)
@@ -509,37 +550,44 @@ asleep/fainted, with simple X-shaped closed eyes and a tiny swirl above its head
 Cute and harmless, NOT gory or bloody. Used for any cow growth stage.
 ```
 
-### Dog — idle (1024x256)
+### Dog — idle (2048x256, 8 frames)
 ```
-A horizontal sprite-sheet strip of 4 equal frames of a cute brown cartoon guard
-puppy sitting, wagging its tail, blinking and twitching its ears. Same puppy,
-same spot.
+A horizontal sprite-sheet strip of 8 equal frames of a cute brown cartoon guard
+puppy sitting. Frame 1 is a calm seated resting pose. The strip then plays ONE
+gentle idle action and returns to rest: frames 2-4 the tail wagging from side to
+side, frame 5 a blink, frames 6-7 ears twitching, frame 8 back to the same calm
+seated pose as frame 1. The body stays seated and centered. Same puppy, same
+spot.
 ```
 
-### Dog — alert / bark (1024x256)
+### Dog — alert / bark (2048x256, 8 frames)
 ```
-A horizontal sprite-sheet strip of 4 equal frames of the SAME brown puppy
-standing and barking: frame 1 standing alert, frame 2 mouth opening, frame 3
-barking with one front paw lifted, frame 4 mouth closing. Same puppy, same spot.
+A horizontal sprite-sheet strip of 8 equal frames of the SAME brown puppy
+standing and barking in ONE looping cycle: frame 1 standing alert, frame 2 mouth
+beginning to open, frame 3 mouth wide barking with one front paw lifting, frame
+4 full bark, frames 5-6 mouth closing and paw lowering, frames 7-8 settling back
+to the alert stance (loops into frame 1). Same puppy, same spot.
 ```
 
 ## After the art is generated (wiring notes for the dev)
 
 1. Drop the PNGs in `frontend/public/assets/animals/`.
-2. Add a `SpriteSheetEntry` per strip to `spriteSheetManifest` in
-   `manifest.ts`, e.g. `{ key: 'animal_chicken_idle', url:
-   '${BASE}/animals/animal_chicken_idle_strip4.png', frameWidth: 256,
-   frameHeight: 256, frameCount: 4 }`. `BootScene` already loops the manifest to
-   `load.spritesheet` + `anims.create`, so each strip becomes a playable anim
-   keyed by `key`.
-3. Single-frame `_strip1` "dead" sprites can stay as plain `AssetEntry` images
-   (no animation) instead of sprite sheets.
-4. Render owned animals as sprites on the farm and pick the anim by state:
-   fed+idle, `storedProduct>0` -> chicken `_ready`, not fed -> `_hungry`,
-   matured cow -> `_cow_idle`, dead -> `_dead`.
+2. The animated strips are already wired: each one has an entry in
+   `animalAnimManifest` in `manifest.ts` (keyed `animal_chicken_idle`,
+   `animal_chicken_hungry`, `animal_chicken_ready`, the calf/heifer/cow stages
+   and the dog). `BootScene` loads each strip, **auto-detects the frame count**
+   from the image proportions, slices it, and builds a looping anim keyed by
+   `key`. No manifest edit is needed when the frame count changes — just match
+   the file name in the manifest URL (currently `_strip8`).
+3. Single-frame `_strip1` "dead" sprites stay as plain `AssetEntry` images
+   (`animal_chicken_dead`, `animal_calf_dead`) — no animation.
+4. Owned animals already render as sprites and pick the anim by state in
+   `FarmScene` (`resolveAnimalVisual`): fed -> `_idle`, `storedProduct>0` ->
+   `_ready`, not fed -> `_hungry`, dead -> `_dead`. Missing strips fall back to
+   the static animal texture, so a not-yet-delivered strip just shows the old
+   static art.
 
-> MODEL CHANGE NEEDED for "deceased": animals currently have no death state
-> (only crops can die). To use the dead sprites, `AnimalState` needs a health /
-> dead flag (e.g. die after being left hungry past a grace period), bumping
-> `SAVE_VERSION` with a migration. Flagged here so the art and the mechanic land
-> together — say the word and I'll implement the animal-death rule + rendering.
+> DONE — "deceased" is implemented: `AnimalState` has `starveMs` + `dead`
+> flags, an animal left hungry past `ANIMAL.STARVE_SECONDS` dies, and the dead
+> sprite (or a greyed/toppled fallback) renders for it. The optional `starveMs`
+> / `dead` fields kept old saves valid, so no `SAVE_VERSION` bump was needed.

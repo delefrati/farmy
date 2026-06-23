@@ -164,20 +164,25 @@ export const spriteSheetManifest: SpriteSheetEntry[] = [
 export interface AnimalAnimEntry {
   key: string;
   url: string;
-  frameCount: number;
+  /**
+   * Optional explicit frame count. When omitted, {@link BootScene} derives it
+   * from the strip's proportions (`round(width / height)`, frames are square),
+   * so dropping in a 4-, 8- or 12-frame strip needs no manifest edit.
+   */
+  frameCount?: number;
   frameRate?: number;
 }
 
 export const animalAnimManifest: AnimalAnimEntry[] = [
-  { key: 'animal_chicken_idle', url: `${BASE}/animals/animal_chicken_idle_strip4.png`, frameCount: 4 },
-  { key: 'animal_chicken_hungry', url: `${BASE}/animals/animal_chicken_hungry_strip4.png`, frameCount: 4 },
-  { key: 'animal_chicken_ready', url: `${BASE}/animals/animal_chicken_ready_strip4.png`, frameCount: 4 },
-  { key: 'animal_calf_calf_idle', url: `${BASE}/animals/animal_calf_calf_idle_strip4.png`, frameCount: 4 },
-  { key: 'animal_calf_calf_hungry', url: `${BASE}/animals/animal_calf_calf_hungry_strip4.png`, frameCount: 4 },
-  { key: 'animal_calf_heifer_idle', url: `${BASE}/animals/animal_calf_heifer_idle_strip4.png`, frameCount: 4 },
-  { key: 'animal_calf_heifer_hungry', url: `${BASE}/animals/animal_calf_heifer_hungry_strip4.png`, frameCount: 4 },
-  { key: 'animal_calf_cow_idle', url: `${BASE}/animals/animal_calf_cow_idle_strip4.png`, frameCount: 4 },
-  { key: 'animal_calf_cow_hungry', url: `${BASE}/animals/animal_calf_cow_hungry_strip4.png`, frameCount: 4 },
-  { key: 'animal_dog_idle', url: `${BASE}/animals/animal_dog_idle_strip4.png`, frameCount: 4 },
-  { key: 'animal_dog_alert', url: `${BASE}/animals/animal_dog_alert_strip4.png`, frameCount: 4 },
+  { key: 'animal_chicken_idle', url: `${BASE}/animals/animal_chicken_idle_strip8.png` },
+  { key: 'animal_chicken_hungry', url: `${BASE}/animals/animal_chicken_hungry_strip8.png` },
+  { key: 'animal_chicken_ready', url: `${BASE}/animals/animal_chicken_ready_strip8.png` },
+  { key: 'animal_calf_calf_idle', url: `${BASE}/animals/animal_calf_calf_idle_strip8.png` },
+  { key: 'animal_calf_calf_hungry', url: `${BASE}/animals/animal_calf_calf_hungry_strip8.png` },
+  { key: 'animal_calf_heifer_idle', url: `${BASE}/animals/animal_calf_heifer_idle_strip8.png` },
+  { key: 'animal_calf_heifer_hungry', url: `${BASE}/animals/animal_calf_heifer_hungry_strip8.png` },
+  { key: 'animal_calf_cow_idle', url: `${BASE}/animals/animal_calf_cow_idle_strip8.png` },
+  { key: 'animal_calf_cow_hungry', url: `${BASE}/animals/animal_calf_cow_hungry_strip8.png` },
+  { key: 'animal_dog_idle', url: `${BASE}/animals/animal_dog_idle_strip8.png` },
+  { key: 'animal_dog_alert', url: `${BASE}/animals/animal_dog_alert_strip8.png` },
 ];

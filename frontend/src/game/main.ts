@@ -9,6 +9,9 @@ export const createGame = (parent: string | HTMLElement): Phaser.Game => {
   }
 
   game = new Phaser.Game(createGameConfig(parent));
+  if (import.meta.env.DEV) {
+    (window as unknown as { __farmyGame?: Phaser.Game }).__farmyGame = game;
+  }
   return game;
 };
 

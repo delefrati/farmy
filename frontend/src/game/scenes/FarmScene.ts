@@ -1445,7 +1445,20 @@ export class FarmScene extends Phaser.Scene {
       };
     };
 
-    type AnimalView = { sprite: Phaser.GameObjects.Sprite; visual: string };
+    type AnimalView = {
+      sprite: Phaser.GameObjects.Sprite;
+      visual: string;
+      // Per-sprite idle "life": a subtle breathing bob plus a self-rescheduling
+      // accent timer (small head/kick fidget, or an occasional full peck). Kept
+      // here so they can be cancelled when the animal leaves the idle state or
+      // is destroyed. Randomized per animal so a yard full of chickens never
+      // animates in lockstep.
+      bob?: Phaser.Tweens.Tween;
+      accent?: Phaser.Time.TimerEvent;
+      anchorY?: number;
+      slotX?: number;
+      slotY?: number;
+    };
     const animalSprites = new Map<string, AnimalView>();
     let dogSprite: Phaser.GameObjects.Sprite | null = null;
 
@@ -1494,33 +1507,131 @@ export class FarmScene extends Phaser.Scene {
       return null;
     };
 
+    // Tuning for the layered idle "life". All motion is desynchronized per
+    // animal via randomized periods/delays so the yard never moves in unison.
+    const IDLE_MOTION = {
+      bobPx: 2,
+      bobMinMs: 1600,
+      bobMaxMs: 2400,
+      accentMinMs: 2500,
+      accentMaxMs: 6000,
+      // Chance an accent is a full "peck" (plays the strip once) vs a cheap
+      // procedural head/kick fidget. The rest of the time it's just a fidget.
+      peckChance: 0.35,
+      fidgetAngle: 6,
+      fidgetMs: 150,
+    } as const;
+
+    // Cancel a sprite's idle bob + accent scheduler and restore its rest pose.
+    const stopIdleMotion = (view: AnimalView): void => {
+      if (view.bob) {
+        view.bob.stop();
+        view.bob = undefined;
+      }
+      if (view.accent) {
+        view.accent.remove(false);
+        view.accent = undefined;
+      }
+      if (view.anchorY !== undefined) {
+        view.sprite.setY(view.anchorY);
+      }
+      view.sprite.setAngle(0);
+    };
+
+    // Start the subtle breathing bob and the random accent scheduler for an
+    // animal that just entered the idle state. Idempotent.
+    const startIdleMotion = (view: AnimalView, idleKey: string): void => {
+      if (view.bob || !view.sprite.active) {
+        return;
+      }
+      const sprite = view.sprite;
+      const anchorY = view.anchorY ?? sprite.y;
+      view.anchorY = anchorY;
+
+      // Always-on gentle vertical bob ("breathing"). Vertical only, so it never
+      // fights the angle-based fidget below.
+      view.bob = this.tweens.add({
+        targets: sprite,
+        y: anchorY - IDLE_MOTION.bobPx,
+        duration: Phaser.Math.Between(IDLE_MOTION.bobMinMs, IDLE_MOTION.bobMaxMs),
+        yoyo: true,
+        repeat: -1,
+        delay: Phaser.Math.Between(0, 1200),
+        ease: 'Sine.InOut',
+      });
+
+      const scheduleAccent = (): void => {
+        view.accent = this.time.delayedCall(
+          Phaser.Math.Between(IDLE_MOTION.accentMinMs, IDLE_MOTION.accentMaxMs),
+          () => {
+            // Bail if the animal left idle (motion cancelled) meanwhile.
+            if (!view.bob || !sprite.active) {
+              return;
+            }
+            if (this.anims.exists(idleKey) && Math.random() < IDLE_MOTION.peckChance) {
+              // Big accent: play the strip once, then settle back on the rest
+              // frame. Guarded so a state change mid-peck doesn't get stomped.
+              sprite.play({ key: idleKey, repeat: 0 });
+              sprite.once(`animationcomplete-${idleKey}`, () => {
+                if (view.bob && sprite.active) {
+                  sprite.setTexture(idleKey, 0);
+                }
+              });
+            } else {
+              // Small accent: a quick head/kick wobble.
+              this.tweens.add({
+                targets: sprite,
+                angle: Phaser.Math.Between(-IDLE_MOTION.fidgetAngle, IDLE_MOTION.fidgetAngle),
+                duration: IDLE_MOTION.fidgetMs,
+                yoyo: true,
+                ease: 'Sine.InOut',
+              });
+            }
+            scheduleAccent();
+          },
+        );
+      };
+      scheduleAccent();
+    };
+
     const applyAnimalVisual = (view: AnimalView, vis: AnimalVisual, baseSize: number): void => {
       const sprite = view.sprite;
-      const visualId = `${vis.key}|${vis.anim ? 'a' : 't'}`;
+      // The idle state is rendered as a held resting pose with occasional
+      // accents (see startIdleMotion), NOT a continuous loop — so a yard of
+      // animals stays calm and only fidgets/pecks now and then, out of sync.
+      const idleAccented = vis.anim && vis.state === 'idle';
+      const visualId = `${vis.key}|${vis.anim ? 'a' : 't'}|${vis.state}`;
       if (view.visual !== visualId) {
         view.visual = visualId;
-        if (vis.anim) {
+        stopIdleMotion(view);
+        if (idleAccented) {
+          sprite.anims.stop();
+          sprite.setTexture(vis.key, 0);
+        } else if (vis.anim) {
           sprite.play(vis.key);
         } else {
           sprite.anims.stop();
           sprite.setTexture(vis.key);
         }
-      }
-      // Keep a stable on-screen height regardless of each strip's native size.
-      const h = sprite.height || baseSize;
-      sprite.setScale(baseSize / h);
-      // Convey state even when the state-specific art is missing: a hungry
-      // animal looks washed-out, a deceased one greys out and keels over.
-      if (vis.state === 'dead') {
-        if (vis.specific) {
-          sprite.clearTint().setAngle(0).setAlpha(1);
+        // Keep a stable on-screen height regardless of each strip's native size.
+        const h = sprite.height || baseSize;
+        sprite.setScale(baseSize / h);
+        // Convey state even when the state-specific art is missing: a hungry
+        // animal looks washed-out, a deceased one greys out and keels over.
+        if (vis.state === 'dead') {
+          if (vis.specific) {
+            sprite.clearTint().setAngle(0).setAlpha(1);
+          } else {
+            sprite.setTint(0x6f6f6f).setAngle(80).setAlpha(0.95);
+          }
+        } else if (vis.state === 'hungry' && !vis.specific) {
+          sprite.setTint(0xccba8c).setAngle(0).setAlpha(1);
         } else {
-          sprite.setTint(0x6f6f6f).setAngle(80).setAlpha(0.95);
+          sprite.clearTint().setAngle(0).setAlpha(1);
         }
-      } else if (vis.state === 'hungry' && !vis.specific) {
-        sprite.setTint(0xccba8c).setAngle(0).setAlpha(1);
-      } else {
-        sprite.clearTint().setAngle(0).setAlpha(1);
+        if (idleAccented) {
+          startIdleMotion(view, vis.key);
+        }
       }
     };
 
@@ -1529,6 +1640,7 @@ export class FarmScene extends Phaser.Scene {
       const live = new Set(this.animals.animals.map((a) => a.id));
       for (const [id, view] of animalSprites) {
         if (!live.has(id)) {
+          stopIdleMotion(view);
           view.sprite.destroy();
           animalSprites.delete(id);
         }
@@ -1543,6 +1655,7 @@ export class FarmScene extends Phaser.Scene {
         let view = animalSprites.get(animal.id);
         if (!vis) {
           if (view) {
+            stopIdleMotion(view);
             view.sprite.destroy();
             animalSprites.delete(animal.id);
           }
@@ -1557,7 +1670,18 @@ export class FarmScene extends Phaser.Scene {
           view = { sprite, visual: '' };
           animalSprites.set(animal.id, view);
         }
-        view.sprite.setPosition(slot.x, slot.y).setDepth(2500 + index);
+        // Only reposition when the slot actually changes (e.g. an animal was
+        // added/removed and indices shifted). Repositioning every tick would
+        // overwrite the breathing bob's vertical offset. When it does move,
+        // re-anchor the motion by forcing a visual re-apply.
+        if (view.slotX !== slot.x || view.slotY !== slot.y) {
+          view.sprite.setPosition(slot.x, slot.y);
+          view.slotX = slot.x;
+          view.slotY = slot.y;
+          view.anchorY = slot.y;
+          view.visual = '';
+        }
+        view.sprite.setDepth(2500 + index);
         const size = ANIMAL_YARD.size * (def.kind === 'growing' ? 1.15 : 1);
         applyAnimalVisual(view, vis, size);
       });

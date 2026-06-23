@@ -64,7 +64,12 @@ export class BootScene extends Phaser.Scene {
       }
       const texture = this.textures.get(entry.key);
       const source = texture.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
-      const count = Math.max(1, entry.frameCount);
+      // Derive the frame count from the strip's proportions (frames are square,
+      // laid left-to-right), so a 4-, 8- or 12-frame strip just works without
+      // editing the manifest. An explicit `frameCount` overrides this for the
+      // rare strip whose frames aren't square.
+      const derived = Math.round(source.width / source.height);
+      const count = Math.max(1, entry.frameCount ?? derived);
       const frameWidth = Math.floor(source.width / count);
       const frameHeight = source.height;
       if (frameWidth <= 0 || frameHeight <= 0) {
@@ -78,7 +83,7 @@ export class BootScene extends Phaser.Scene {
       this.anims.create({
         key: entry.key,
         frames: this.anims.generateFrameNumbers(entry.key, { start: 0, end: count - 1 }),
-        frameRate: entry.frameRate ?? 6,
+        frameRate: entry.frameRate ?? 10,
         repeat: -1,
       });
     }
