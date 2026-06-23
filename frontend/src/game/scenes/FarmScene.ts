@@ -44,7 +44,6 @@ import {
   ANIMAL,
   createAnimalInstance,
   feedAnimal,
-  foodRemainingSeconds,
   getGrowthStageLabel,
   isFed,
   simulateAnimal,
@@ -214,7 +213,6 @@ export class FarmScene extends Phaser.Scene {
         .lineStyle(3, 0x6f4a25, 0.85)
         .strokeRoundedRect(x, y, w, h, 14);
     };
-    makeHudPanel(806, 92, 236, 268); // barn / animals (center)
     makeHudPanel(1046, 96, 230, 168); // neighbors (right)
 
     // Top status bar: a translucent wooden banner that gathers the toolbar
@@ -453,25 +451,6 @@ export class FarmScene extends Phaser.Scene {
       })
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
-
-    const animalsText = this.add
-      .text(842, 152, '', {
-        color: '#5b3c18',
-        fontSize: '13px',
-        fontFamily: 'Arial',
-        lineSpacing: 2,
-        wordWrap: { width: 162 },
-      })
-      .setDepth(1);
-
-    this.add
-      .text(842, 126, t('Barn'), {
-        color: '#5b3c18',
-        fontSize: '15px',
-        fontFamily: 'Arial',
-        fontStyle: 'bold',
-      })
-      .setDepth(1);
 
     this.add
       .text(1082, 128, t('Neighbors'), {
@@ -777,8 +756,10 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
+    // Bulk animal actions live in the top banner now (individual animals can
+    // also be clicked directly in the yard to feed / sell / collect / remove).
     const feedAnimalsButton = this.add
-      .text(842, 250, t('Feed All (A)'), {
+      .text(812, 82, t('Feed All (A)'), {
         color: '#ffffff',
         backgroundColor: '#5f7b1d',
         fontSize: '13px',
@@ -788,10 +769,10 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
-    const collectProductsButton = this.add
-      .text(842, 314, t('Collect Products (E)'), {
+    const sellAnimalsButton = this.add
+      .text(912, 82, t('Sell Mature (M)'), {
         color: '#ffffff',
-        backgroundColor: '#7b4f1d',
+        backgroundColor: '#2f7a41',
         fontSize: '13px',
         fontFamily: 'Arial',
         padding: { x: 8, y: 5 },
@@ -799,10 +780,10 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
-    const sellAnimalsButton = this.add
-      .text(842, 282, t('Sell Mature (M)'), {
+    const collectProductsButton = this.add
+      .text(1058, 82, t('Collect Products (E)'), {
         color: '#ffffff',
-        backgroundColor: '#2f7a41',
+        backgroundColor: '#7b4f1d',
         fontSize: '13px',
         fontFamily: 'Arial',
         padding: { x: 8, y: 5 },
@@ -1710,6 +1691,9 @@ export class FarmScene extends Phaser.Scene {
         // Keep a stable on-screen height regardless of each strip's native size.
         const h = sprite.height || baseSize;
         sprite.setScale(baseSize / h);
+        // Re-sync the click hit area to the new frame so clicking the animal
+        // (feed / sell / collect / remove) stays accurate across state changes.
+        sprite.setInteractive({ useHandCursor: true });
         // Convey state even when the state-specific art is missing: a hungry
         // animal looks washed-out, a deceased one greys out and keels over.
         if (vis.state === 'dead') {
@@ -1760,7 +1744,9 @@ export class FarmScene extends Phaser.Scene {
           const sprite = this.add
             .sprite(slot.x, slot.y, vis.key)
             .setOrigin(0.5, 1)
-            .setDepth(2500 + index);
+            .setDepth(2500 + index)
+            .setInteractive({ useHandCursor: true });
+          sprite.on('pointerdown', () => handleAnimalClick(animal.id));
           view = { sprite, visual: '' };
           animalSprites.set(animal.id, view);
         }
@@ -1803,33 +1789,10 @@ export class FarmScene extends Phaser.Scene {
     };
 
     const refreshAnimalsLabel = (): void => {
+      // The barn status panel was removed; the yard sprites are the readout now
+      // (and are clickable to feed / sell / collect / remove). Keep the sprite
+      // set in sync with the live animal list.
       syncAnimalSprites();
-      if (this.animals.animals.length === 0) {
-        animalsText.setText(t('Animals: none yet.\nBuy a Chicken (eggs) or a Calf (raise & sell).'));
-        return;
-      }
-
-      const now = Date.now();
-      const lines = this.animals.animals.map((animal) => {
-        const def = getAnimalDefinition(animal.defId);
-        if (!def) {
-          return t('? unknown animal');
-        }
-
-        const fed = isFed(animal, now);
-        const foodPart = fed ? t('fed {sec}s', { sec: Math.ceil(foodRemainingSeconds(animal, now)) }) : t('HUNGRY');
-
-        if (def.kind === 'productive') {
-          const cap = def.produceCap ?? 0;
-          return `${t(def.name)}: ${animal.storedProduct}/${cap} ${t(def.productLabel ?? 'product')} | ${foodPart}`;
-        }
-
-        const stage = getGrowthStageLabel(animal, def);
-        const state = animal.matured ? t('READY to sell') : t(stage);
-        return `${t(def.name)}: ${state} | ${foodPart}`;
-      });
-
-      animalsText.setText(t('Animals ({count}):\n{lines}', { count: this.animals.animals.length, lines: lines.join('\n') }));
     };
 
     const buyAnimal = (defId: string): void => {
@@ -1967,6 +1930,84 @@ export class FarmScene extends Phaser.Scene {
       refreshHud();
       refreshAnimalsLabel();
       saveCurrent();
+      statusText.setText(this.statusMessage);
+    };
+
+    // Clicking an animal in the yard performs its single most relevant action
+    // based on current state: feed when hungry, sell when mature, collect when
+    // it has produce ready, or clear it away when deceased.
+    const handleAnimalClick = (animalId: string): void => {
+      simulateAllAnimals();
+      const animal = this.animals.animals.find((a) => a.id === animalId);
+      if (!animal) {
+        return;
+      }
+      const def = getAnimalDefinition(animal.defId);
+      if (!def) {
+        return;
+      }
+      const now = Date.now();
+
+      if (animal.dead) {
+        this.animals.animals = this.animals.animals.filter((a) => a.id !== animalId);
+        this.statusMessage = t('Removed a deceased {name}.', { name: t(def.name) });
+        refreshHud();
+        refreshAnimalsLabel();
+        saveCurrent();
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      if (def.kind === 'growing' && animal.matured) {
+        const coins = def.sellValue ?? 0;
+        this.animals.animals = this.animals.animals.filter((a) => a.id !== animalId);
+        this.economy.coins += coins;
+        const xpGain = Math.max(1, Math.round(coins / ANIMAL.SELL_XP_DIVISOR));
+        this.economy.xp += xpGain;
+        this.economy.level = getLevelFromXp(this.economy.xp);
+        this.statusMessage = t('Sold {name} for +{coins} coins. +{xp} XP.', { name: t(def.name), coins, xp: xpGain });
+        refreshHud();
+        refreshAnimalsLabel();
+        saveCurrent();
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      if (def.kind === 'productive' && def.productId && animal.storedProduct > 0) {
+        const amount = animal.storedProduct;
+        this.inventory[def.productId] = (this.inventory[def.productId] ?? 0) + amount;
+        animal.storedProduct = 0;
+        const xpGain = amount * ANIMAL.COLLECT_XP_PER_PRODUCT;
+        this.economy.xp += xpGain;
+        this.economy.level = getLevelFromXp(this.economy.xp);
+        this.statusMessage = t('Collected {count} {product}. +{xp} XP.', { count: amount, product: t(def.productLabel ?? 'product'), xp: xpGain });
+        refreshHud();
+        refreshAnimalsLabel();
+        inventoryText.setText(getInventoryLabel());
+        saveCurrent();
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      if (!isFed(animal, now)) {
+        if (this.economy.coins < def.feedPrice) {
+          this.statusMessage = t('Not enough coins to feed {name} (need {price}).', { name: t(def.name), price: def.feedPrice });
+          statusText.setText(this.statusMessage);
+          return;
+        }
+        this.economy.coins -= def.feedPrice;
+        feedAnimal(animal, def, now);
+        this.economy.xp += ANIMAL.FEED_XP;
+        this.economy.level = getLevelFromXp(this.economy.xp);
+        this.statusMessage = t('Fed {name}. -{price} coins. +{xp} XP.', { name: t(def.name), price: def.feedPrice, xp: ANIMAL.FEED_XP });
+        refreshHud();
+        refreshAnimalsLabel();
+        saveCurrent();
+        statusText.setText(this.statusMessage);
+        return;
+      }
+
+      this.statusMessage = t('{name} is content. Nothing to do yet.', { name: t(def.name) });
       statusText.setText(this.statusMessage);
     };
 
