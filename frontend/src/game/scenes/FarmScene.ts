@@ -214,9 +214,8 @@ export class FarmScene extends Phaser.Scene {
         .lineStyle(3, 0x6f4a25, 0.85)
         .strokeRoundedRect(x, y, w, h, 14);
     };
-    makeHudPanel(8, 170, 396, 300); // status / inventory column (left)
     makeHudPanel(806, 92, 236, 268); // barn / animals (center)
-    makeHudPanel(1046, 96, 230, 272); // neighbors + activity log (right)
+    makeHudPanel(1046, 96, 230, 168); // neighbors (right)
 
     // Top status bar: a translucent wooden banner that gathers the toolbar
     // buttons and stat chips onto one surface (QQ Farm-style top bar) instead
@@ -235,9 +234,9 @@ export class FarmScene extends Phaser.Scene {
       .graphics()
       .setDepth(0)
       .fillStyle(0xf1e6c4, 0.86)
-      .fillRoundedRect(8, 772, 1264, 80, 14)
+      .fillRoundedRect(8, 744, 1264, 108, 14)
       .lineStyle(2, 0x6f4a25, 0.6)
-      .strokeRoundedRect(8, 772, 1264, 80, 14);
+      .strokeRoundedRect(8, 744, 1264, 108, 14);
 
     // ----- Floating stat chips --------------------------------------------
     // Compact rounded badges (icon + value), each its own standalone element
@@ -396,7 +395,7 @@ export class FarmScene extends Phaser.Scene {
 
 
     const collectGiftsButton = this.add
-      .text(40, 424, t('Collect Gifts (C)'), {
+      .text(768, 54, t('Collect Gifts (C)'), {
         color: '#ffffff',
         backgroundColor: '#8a3b6a',
         fontSize: '13px',
@@ -406,16 +405,8 @@ export class FarmScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
 
-    const dogText = this.add
-      .text(40, 196, '', {
-        color: '#5a3a1a',
-        fontSize: '13px',
-        fontFamily: 'Arial',
-      })
-      .setDepth(1);
-
     const claimDailyButton = this.add
-      .text(210, 424, t('Claim Daily Reward (J)'), {
+      .text(560, 54, t('Claim Daily Reward (J)'), {
         color: '#ffffff',
         backgroundColor: '#2f7f4f',
         fontSize: '13px',
@@ -426,7 +417,7 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(2);
 
     const decorationModeText = this.add
-      .text(24, 784, '', {
+      .text(24, 800, '', {
         color: '#5f3b8a',
         fontSize: '12px',
         fontFamily: 'Arial',
@@ -435,45 +426,20 @@ export class FarmScene extends Phaser.Scene {
       .setDepth(1);
 
     const statusText = this.add
-      .text(40, 218, t('Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.'), {
+      .text(24, 752, t('Click empty tile to plant. Click a crop to care (water/weeds/pests) or harvest. Sell with S.'), {
         color: '#3f5f2f',
         fontSize: '13px',
         fontFamily: 'Arial',
-        wordWrap: { width: 312 },
+        wordWrap: { width: 1236 },
       })
       .setDepth(1);
 
     const inventoryText = this.add
-      .text(40, 278, t('Inventory: empty'), {
+      .text(24, 776, t('Inventory: empty'), {
         color: '#2f4f1f',
-        fontSize: '13px',
-        fontFamily: 'Arial',
-        wordWrap: { width: 312 },
-      })
-      .setDepth(1);
-
-    const syncText = this.add
-      .text(40, 342, 'Sync: idle | Last sync: never', {
-        color: '#1f5c99',
         fontSize: '12px',
         fontFamily: 'Arial',
-        wordWrap: { width: 320 },
-      })
-      .setDepth(1);
-
-    const authText = this.add
-      .text(40, 374, '', {
-        color: '#0f4f8c',
-        fontSize: '12px',
-        fontFamily: 'Arial',
-      })
-      .setDepth(1);
-
-    const devSpeedText = this.add
-      .text(40, 392, '', {
-        color: '#7a3b00',
-        fontSize: '12px',
-        fontFamily: 'Arial',
+        wordWrap: { width: 1236 },
       })
       .setDepth(1);
 
@@ -538,24 +504,157 @@ export class FarmScene extends Phaser.Scene {
         .setDepth(2);
     });
 
-    this.add
-      .text(1082, 156 + this.neighbors.length * 34 + 8, t('Activity log'), {
-        color: '#2f4f1f',
-        fontSize: '14px',
+    // Activity log is hidden by default to keep the HUD clean; a pretty button
+    // on the right (mirroring the Shop pill) opens it as a centered modal.
+    const activityParts: Array<{ setVisible: (visible: boolean) => unknown }> = [];
+    const ACT_W = 600;
+    const ACT_H = 460;
+    const ACT_CX = 640;
+    const ACT_CY = 430;
+
+    const activityDimmer = this.add
+      .rectangle(640, 430, 1280, 860, 0x000000, 0.45)
+      .setDepth(4990)
+      .setInteractive();
+    activityParts.push(activityDimmer);
+
+    if (this.textures.exists('panel_wood')) {
+      activityParts.push(
+        createNineSlice({
+          scene: this,
+          key: 'panel_wood',
+          x: ACT_CX,
+          y: ACT_CY,
+          width: ACT_W,
+          height: ACT_H,
+          left: 40,
+        }).setDepth(4992),
+      );
+    } else {
+      activityParts.push(
+        this.add
+          .graphics()
+          .setDepth(4992)
+          .fillStyle(0xf1e6c4, 0.98)
+          .fillRoundedRect(ACT_CX - ACT_W / 2, ACT_CY - ACT_H / 2, ACT_W, ACT_H, 18)
+          .lineStyle(4, 0x6f4a25, 1)
+          .strokeRoundedRect(ACT_CX - ACT_W / 2, ACT_CY - ACT_H / 2, ACT_W, ACT_H, 18),
+      );
+    }
+
+    // Transparent blocker so clicks on the panel body don't fall through to the
+    // dimmer (which closes the modal).
+    const activityBlocker = this.add
+      .rectangle(ACT_CX, ACT_CY, ACT_W, ACT_H, 0x000000, 0.001)
+      .setDepth(4993)
+      .setInteractive();
+    activityParts.push(activityBlocker);
+
+    activityParts.push(
+      this.add
+        .text(ACT_CX, ACT_CY - ACT_H / 2 + 36, t('Activity log'), {
+          color: '#5b3c18',
+          fontSize: '24px',
+          fontFamily: 'Arial',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(4994),
+    );
+
+    const activityCloseButton = this.add
+      .text(ACT_CX + ACT_W / 2 - 30, ACT_CY - ACT_H / 2 + 28, '✕', {
+        color: '#ffffff',
+        backgroundColor: '#8a4a1e',
+        fontSize: '18px',
         fontFamily: 'Arial',
         fontStyle: 'bold',
+        padding: { x: 8, y: 4 },
       })
-      .setDepth(1);
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(4995);
+    activityParts.push(activityCloseButton);
 
     const eventLogText = this.add
-      .text(1082, 156 + this.neighbors.length * 34 + 30, '', {
+      .text(ACT_CX - ACT_W / 2 + 30, ACT_CY - ACT_H / 2 + 72, '', {
         color: '#3a5530',
-        fontSize: '11px',
+        fontSize: '15px',
         fontFamily: 'Arial',
-        lineSpacing: 3,
-        wordWrap: { width: 158 },
+        lineSpacing: 6,
+        wordWrap: { width: ACT_W - 60 },
       })
-      .setDepth(1);
+      .setDepth(4994);
+    activityParts.push(eventLogText);
+
+    const setActivityVisible = (visible: boolean): void => {
+      activityParts.forEach((part) => part.setVisible(visible));
+    };
+    setActivityVisible(false);
+
+    let activityOpen = false;
+    const openActivity = (): void => {
+      activityOpen = true;
+      refreshEventLog();
+      setActivityVisible(true);
+    };
+    const closeActivity = (): void => {
+      activityOpen = false;
+      setActivityVisible(false);
+    };
+    const toggleActivity = (): void => {
+      if (activityOpen) {
+        closeActivity();
+      } else {
+        openActivity();
+      }
+    };
+    activityDimmer.on('pointerdown', closeActivity);
+    activityCloseButton.on('pointerdown', closeActivity);
+
+    // Pretty toggle button on the right side (same pill style as the Shop
+    // button, mirrored to the opposite corner; green keeps it secondary).
+    const ACT_BTN_W = 176;
+    const ACT_BTN_H = 56;
+    const activityBtnParts: Phaser.GameObjects.GameObject[] = [];
+    const activityBtnBg = this.add.graphics();
+    activityBtnBg.fillStyle(0x000000, 0.28);
+    activityBtnBg.fillRoundedRect(-ACT_BTN_W / 2 + 3, -ACT_BTN_H / 2 + 5, ACT_BTN_W, ACT_BTN_H, 16);
+    activityBtnBg.fillStyle(0x4f8f4a, 1);
+    activityBtnBg.fillRoundedRect(-ACT_BTN_W / 2, -ACT_BTN_H / 2, ACT_BTN_W, ACT_BTN_H, 16);
+    activityBtnBg.lineStyle(3, 0x2f5a26, 1);
+    activityBtnBg.strokeRoundedRect(-ACT_BTN_W / 2, -ACT_BTN_H / 2, ACT_BTN_W, ACT_BTN_H, 16);
+    activityBtnBg.fillStyle(0xbfe9a0, 0.5);
+    activityBtnBg.fillRoundedRect(-ACT_BTN_W / 2 + 6, -ACT_BTN_H / 2 + 5, ACT_BTN_W - 12, ACT_BTN_H / 2 - 4, 11);
+    activityBtnParts.push(activityBtnBg);
+    let activityLabelX = 0;
+    if (this.textures.exists('icon_calendar')) {
+      const icon = this.add.image(-52, -1, 'icon_calendar').setOrigin(0.5);
+      const isz = 26;
+      icon.setScale(Math.min(isz / icon.width, isz / icon.height));
+      activityBtnParts.push(icon);
+      activityLabelX = 16;
+    }
+    activityBtnParts.push(
+      this.add
+        .text(activityLabelX, 0, t('Activity log'), {
+          color: '#ffffff',
+          fontSize: '17px',
+          fontFamily: 'Arial',
+          fontStyle: 'bold',
+          stroke: '#234d1c',
+          strokeThickness: 4,
+        })
+        .setOrigin(0.5),
+    );
+    const activityBtnZone = this.add
+      .rectangle(0, 0, ACT_BTN_W, ACT_BTN_H, 0x000000, 0.001)
+      .setInteractive({ useHandCursor: true });
+    activityBtnParts.push(activityBtnZone);
+    const activityButton = this.add.container(1178, 668, activityBtnParts).setDepth(3);
+    activityBtnZone.on('pointerover', () => activityButton.setScale(1.05));
+    activityBtnZone.on('pointerout', () => activityButton.setScale(1));
+    activityBtnZone.on('pointerdown', toggleActivity);
 
     const controlsHintText = this.add
       .text(24, 810, '', {
@@ -1251,11 +1350,6 @@ export class FarmScene extends Phaser.Scene {
       coinsChip.text.setText(t('{coins}', { coins: this.economy.coins }));
       levelChip.setProgress(this.economy.level, this.economy.xp);
       popularityChip.text.setText(t('{pop} ♥ · {gifts} gifts', { pop: this.popularity, gifts: this.giftInbox.length }));
-      dogText.setText(
-        this.hasDog
-          ? t('\u{1F415} Guard dog: ON (protecting your farm)')
-          : t('\u{1F415} Guard dog: none'),
-      );
       applyShopVisibility();
 
       const now = Date.now();
@@ -1876,18 +1970,8 @@ export class FarmScene extends Phaser.Scene {
       statusText.setText(this.statusMessage);
     };
 
-    const refreshDevSpeedLabel = (): void => {
-      if (!isDevMode) {
-        devSpeedText.setText('');
-        return;
-      }
-
-      devSpeedText.setText(t('DEV Growth Speed: {scale}x', { scale: growthTimeScale }));
-    };
-
     const applyDevSpeed = (nextScale: 1 | 10 | 100): void => {
       growthTimeScale = nextScale;
-      refreshDevSpeedLabel();
       this.farmTiles.forEach((tile) => {
         if (tile.state === 'planted') {
           refreshTileVisual(tile);
@@ -1918,24 +2002,32 @@ export class FarmScene extends Phaser.Scene {
     };
 
     const refreshAuthLabel = (): void => {
-      const authSummary = this.remoteSaveService.getAuthSummary();
-      authText.setText(t('Auth: {summary}', { summary: authSummary }));
+      // Account identity now lives in the Cloud Sync panel; refresh it if open.
+      if (syncPanelBg.visible) {
+        refreshSyncPanel();
+      }
     };
 
     const setSyncLabel = (state: 'idle' | 'syncing' | 'success' | 'error', message?: string): void => {
-      const authSummary = this.remoteSaveService.getAuthSummary();
-
-      if (state === 'syncing') {
-        syncText.setText(t('Sync: in progress... | User: {user}', { user: authSummary }));
-        return;
+      // Transient sync feedback surfaces in the bottom status bar; the
+      // persistent account / last-sync readout lives in the Cloud Sync panel.
+      // The quiet resting 'idle' state stays silent so it never clobbers the
+      // status bar's gameplay instructions.
+      if (state !== 'idle' || message) {
+        let summary: string;
+        if (state === 'syncing') {
+          summary = t('Sync: in progress...');
+        } else if (message) {
+          summary = t('Sync: {message}', { message: t(message) });
+        } else {
+          summary = t('Sync: {state}', { state: t(state) });
+        }
+        this.statusMessage = summary;
+        statusText.setText(summary);
       }
-
-      if (message) {
-        syncText.setText(t('Sync: {message} | Last sync: {last} | User: {user}', { message: t(message), last: t(lastSyncLabel), user: authSummary }));
-        return;
+      if (syncPanelBg.visible) {
+        refreshSyncPanel();
       }
-
-      syncText.setText(t('Sync: {state} | Last sync: {last} | User: {user}', { state: t(state), last: t(lastSyncLabel), user: authSummary }));
     };
 
     const promptCredentials = (): { email: string; password: string } | null => {
@@ -2241,7 +2333,11 @@ export class FarmScene extends Phaser.Scene {
 
     const refreshSyncPanel = (): void => {
       const localSave = this.saveSystem.loadGame();
-      const lines = [t('Local save: {time}', { time: formatTimestamp(localSave.savedAt) })];
+      const lines = [
+        t('Account: {user}', { user: this.remoteSaveService.getAuthSummary() }),
+        t('Last sync: {time}', { time: t(lastSyncLabel) }),
+        t('Local save: {time}', { time: formatTimestamp(localSave.savedAt) }),
+      ];
 
       if (conflictRemote) {
         lines.push(t('Remote save: {time}', { time: formatTimestamp(conflictRemote.savedAt) }));
@@ -3089,43 +3185,9 @@ export class FarmScene extends Phaser.Scene {
     this.events.once('shutdown', offLocaleChange);
 
     if (isDevMode) {
-      const speedOne = this.add
-        .text(640, 336, '1x', {
-          color: '#ffffff',
-          backgroundColor: '#7a3b00',
-          fontSize: '13px',
-          fontFamily: 'Arial',
-          padding: { x: 8, y: 4 },
-        })
-        .setInteractive({ useHandCursor: true })
-        .setDepth(2);
-
-      const speedTen = this.add
-        .text(688, 336, '10x', {
-          color: '#ffffff',
-          backgroundColor: '#7a3b00',
-          fontSize: '13px',
-          fontFamily: 'Arial',
-          padding: { x: 8, y: 4 },
-        })
-        .setInteractive({ useHandCursor: true })
-        .setDepth(2);
-
-      const speedHundred = this.add
-        .text(742, 336, '100x', {
-          color: '#ffffff',
-          backgroundColor: '#7a3b00',
-          fontSize: '13px',
-          fontFamily: 'Arial',
-          padding: { x: 8, y: 4 },
-        })
-        .setInteractive({ useHandCursor: true })
-        .setDepth(2);
-
-      speedOne.on('pointerdown', () => applyDevSpeed(1));
-      speedTen.on('pointerdown', () => applyDevSpeed(10));
-      speedHundred.on('pointerdown', () => applyDevSpeed(100));
-
+      // The 1x/10x/100x speed selector lives in the dev panel (see the
+      // 'Dev Speed' section below). These keyboard shortcuts remain for quick
+      // toggling without opening the panel.
       this.input.keyboard?.on('keydown-ONE', () => applyDevSpeed(1));
       this.input.keyboard?.on('keydown-TWO', () => applyDevSpeed(10));
       this.input.keyboard?.on('keydown-THREE', () => applyDevSpeed(100));
@@ -3201,7 +3263,6 @@ export class FarmScene extends Phaser.Scene {
     refreshEventLog();
     refreshAuthLabel();
     setSyncLabel('idle');
-    refreshDevSpeedLabel();
     refreshPacingLabel();
     refreshSelectedSeedLabel();
     renderSeedSelector();
@@ -3340,6 +3401,16 @@ export class FarmScene extends Phaser.Scene {
               { label: 'Unlock all land', run: () => { this.farmTiles.forEach((tile) => { tile.locked = false; }); } },
               { label: 'Ripen crops', run: makeAllCropsReady },
               { label: 'Clear tiles', run: clearAllTiles },
+            ],
+          },
+          {
+            // apply:false — applyDevSpeed refreshes tiles in place; a scene
+            // restart would reset the transient growthTimeScale back to 1x.
+            title: 'Dev Speed',
+            actions: [
+              { label: '1x', run: () => applyDevSpeed(1), apply: false },
+              { label: '10x', run: () => applyDevSpeed(10), apply: false },
+              { label: '100x', run: () => applyDevSpeed(100), apply: false },
             ],
           },
           {
