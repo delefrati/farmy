@@ -1671,10 +1671,12 @@ export class FarmScene extends Phaser.Scene {
 
     const applyAnimalVisual = (view: AnimalView, vis: AnimalVisual, baseSize: number): void => {
       const sprite = view.sprite;
-      // The idle state is rendered as a held resting pose with occasional
-      // accents (see startIdleMotion), NOT a continuous loop — so a yard of
-      // animals stays calm and only fidgets/pecks now and then, out of sync.
-      const idleAccented = vis.anim && vis.state === 'idle';
+      // Every animated state (idle, hungry, ready, …) is rendered as a held
+      // resting pose with occasional accents (see startIdleMotion), NOT a
+      // continuous loop — so a yard of animals stays calm and only fidgets/
+      // pecks now and then, out of sync. The only exception is 'dead', which
+      // stays keeled over and motionless.
+      const idleAccented = vis.anim && vis.state !== 'dead';
       const visualId = `${vis.key}|${vis.anim ? 'a' : 't'}|${vis.state}`;
       if (view.visual !== visualId) {
         view.visual = visualId;
