@@ -1933,6 +1933,42 @@ export class FarmScene extends Phaser.Scene {
       statusText.setText(this.statusMessage);
     };
 
+    // Play an animal's strip animation once as click feedback, then settle back
+    // on the rest frame. Deferred to the next tick so it runs AFTER the action's
+    // refreshAnimalsLabel()/syncAnimalSprites() re-applies the (possibly new)
+    // visual — otherwise the re-sync would stomp the play immediately.
+    const playAnimalClickAnim = (animalId: string): void => {
+      this.time.delayedCall(0, () => {
+        const view = animalSprites.get(animalId);
+        if (!view || !view.sprite.active) {
+          return;
+        }
+        const animal = this.animals.animals.find((a) => a.id === animalId);
+        if (!animal || animal.dead) {
+          return;
+        }
+        const def = getAnimalDefinition(animal.defId);
+        if (!def) {
+          return;
+        }
+        const idleKey = `${animalBaseKey(animal, def)}_idle`;
+        if (!this.anims.exists(idleKey)) {
+          return;
+        }
+        // Pause the breathing bob / accent scheduler so the click animation
+        // plays cleanly, then restore the rest pose on completion.
+        stopIdleMotion(view);
+        view.sprite.play({ key: idleKey, repeat: 0 });
+        view.sprite.once(`animationcomplete-${idleKey}`, () => {
+          if (view.sprite.active) {
+            view.sprite.setTexture(idleKey, 0);
+            // Mark visual stale so the next sync re-arms the idle motion.
+            view.visual = '';
+          }
+        });
+      });
+    };
+
     // Clicking an animal in the yard performs its single most relevant action
     // based on current state: feed when hungry, sell when mature, collect when
     // it has produce ready, or clear it away when deceased.
@@ -1946,6 +1982,10 @@ export class FarmScene extends Phaser.Scene {
       if (!def) {
         return;
       }
+
+      // Visual feedback: animate the clicked animal (no-op for the dead/sell
+      // cases below where the sprite is removed).
+      playAnimalClickAnim(animalId);
       const now = Date.now();
 
       if (animal.dead) {
